@@ -1,5 +1,6 @@
 import React from 'react';
 import './App.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Auth from './components/auth';
 import CreateIssuePage from './pages/CreateIssuePage';
 import {db} from'./config/firebase';
@@ -24,10 +25,12 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
-      <Auth />
-      <CreateIssuePage />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Auth />} />
+        <Route path="/issues/create" element={<CreateIssuePage />} />
+      </Routes>
+    </Router>
   );
 }
 
