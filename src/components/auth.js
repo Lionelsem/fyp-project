@@ -1,19 +1,27 @@
 import React, { useState } from 'react';
 import { auth } from '../config/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
 export const Auth = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-
     const signIn = async () => {
         try {
             await createUserWithEmailAndPassword(auth, email, password);
         } catch (err) {
-            console.error('signIn error', err);
+            console.error(err);
         }
     };
+
+        const logout = async () => {
+        try {
+            await signOut(auth);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
 
     return (
         <div>
@@ -29,6 +37,8 @@ export const Auth = () => {
                 onChange={(e) => setPassword(e.target.value)}
             />
             <button onClick={signIn}>Sign In</button>
+            <button onClick={logout}>Logout</button>
+
         </div>
     );
 };
