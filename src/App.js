@@ -1,6 +1,7 @@
 import React from 'react';
 import './App.css';
 import Auth from './components/auth';
+import CreateIssuePage from './pages/CreateIssuePage';
 import {db} from'./config/firebase';
 import {getDocs, collection} from 'firebase/firestore';
 import { useState, useEffect } from 'react';
@@ -25,6 +26,7 @@ function App() {
   return (
     <div className="App">
       <Auth />
+      <CreateIssuePage />
     </div>
   );
 }
