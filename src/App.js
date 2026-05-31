@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.css';
-import { Auth } from './components/auth';
+import Auth from './components/auth';
 import {db} from'./config/firebase';
 import {getDocs, collection} from 'firebase/firestore';
 import { useState, useEffect } from 'react';
