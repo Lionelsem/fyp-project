@@ -1,26 +1,94 @@
-import React from "react";
-import { NavLink } from "react-router-dom";
-import Sidebar from "../common/Sidebar";
+import React, { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { logout } from "../../services/authService";
 
-const AdminSidebar = () => {
+const menuItems = [
+  { path: "/dashboard", label: "Dashboard", icon: "📊" },
+  { path: "/users", label: "Users", icon: "👥" },
+  { path: "/buildings", label: "Buildings", icon: "🏢" },
+  { path: "/fsm-assignment", label: "FSM Assignment", icon: "👨‍🔧" },
+  { path: "/issues-defects", label: "Issues / Defects", icon: "⚠️" },
+  { path: "/fire-drill", label: "Fire Drill", icon: "🚒" },
+  { path: "/reports", label: "Reports", icon: "📋" }
+];
+
+const AdminSidebar = ({ profile }) => {
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const displayName = profile?.name || "Admin";
+  const roleLabel = profile?.role || "Admin";
+  const initials =
+    profile?.initials ||
+    displayName
+      .split(" ")
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed", error);
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
-    <Sidebar>
-      <div className="sidebar-logo">Company</div>
-      <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/users" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Manage Users
-        </NavLink>
-        <NavLink to="/buildings" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Manage Buildings
-        </NavLink>
-        <NavLink to="/reports" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Reports
-        </NavLink>
-      </nav>
-    </Sidebar>
+    <aside className="admin-sidebar">
+      <div className="sidebar-top">
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <span className="logo-icon">CB</span>
+            <span className="logo-text">CBRE</span>
+          </div>
+        </div>
+
+        <div className="sidebar-user-card">
+          <div className="user-avatar-large">{initials}</div>
+          <div className="user-info">
+            <div className="user-name">{displayName}</div>
+            <div className="user-role">{roleLabel}</div>
+          </div>
+        </div>
+
+        <nav className="sidebar-menu">
+          <ul className="sidebar-list">
+            {menuItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    isActive ? "menu-item active" : "menu-item"
+                  }
+                >
+                  <span className="menu-icon">{item.icon}</span>
+                  <span className="menu-label">{item.label}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+
+      <div className="sidebar-footer">
+        <button type="button" className="sidebar-btn profile-btn">
+          👤 Profile
+        </button>
+        <button
+          type="button"
+          className="sidebar-btn logout-btn"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+        >
+          🚪 {isLoggingOut ? "Logging out..." : "Logout"}
+        </button>
+      </div>
+    </aside>
   );
 };
 
