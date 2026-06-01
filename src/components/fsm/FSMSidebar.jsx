@@ -1,23 +1,152 @@
-import React from "react";
-import { NavLink } from "react-router-dom";
-import Sidebar from "../common/Sidebar";
+import React, { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { logout } from "../../services/authService";
 
-const FSMSidebar = () => {
+const menuItems = [
+  { path: "/fsm/dashboard", label: "Dashboard", icon: "📊" },
+  {
+    path: "/fsm/inspections",
+    label: "Inspection",
+    icon: "📋",
+    submenu: [
+      { path: "/fsm/inspections", label: "My Inspection" },
+      { path: "/fsm/inspections/verify", label: "Verify Inspection" }
+    ]
+  },
+  { path: "/fsm/issues", label: "Issues / Defects", icon: "⚠️" },
+  { path: "/fsm/fire-drill", label: "Fire Drill", icon: "🚒" },
+  { path: "/fsm/reports", label: "Reports", icon: "📄" },
+  { path: "/fsm/building", label: "My Building", icon: "🏢" }
+];
+
+const FSMSidebar = ({ profile }) => {
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [expandedMenu, setExpandedMenu] = useState(null);
+
+  const displayName = profile?.name || "Fire Safety Manager";
+  const roleLabel = profile?.role || "FSM";
+  const initials =
+    profile?.initials ||
+    displayName
+      .split(" ")
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed", error);
+      setIsLoggingOut(false);
+    }
+  };
+
+  const toggleSubmenu = (path) => {
+    setExpandedMenu(expandedMenu === path ? null : path);
+  };
+
   return (
-    <Sidebar>
-      <div className="sidebar-logo">Company</div>
-      <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/inspections" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Inspections
-        </NavLink>
-        <NavLink to="/issues" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Issues
-        </NavLink>
+    <aside className="admin-sidebar">
+      <div className="sidebar-logo">
+        <span className="logo-text">CBRE</span>
+      </div>
+
+      <div className="sidebar-user-card">
+        <div className="user-avatar-large">{initials}</div>
+        <div className="user-info">
+          <div className="user-name">{displayName}</div>
+          <div className="user-role">{roleLabel}</div>
+        </div>
+      </div>
+
+      <nav className="sidebar-menu">
+        <ul className="sidebar-list">
+          {menuItems.map((item) => (
+            <li key={item.path}>
+              {item.submenu ? (
+                <>
+                  <button
+                    type="button"
+                    className="menu-item submenu-toggle"
+                    onClick={() => toggleSubmenu(item.path)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "12px 16px",
+                      color: "inherit",
+                      font: "inherit"
+                    }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span className="menu-icon">{item.icon}</span>
+                      <span className="menu-label">{item.label}</span>
+                    </span>
+                    <span style={{ transform: expandedMenu === item.path ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", fontSize: "12px" }}>
+                      ▼
+                    </span>
+                  </button>
+                  {expandedMenu === item.path && (
+                    <ul className="submenu" style={{ paddingLeft: "0", marginTop: "0", backgroundColor: "#f9fafb" }}>
+                      {item.submenu.map((subitem) => (
+                        <li key={subitem.path} style={{ listStyle: "none" }}>
+                          <NavLink
+                            to={subitem.path}
+                            className={({ isActive }) =>
+                              isActive ? "menu-item submenu-item active" : "menu-item submenu-item"
+                            }
+                            style={{
+                              paddingLeft: "52px",
+                              fontSize: "14px"
+                            }}
+                          >
+                            {subitem.label}
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    isActive ? "menu-item active" : "menu-item"
+                  }
+                >
+                  <span className="menu-icon">{item.icon}</span>
+                  <span className="menu-label">{item.label}</span>
+                </NavLink>
+              )}
+            </li>
+          ))}
+        </ul>
       </nav>
-    </Sidebar>
+
+      <div className="sidebar-footer">
+        <button type="button" className="sidebar-btn profile-btn">
+          👤 Profile
+        </button>
+        <button
+          type="button"
+          className="sidebar-btn logout-btn"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+        >
+          🚪 {isLoggingOut ? "Logging out..." : "Logout"}
+        </button>
+      </div>
+    </aside>
   );
 };
 
