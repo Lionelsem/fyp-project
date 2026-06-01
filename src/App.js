@@ -1,31 +1,15 @@
-import React from 'react';
+﻿import React from 'react';
 import './App.css';
-import Auth from './components/auth';
-import {db} from'./config/firebase';
-import {getDocs, collection} from 'firebase/firestore';
-import { useState, useEffect } from 'react';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/auth/Login';
 
 function App() {
-  const [user,setUser] = useState([]);
-
-  const userCollectionRef = collection(db, "users");
-
-  useEffect(() => {
-    const getUser = async () => {
-      try {
-        const data = await getDocs(userCollectionRef);
-        setUser(data.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    getUser();
-  }, []);
-
   return (
-    <div className="App">
-      <Auth />
-    </div>
+    <AuthProvider>
+      <div className="App">
+        <Login />
+      </div>
+    </AuthProvider>
   );
 }
 
