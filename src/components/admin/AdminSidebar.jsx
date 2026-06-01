@@ -40,40 +40,35 @@ const AdminSidebar = ({ profile }) => {
 
   return (
     <aside className="admin-sidebar">
-      <div className="sidebar-top">
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <span className="logo-icon">CB</span>
-            <span className="logo-text">CBRE</span>
-          </div>
-        </div>
-
-        <div className="sidebar-user-card">
-          <div className="user-avatar-large">{initials}</div>
-          <div className="user-info">
-            <div className="user-name">{displayName}</div>
-            <div className="user-role">{roleLabel}</div>
-          </div>
-        </div>
-
-        <nav className="sidebar-menu">
-          <ul className="sidebar-list">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    isActive ? "menu-item active" : "menu-item"
-                  }
-                >
-                  <span className="menu-icon">{item.icon}</span>
-                  <span className="menu-label">{item.label}</span>
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
+      <div className="sidebar-logo">
+        <span className="logo-text">CBRE</span>
       </div>
+
+      <div className="sidebar-user-card">
+        <div className="user-avatar-large">{initials}</div>
+        <div className="user-info">
+          <div className="user-name">{displayName}</div>
+          <div className="user-role">{roleLabel}</div>
+        </div>
+      </div>
+
+      <nav className="sidebar-menu">
+        <ul className="sidebar-list">
+          {menuItems.map((item) => (
+            <li key={item.path}>
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active" : "menu-item"
+                }
+              >
+                <span className="menu-icon">{item.icon}</span>
+                <span className="menu-label">{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <div className="sidebar-footer">
         <button type="button" className="sidebar-btn profile-btn">
