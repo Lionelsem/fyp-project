@@ -5,6 +5,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
+import { COLLECTION_NAMES } from "../constants/collectionNames";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -16,7 +17,7 @@ const Auth = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const docSnap = await getDoc(doc(db, "users", user.uid));
+      const docSnap = await getDoc(doc(db, COLLECTION_NAMES.USERS, user.uid));
       if (docSnap.exists()) {
         setUserData(docSnap.data());
       }

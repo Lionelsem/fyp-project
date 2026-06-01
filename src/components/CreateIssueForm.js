@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { addIssue } from "../services/firestoreService";
+import { ISSUE_STATUS, PRIORITY } from "../constants/status";
 
 const CreateIssueForm = ({ buildingId, inspectionId, reportedBy }) => {
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [rectification, setRectification] = useState("");
-  const [priority, setPriority] = useState("Medium");
+  const [priority, setPriority] = useState(PRIORITY.MEDIUM);
   const [photoFile, setPhotoFile] = useState(null);
-  const [status, setStatus] = useState("Open");
+  const [status, setStatus] = useState(ISSUE_STATUS.OPEN);
   const [loading, setLoading] = useState(false);
 
   const handleFileChange = (e) => {
@@ -27,7 +28,7 @@ const CreateIssueForm = ({ buildingId, inspectionId, reportedBy }) => {
       issueTitle: location,
       issueDescription: `${description}\n\nProposed rectification:\n${rectification}`,
       priority,
-      status: submitStatus === "draft" ? "Draft" : status,
+      status: submitStatus === "draft" ? ISSUE_STATUS.DRAFT : status,
       defectPhotoUrl: photoFile ? photoFile.name : "",
     };
 
@@ -38,9 +39,9 @@ const CreateIssueForm = ({ buildingId, inspectionId, reportedBy }) => {
       setLocation("");
       setDescription("");
       setRectification("");
-      setPriority("Medium");
+      setPriority(PRIORITY.MEDIUM);
       setPhotoFile(null);
-      setStatus("Open");
+      setStatus(ISSUE_STATUS.OPEN);
     } catch (error) {
       console.error(error);
       alert("Error creating issue ticket. Check the console for details.");

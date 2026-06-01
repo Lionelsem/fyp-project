@@ -1,7 +1,26 @@
 import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import CustomerLayout from "../layouts/CustomerLayout";
+import CustomerDashboard from "../pages/customer/CustomerDashboard";
+import MyReports from "../pages/customer/MyReports";
+import SubmitReport from "../pages/customer/SubmitReport";
+import ProtectedRoute from "./ProtectedRoute";
+import { ROLES } from "../constants/roles";
 
 const CustomerRoutes = () => {
-  return <div>Customer routes placeholder</div>;
+  return (
+    <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]}>
+      <CustomerLayout>
+        <Routes>
+          <Route index element={<CustomerDashboard />} />
+          <Route path="dashboard" element={<CustomerDashboard />} />
+          <Route path="my-reports" element={<MyReports />} />
+          <Route path="submit-report" element={<SubmitReport />} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
+        </Routes>
+      </CustomerLayout>
+    </ProtectedRoute>
+  );
 };
 
 export default CustomerRoutes;

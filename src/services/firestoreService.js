@@ -12,20 +12,29 @@ import {
   where
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { COLLECTION_NAMES } from "../constants/collectionNames";
+import { ROLES } from "../constants/roles";
+import {
+  STATUS,
+  ISSUE_STATUS,
+  PRIORITY,
+  REPORT_STATUS,
+  APPROVAL_STATUS
+} from "../constants/status";
 
 export const createUserProfile = async (user, extraData = {}) => {
-  await setDoc(doc(db, "users", user.uid), {
+  await setDoc(doc(db, COLLECTION_NAMES.USERS, user.uid), {
     fullName: extraData.fullName || "Test User",
     email: user.email,
     phoneNumber: extraData.phoneNumber || "",
-    role: extraData.role || "Customer",
-    status: extraData.status || "Active",
+    role: extraData.role || ROLES.CUSTOMER,
+    status: extraData.status || STATUS.ACTIVE,
     createdAt: serverTimestamp()
   });
 };
 
 export const addBuilding = async (data) => {
-  return await addDoc(collection(db, "buildings"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.BUILDINGS), {
     buildingName: data.buildingName,
     address: data.address,
     occupancyType: data.occupancyType,
@@ -39,7 +48,7 @@ export const addBuilding = async (data) => {
 };
 
 export const addInspection = async (data) => {
-  return await addDoc(collection(db, "inspections"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.INSPECTIONS), {
     buildingId: data.buildingId,
     fsmId: data.fsmId,
     inspectionDate: data.inspectionDate,
@@ -51,7 +60,7 @@ export const addInspection = async (data) => {
 };
 
 export const addInspectionItem = async (data) => {
-  return await addDoc(collection(db, "inspectionItems"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.INSPECTION_ITEMS), {
     inspectionId: data.inspectionId,
     itemName: data.itemName,
     conditionSystem: data.conditionSystem,
@@ -62,21 +71,21 @@ export const addInspectionItem = async (data) => {
 };
 
 export const addIssue = async (data) => {
-  return await addDoc(collection(db, "issues"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.ISSUES), {
     buildingId: data.buildingId,
     inspectionId: data.inspectionId,
     reportedBy: data.reportedBy,
     issueTitle: data.issueTitle,
     issueDescription: data.issueDescription,
     defectPhotoUrl: data.defectPhotoUrl || "",
-    status: data.status || "Open",
-    priority: data.priority || "Medium",
+    status: data.status || ISSUE_STATUS.OPEN,
+    priority: data.priority || PRIORITY.MEDIUM,
     createdAt: serverTimestamp()
   });
 };
 
 export const addIssueComment = async (data) => {
-  return await addDoc(collection(db, "issueComments"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.ISSUE_COMMENTS), {
     issueId: data.issueId,
     userId: data.userId,
     commentText: data.commentText,
@@ -85,7 +94,7 @@ export const addIssueComment = async (data) => {
 };
 
 export const addFireDrill = async (data) => {
-  return await addDoc(collection(db, "fireDrills"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.FIRE_DRILLS), {
     buildingId: data.buildingId,
     fsmId: data.fsmId,
     drillDate: data.drillDate,
@@ -94,30 +103,30 @@ export const addFireDrill = async (data) => {
     observations: data.observations || "",
     issueFound: data.issueFound || "",
     recommendations: data.recommendations || "",
-    reportStatus: data.reportStatus || "Draft",
+    reportStatus: data.reportStatus || REPORT_STATUS.DRAFT,
     createdAt: serverTimestamp()
   });
 };
 
 export const addReport = async (data) => {
-  return await addDoc(collection(db, "reports"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.REPORTS), {
     reportType: data.reportType,
     buildingId: data.buildingId,
     generatedBy: data.generatedBy,
     reportFileUrl: data.reportFileUrl || "",
     generatedDate: serverTimestamp(),
-    status: data.status || "Draft"
+    status: data.status || REPORT_STATUS.DRAFT
   });
 };
 
 export const addClosureVerification = async (data) => {
-  return await addDoc(collection(db, "closureVerifications"), {
+  return await addDoc(collection(db, COLLECTION_NAMES.CLOSURE_VERIFICATIONS), {
     issueId: data.issueId,
     verifiedBy: data.verifiedBy,
     beforePhotoUrl: data.beforePhotoUrl || "",
     afterPhotoUrl: data.afterPhotoUrl || "",
     verificationComments: data.verificationComments || "",
-    approvalStatus: data.approvalStatus || "Pending",
+    approvalStatus: data.approvalStatus || APPROVAL_STATUS.PENDING,
     verifiedAt: serverTimestamp()
   });
 };
