@@ -8,7 +8,7 @@ if (!admin.apps.length) {
 const auth = admin.auth();
 const db = admin.firestore();
 
-exports.createUserAccount = functions.https.onCall(async (data, context) => {
+exports.createUserAccount = functions.region("us-central1").https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Authentication required to create users.");
   }
@@ -40,6 +40,18 @@ exports.createUserAccount = functions.https.onCall(async (data, context) => {
     return { uid: userRecord.uid };
   } catch (error) {
     console.error("Error creating user account:", error);
-    throw new functions.https.HttpsError("internal", error.message || "Failed to create user account.");
+
+    const authErrorMap = {
+      "auth/email-already-exists": "already-exists",
+      "auth/invalid-email": "invalid-argument",
+      "auth/weak-password": "invalid-argument",
+      "auth/invalid-phone-number": "invalid-argument",
+      "auth/operation-not-allowed": "failed-precondition",
+      "auth/user-not-found": "not-found"
+    };
+
+    const code = authErrorMap[error.code] || "internal";
+    const message = error.message || "Failed to create user account.";
+    throw new functions.https.HttpsError(code, message);
   }
 });

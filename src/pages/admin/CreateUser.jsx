@@ -45,7 +45,9 @@ const CreateUser = () => {
       setForm(initialForm);
     } catch (error) {
       console.error("Could not create user", error);
-      setMessage({ type: "error", text: error.message || "Failed to create user." });
+      const errorCode = error.code ? `${error.code}: ` : "";
+      const errorMessage = error.message || "Failed to create user.";
+      setMessage({ type: "error", text: `${errorCode}${errorMessage}` });
     } finally {
       setLoading(false);
     }
