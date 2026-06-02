@@ -1,5 +1,6 @@
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { auth } from "../config/firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, functions } from "../config/firebase";
 import { getUserProfile } from "./userService";
 
 export const login = async (email, password) => {
@@ -15,4 +16,10 @@ export const login = async (email, password) => {
 
 export const logout = async () => {
   await signOut(auth);
+};
+
+export const createUserAccount = async (data) => {
+  const createUser = httpsCallable(functions, "createUserAccount");
+  const result = await createUser(data);
+  return result.data;
 };

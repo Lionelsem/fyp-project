@@ -1,3 +1,45 @@
-exports.createUser = (req, res) => {
-  res.status(200).send("Auth function placeholder");
-};
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+const auth = admin.auth();
+const db = admin.firestore();
+
+exports.createUserAccount = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentication required to create users.");
+  }
+
+  const { firstName, lastName, email, phoneNumber, role, password } = data;
+  if (!firstName || !lastName || !email || !role || !password) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing required user details.");
+  }
+
+  const displayName = `${firstName} ${lastName}`;
+
+  try {
+    const userRecord = await auth.createUser({
+      email,
+      password,
+      displayName,
+      phoneNumber: phoneNumber || undefined
+    });
+
+    await db.collection("users").doc(userRecord.uid).set({
+      fullName: displayName,
+      email,
+      phoneNumber: phoneNumber || "",
+      role,
+      status: "Active",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { uid: userRecord.uid };
+  } catch (error) {
+    console.error("Error creating user account:", error);
+    throw new functions.https.HttpsError("internal", error.message || "Failed to create user account.");
+  }
+});
