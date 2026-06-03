@@ -3,6 +3,9 @@ import './App.css';
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from './context/AuthContext';
 import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import { ROUTES } from './constants/routes';
+import { useLocation } from 'react-router-dom';
 import AdminRoutes from './routes/AdminRoutes';
 import CustomerRoutes from './routes/CustomerRoutes';
 import FSMRoutes from './routes/FSMRoutes';
@@ -10,13 +13,17 @@ import { ROLES } from './constants/roles';
 
 function AppContent() {
   const { user, loading } = useAuthContext();
+  const location = useLocation();
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '20px' }}>Loading authentication...</div>;
   }
 
-  // If not logged in, show login
+  // If not logged in, show login or register based on URL
   if (!user) {
+    if (location.pathname === ROUTES.REGISTER) {
+      return <Register />;
+    }
     return <Login />;
   }
 

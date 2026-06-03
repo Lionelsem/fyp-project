@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createUserAccount } from "../../services/authService";
+import { ROLES } from "../../constants/roles";
 
 const initialForm = {
   firstName: "",
   lastName: "",
   email: "",
   phoneNumber: "",
-  role: "FSM",
+  role: ROLES.FSM,
   password: ""
 };
 
@@ -124,8 +125,8 @@ const CreateUser = () => {
             <div className="form-field">
               <label className="form-label">User Role *</label>
               <select className="form-input" value={form.role} onChange={handleChange("role")}> 
-                <option value="FSM">FSM</option>
-                <option value="Customer">Customer</option>
+                <option value={ROLES.FSM}>{ROLES.FSM}</option>
+                <option value={ROLES.CUSTOMER}>{ROLES.CUSTOMER}</option>
               </select>
             </div>
             <div className="form-field">

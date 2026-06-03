@@ -23,7 +23,7 @@ const FSMRoutes = () => {
           <Route path="fire-drill" element={<FireDrill />} />
           <Route path="reports" element={<Reports />} />
           <Route path="building" element={<MyBuilding />} />
-          <Route path="*" element={<Navigate to="dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </FSMLayout>
     </ProtectedRoute>

@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             ...profile,
-            role: ROLES.CUSTOMER
+            role: (profile && profile.role) || ROLES.CUSTOMER
           });
         } else {
           setUser(null);

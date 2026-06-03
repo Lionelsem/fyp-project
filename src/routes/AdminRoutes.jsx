@@ -20,7 +20,7 @@ const AdminRoutes = () => {
           <Route path="users/create" element={<CreateUser />} />
           <Route path="buildings" element={<ManageBuildings />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="*" element={<Navigate to="dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AdminLayout>
     </ProtectedRoute>

@@ -16,7 +16,7 @@ const CustomerRoutes = () => {
           <Route path="dashboard" element={<CustomerDashboard />} />
           <Route path="my-reports" element={<MyReports />} />
           <Route path="submit-report" element={<SubmitReport />} />
-          <Route path="*" element={<Navigate to="dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </CustomerLayout>
     </ProtectedRoute>
