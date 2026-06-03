@@ -29,6 +29,7 @@ exports.createUserAccount = functions.region("us-central1").https.onCall(async (
     });
 
     await db.collection("users").doc(userRecord.uid).set({
+      userId: displayName,
       fullName: displayName,
       email,
       phoneNumber: phoneNumber || "",
@@ -37,7 +38,7 @@ exports.createUserAccount = functions.region("us-central1").https.onCall(async (
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    return { uid: userRecord.uid };
+    return { uid: userRecord.uid, userId: displayName };
   } catch (error) {
     console.error("Error creating user account:", error);
 

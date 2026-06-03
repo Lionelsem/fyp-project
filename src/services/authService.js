@@ -33,6 +33,7 @@ export const register = async ({ firstName, lastName, email, password, role }) =
   const firebaseUser = userCredential.user;
 
   await setDoc(doc(db, COLLECTION_NAMES.USERS, firebaseUser.uid), {
+    userId: displayName,
     fullName: displayName,
     email,
     role,
