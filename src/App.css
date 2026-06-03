@@ -42,7 +42,10 @@ button {
 .admin-sidebar {
   width: 240px;
   min-width: 240px;
-  background: linear-gradient(180deg, #0f3d2f 0%, #144437 100%);
+  background:
+    linear-gradient(145deg, rgba(79, 165, 139, 0.26) 0%, rgba(79, 165, 139, 0.12) 18%, transparent 34%),
+    linear-gradient(315deg, rgba(79, 165, 139, 0.22) 0%, rgba(79, 165, 139, 0.08) 22%, transparent 38%),
+    #0f172b;
   color: #e2e8f0;
   padding: 22px 18px;
   display: flex;
@@ -51,36 +54,65 @@ button {
   min-height: 100vh;
   position: sticky;
   top: 0;
+  overflow: hidden;
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 8px 0 24px rgba(15, 23, 42, 0.16);
+}
+
+.admin-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07), transparent 34%),
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.04) 52%, transparent 100%);
+  pointer-events: none;
+}
+
+.admin-sidebar::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  height: 1px;
+  background: rgba(167, 243, 208, 0.28);
+  pointer-events: none;
+}
+
+.admin-sidebar > * {
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap:10px;
+  gap: 10px;
   font-size: 36px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #a7f3d0;
+  color: #f8fafc;
+  text-shadow: 0 8px 18px rgba(15, 23, 42, 0.32);
 }
-
-
 
 .sidebar-user-card {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(15, 23, 43, 0.58);
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(167, 243, 208, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 30px rgba(2, 6, 23, 0.18);
 }
 
 .user-avatar-large {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: #4fa58b;
   display: grid;
   place-items: center;
   color: #ffffff;
@@ -145,21 +177,24 @@ button {
   gap: 12px;
   padding: 14px 16px;
   border-radius: 14px;
-  background: transparent;
-  color: #d1d5db;
+  background: rgba(15, 23, 43, 0.16);
+  color: #d7dee9;
   text-decoration: none;
-  transition: all 0.25s ease;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
   font-size: 14px;
+  border: 1px solid transparent;
 }
 
 .menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(167, 243, 208, 0.14);
   color: #ffffff;
 }
 
 .menu-item.active {
-  background: rgba(16, 185, 129, 0.18);
-  border-left: 4px solid #10b981;
+  background: rgba(79, 165, 139, 0.24);
+  border-color: rgba(167, 243, 208, 0.28);
+  border-left: 4px solid #4fa58b;
   color: #ffffff;
   font-weight: 600;
 }
@@ -193,17 +228,19 @@ button {
 }
 
 .profile-btn {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   color: #d1fae5;
+  border: 1px solid rgba(167, 243, 208, 0.14);
 }
 
 .profile-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .logout-btn {
   background: rgba(239, 68, 68, 0.14);
   color: #fee2e2;
+  border: 1px solid rgba(252, 165, 165, 0.16);
 }
 
 .logout-btn:hover {
