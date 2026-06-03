@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
@@ -7,6 +7,8 @@ const hasMonthlyTrendData = (monthlyTrend) =>
   monthlyTrend.some((item) => item.passed + item.pending + item.failed > 0);
 
 const BarChart = ({ monthlyTrend }) => {
+  const currentMonthShort = new Date().toLocaleString(undefined, { month: "short" });
+
   if (!hasMonthlyTrendData(monthlyTrend)) {
     return (
       <div
@@ -23,10 +25,7 @@ const BarChart = ({ monthlyTrend }) => {
     );
   }
 
-  const maxValue = Math.max(
-    1,
-    ...monthlyTrend.map((item) => item.passed + item.pending + item.failed)
-  );
+  const maxValue = Math.max(1, ...monthlyTrend.map((item) => item.passed + item.pending + item.failed));
 
   return (
     <div
@@ -42,6 +41,7 @@ const BarChart = ({ monthlyTrend }) => {
         const passedHeight = (item.passed / maxValue) * 150;
         const pendingHeight = (item.pending / maxValue) * 150;
         const failedHeight = (item.failed / maxValue) * 150;
+        const isCurrent = String((item.month || "").slice(0, 3)).toLowerCase() === String(currentMonthShort).slice(0, 3).toLowerCase();
 
         return (
           <div
@@ -86,7 +86,7 @@ const BarChart = ({ monthlyTrend }) => {
                 }}
               />
             </div>
-            <div style={{ marginTop: "8px", fontSize: "12px", fontWeight: "600" }}>
+            <div style={{ marginTop: "8px", fontSize: "12px", fontWeight: "600", color: isCurrent ? "#111" : "#444" }}>
               {item.month}
             </div>
           </div>
@@ -187,6 +187,91 @@ const DonutChart = ({ statusBreakdown }) => {
   );
 };
 
+const AnnualBarChart = ({ annualTrend }) => {
+  if (!annualTrend || annualTrend.length === 0) {
+    return (
+      <div
+        style={{
+          height: "200px",
+          display: "grid",
+          placeItems: "center",
+          color: "#64748b",
+          fontSize: "14px"
+        }}
+      >
+        No annual trend data found.
+      </div>
+    );
+  }
+
+  const maxValue = Math.max(1, ...annualTrend.map((i) => i.passed + i.pending + i.failed));
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        gap: "20px",
+        height: "200px",
+        padding: "20px 0"
+      }}
+    >
+      {annualTrend.map((item) => {
+        const passedHeight = (item.passed / maxValue) * 150;
+        const pendingHeight = (item.pending / maxValue) * 150;
+        const failedHeight = (item.failed / maxValue) * 150;
+
+        return (
+          <div
+            key={item.year}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center"
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                width: "100%",
+                height: "150px",
+                alignItems: "flex-end"
+              }}
+            >
+              <div
+                style={{
+                  flex: item.passed || 0.1,
+                  backgroundColor: "#10b981",
+                  height: `${passedHeight}px`,
+                  borderRadius: "4px 4px 0 0"
+                }}
+              />
+              <div
+                style={{
+                  flex: item.pending || 0.1,
+                  backgroundColor: "#f59e0b",
+                  height: `${pendingHeight}px`,
+                  borderRadius: "4px 4px 0 0"
+                }}
+              />
+              <div
+                style={{
+                  flex: item.failed || 0.1,
+                  backgroundColor: "#ef4444",
+                  height: `${failedHeight}px`,
+                  borderRadius: "4px 4px 0 0"
+                }}
+              />
+            </div>
+            <div style={{ marginTop: "8px", fontSize: "12px", fontWeight: "600" }}>{item.year}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const EmptyTableRow = ({ colSpan, children }) => (
   <tr>
     <td
@@ -252,6 +337,39 @@ const FSMDashboard = () => {
     upcomingSchedule
   } = useFsmDashboardData(fsmLookupIds);
 
+  const [trendTab, setTrendTab] = useState("monthly");
+
+  const annualTrend = useMemo(() => {
+    const years = [2023, 2024, 2025, 2026, 2027];
+    const map = {};
+    years.forEach((y) => {
+      map[y] = { year: y, passed: 0, pending: 0, failed: 0 };
+    });
+
+    if (Array.isArray(monthlyTrend)) {
+      monthlyTrend.forEach((item) => {
+        // Try to detect year from explicit field, month label like 'Jun 2026', or date string
+        let y = null;
+        if (item.year) y = Number(item.year);
+        else if (item.month && typeof item.month === 'string') {
+          const m = item.month.match(/(20\d{2})/);
+          if (m) y = Number(m[1]);
+        }
+        if (!y && item.date && typeof item.date === 'string') {
+          const m = item.date.match(/(20\d{2})/);
+          if (m) y = Number(m[1]);
+        }
+        if (!y) return;
+        if (!map[y]) map[y] = { year: y, passed: 0, pending: 0, failed: 0 };
+        map[y].passed += item.passed || 0;
+        map[y].pending += item.pending || 0;
+        map[y].failed += item.failed || 0;
+      });
+    }
+
+    return Object.values(map).sort((a, b) => a.year - b.year);
+  }, [monthlyTrend]);
+
   return (
     <div className="dashboard-container">
       {error && (
@@ -296,11 +414,45 @@ const FSMDashboard = () => {
           </div>
 
           <div className="dashboard-card">
-            <div className="card-header-row">
-              <h2 className="section-title">Monthly Inspection Trend</h2>
+            <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+              <h2 className="section-title">Inspection Trend</h2>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setTrendTab("monthly")}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: "8px",
+                    background: trendTab === "monthly" ? "#2563eb" : "#f3f4f6",
+                    color: trendTab === "monthly" ? "#fff" : "#111",
+                    cursor: "pointer",
+                    border: "none"
+                  }}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrendTab("annual")}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: "8px",
+                    background: trendTab === "annual" ? "#2563eb" : "#f3f4f6",
+                    color: trendTab === "annual" ? "#fff" : "#111",
+                    cursor: "pointer",
+                    border: "none"
+                  }}
+                >
+                  Annual
+                </button>
+              </div>
             </div>
             <div style={{ padding: "20px" }}>
-              <BarChart monthlyTrend={monthlyTrend} />
+              {trendTab === "monthly" ? (
+                <BarChart monthlyTrend={monthlyTrend} />
+              ) : (
+                <AnnualBarChart annualTrend={annualTrend} />
+              )}
               <div
                 style={{
                   display: "flex",
