@@ -8,11 +8,12 @@ import { COLLECTION_NAMES } from "../constants/collectionNames";
 export const login = async (email, password) => {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
   const firebaseUser = userCredential.user;
-  const profile = await getUserProfile(firebaseUser.uid);
+  const profile = await getUserProfile(firebaseUser.uid, firebaseUser.email);
   return {
+    ...profile,
     uid: firebaseUser.uid,
+    authUid: firebaseUser.uid,
     email: firebaseUser.email,
-    ...profile
   };
 };
 

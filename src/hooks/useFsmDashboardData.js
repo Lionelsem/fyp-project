@@ -32,6 +32,17 @@ const PENDING_LOADED = {
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
+const normalizeLookupIds = (value) => {
+  const values = Array.isArray(value) ? value : [value];
+  return Array.from(
+    new Set(
+      values
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  );
+};
+
 const mapSnapshot = (snapshot) =>
   snapshot.docs.map((docItem) => ({
     id: docItem.id,
@@ -393,13 +404,23 @@ const buildUpcomingSchedule = (fireDrills, buildingMap) => {
     }));
 };
 
-export const useFsmDashboardData = (fsmUid) => {
+export const useFsmDashboardData = (fsmLookupValue) => {
   const [data, setData] = useState(EMPTY_DATA);
   const [loaded, setLoaded] = useState(EMPTY_LOADED);
   const [error, setError] = useState(null);
+  const fsmLookupIds = useMemo(
+    () => normalizeLookupIds(fsmLookupValue),
+    [fsmLookupValue]
+  );
+  const fsmLookupIdsKey = useMemo(
+    () => JSON.stringify(fsmLookupIds),
+    [fsmLookupIds]
+  );
 
   useEffect(() => {
-    if (!fsmUid) {
+    const lookupIds = JSON.parse(fsmLookupIdsKey);
+
+    if (lookupIds.length === 0) {
       setData(EMPTY_DATA);
       setLoaded(EMPTY_LOADED);
       setError(null);
@@ -423,48 +444,66 @@ export const useFsmDashboardData = (fsmUid) => {
       markLoaded(source);
     };
 
-    const listen = (source, firestoreQuery) =>
-      onSnapshot(
-        firestoreQuery,
-        (snapshot) => {
-          if (!active) return;
-          setData((current) => ({
-            ...current,
-            [source]: mapSnapshot(snapshot)
-          }));
+    const listenByField = (source, collectionName, fieldName) => {
+      const chunks = chunkArray(lookupIds, IN_QUERY_CHUNK_SIZE);
+      const chunkResults = chunks.map(() => []);
+      const chunkLoaded = chunks.map(() => false);
+
+      const updateSource = () => {
+        if (!active) return;
+        setData((current) => ({
+          ...current,
+          [source]: uniqueById(chunkResults.flat())
+        }));
+
+        if (chunkLoaded.every(Boolean)) {
           markLoaded(source);
-        },
-        (listenerError) => handleError(source, listenerError)
+        }
+      };
+
+      return chunks.map((ids, index) =>
+        onSnapshot(
+          query(
+            collection(db, collectionName),
+            ids.length === 1
+              ? where(fieldName, "==", ids[0])
+              : where(fieldName, "in", ids)
+          ),
+          (snapshot) => {
+            if (!active) return;
+            chunkResults[index] = mapSnapshot(snapshot);
+            chunkLoaded[index] = true;
+            updateSource();
+          },
+          (listenerError) => {
+            chunkLoaded[index] = true;
+            handleError(source, listenerError);
+            updateSource();
+          }
+        )
       );
+    };
 
     const unsubscribes = [
-      listen(
+      ...listenByField(
         "buildings",
-        query(
-          collection(db, COLLECTION_NAMES.BUILDINGS),
-          where("assignedFsmId", "==", fsmUid)
-        )
+        COLLECTION_NAMES.BUILDINGS,
+        "assignedFsmId"
       ),
-      listen(
+      ...listenByField(
         "inspections",
-        query(
-          collection(db, COLLECTION_NAMES.INSPECTIONS),
-          where("fsmId", "==", fsmUid)
-        )
+        COLLECTION_NAMES.INSPECTIONS,
+        "fsmId"
       ),
-      listen(
+      ...listenByField(
         "reports",
-        query(
-          collection(db, COLLECTION_NAMES.REPORTS),
-          where("generatedBy", "==", fsmUid)
-        )
+        COLLECTION_NAMES.REPORTS,
+        "generatedBy"
       ),
-      listen(
+      ...listenByField(
         "fireDrills",
-        query(
-          collection(db, COLLECTION_NAMES.FIRE_DRILLS),
-          where("fsmId", "==", fsmUid)
-        )
+        COLLECTION_NAMES.FIRE_DRILLS,
+        "fsmId"
       )
     ];
 
@@ -472,7 +511,7 @@ export const useFsmDashboardData = (fsmUid) => {
       active = false;
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [fsmUid]);
+  }, [fsmLookupIdsKey]);
 
   const buildingIds = useMemo(
     () => uniqueById(data.buildings).map((building) => building.id),
@@ -481,7 +520,9 @@ export const useFsmDashboardData = (fsmUid) => {
   const buildingIdsKey = useMemo(() => JSON.stringify(buildingIds), [buildingIds]);
 
   useEffect(() => {
-    if (!fsmUid || !loaded.buildings) return undefined;
+    const lookupIds = JSON.parse(fsmLookupIdsKey);
+
+    if (lookupIds.length === 0 || !loaded.buildings) return undefined;
 
     const assignedBuildingIds = JSON.parse(buildingIdsKey);
 
@@ -537,7 +578,7 @@ export const useFsmDashboardData = (fsmUid) => {
       active = false;
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
-  }, [buildingIdsKey, fsmUid, loaded.buildings]);
+  }, [buildingIdsKey, fsmLookupIdsKey, loaded.buildings]);
 
   const buildingMap = useMemo(
     () => new Map(data.buildings.map((building) => [building.id, building])),

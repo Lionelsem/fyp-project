@@ -203,6 +203,19 @@ const EmptyTableRow = ({ colSpan, children }) => (
 
 const FSMDashboard = () => {
   const { user } = useAuthContext();
+  const fsmLookupIds = [
+    user?.uid,
+    user?.authUid,
+    user?.profileId,
+    user?.id,
+    user?.userId,
+    user?.fsmId,
+    user?.assignedFsmId,
+    user?.staffId,
+    user?.employeeId,
+    user?.accountId,
+    user?.firestoreId
+  ];
   const {
     loading,
     error,
@@ -211,7 +224,7 @@ const FSMDashboard = () => {
     monthlyTrend,
     recentReports,
     upcomingSchedule
-  } = useFsmDashboardData(user?.uid);
+  } = useFsmDashboardData(fsmLookupIds);
 
   return (
     <div className="dashboard-container">
