@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../config/firebase";
+import { ROLES } from "../constants/roles";
 import { getUserProfile } from "../services/userService";
 
 const AuthContext = createContext(null);
@@ -18,7 +19,8 @@ export const AuthProvider = ({ children }) => {
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            ...profile
+            ...profile,
+            role: ROLES.CUSTOMER
           });
         } else {
           setUser(null);
