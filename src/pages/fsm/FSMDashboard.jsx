@@ -371,7 +371,7 @@ const FSMDashboard = () => {
   }, [monthlyTrend]);
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container fsm-dashboard-page">
       {error && (
         <div className="error-state" style={{ marginBottom: "18px" }}>
           {error}
@@ -404,101 +404,105 @@ const FSMDashboard = () => {
 
       <div className="dashboard-grid">
         <div className="content-left">
-          <div className="dashboard-card">
-            <div className="card-header-row">
-              <h2 className="section-title">Status Breakdown</h2>
-            </div>
-            <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
-              <DonutChart statusBreakdown={statusBreakdown} />
-            </div>
-          </div>
+          <div className="dashboard-card fsm-chart-card">
+            <div className="fsm-chart-grid">
+              <section className="fsm-chart-panel">
+                <div className="card-header-row">
+                  <h2 className="section-title">Status Breakdown</h2>
+                </div>
+                <div className="fsm-chart-donut-body">
+                  <DonutChart statusBreakdown={statusBreakdown} />
+                </div>
+              </section>
 
-          <div className="dashboard-card">
-            <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-              <h2 className="section-title">Inspection Trend</h2>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => setTrendTab("monthly")}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: "8px",
-                    background: trendTab === "monthly" ? "#2563eb" : "#f3f4f6",
-                    color: trendTab === "monthly" ? "#fff" : "#111",
-                    cursor: "pointer",
-                    border: "none"
-                  }}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrendTab("annual")}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: "8px",
-                    background: trendTab === "annual" ? "#2563eb" : "#f3f4f6",
-                    color: trendTab === "annual" ? "#fff" : "#111",
-                    cursor: "pointer",
-                    border: "none"
-                  }}
-                >
-                  Annual
-                </button>
-              </div>
-            </div>
-            <div style={{ padding: "20px" }}>
-              {trendTab === "monthly" ? (
-                <BarChart monthlyTrend={monthlyTrend} />
-              ) : (
-                <AnnualBarChart annualTrend={annualTrend} />
-              )}
-              <div
-                style={{
-                  display: "flex",
-                  gap: "20px",
-                  justifyContent: "center",
-                  fontSize: "12px",
-                  marginTop: "20px"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <section className="fsm-chart-panel">
+                <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                  <h2 className="section-title">Inspection Trend</h2>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setTrendTab("monthly")}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: "8px",
+                        background: trendTab === "monthly" ? "#2563eb" : "#f3f4f6",
+                        color: trendTab === "monthly" ? "#fff" : "#111",
+                        cursor: "pointer",
+                        border: "none"
+                      }}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrendTab("annual")}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: "8px",
+                        background: trendTab === "annual" ? "#2563eb" : "#f3f4f6",
+                        color: trendTab === "annual" ? "#fff" : "#111",
+                        cursor: "pointer",
+                        border: "none"
+                      }}
+                    >
+                      Annual
+                    </button>
+                  </div>
+                </div>
+                <div className="fsm-chart-trend-body">
+                  {trendTab === "monthly" ? (
+                    <BarChart monthlyTrend={monthlyTrend} />
+                  ) : (
+                    <AnnualBarChart annualTrend={annualTrend} />
+                  )}
                   <div
                     style={{
-                      width: "12px",
-                      height: "12px",
-                      backgroundColor: "#10b981"
+                      display: "flex",
+                      gap: "20px",
+                      justifyContent: "center",
+                      fontSize: "12px",
+                      marginTop: "20px"
                     }}
-                  />
-                  <span>Passed</span>
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          backgroundColor: "#10b981"
+                        }}
+                      />
+                      <span>Passed</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          backgroundColor: "#f59e0b"
+                        }}
+                      />
+                      <span>Pending</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          backgroundColor: "#ef4444"
+                        }}
+                      />
+                      <span>Failed</span>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <div
-                    style={{
-                      width: "12px",
-                      height: "12px",
-                      backgroundColor: "#f59e0b"
-                    }}
-                  />
-                  <span>Pending</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <div
-                    style={{
-                      width: "12px",
-                      height: "12px",
-                      backgroundColor: "#ef4444"
-                    }}
-                  />
-                  <span>Failed</span>
-                </div>
-              </div>
+              </section>
             </div>
           </div>
         </div>
 
         <div className="content-right">
-          <div className="dashboard-card">
+          <div className="dashboard-card fsm-quick-actions-card">
             <div className="card-header-row">
               <h2 className="section-title">Quick Actions</h2>
             </div>
@@ -515,13 +519,13 @@ const FSMDashboard = () => {
                   type="button"
                   onClick={() => navigate(action.path)}
                   style={{
-                    minHeight: "112px",
+                    minHeight: "88px",
                     display: "grid",
-                    gridTemplateRows: "44px 1fr",
+                    gridTemplateRows: "38px 1fr",
                     justifyItems: "center",
                     alignItems: "center",
                     gap: "8px",
-                    padding: "14px 10px",
+                    padding: "10px 8px",
                     border: "1px solid #e5e7eb",
                     borderRadius: "14px",
                     background: "#f8fafc",
@@ -533,7 +537,7 @@ const FSMDashboard = () => {
                   <span
                     style={{
                       width: "44px",
-                      height: "44px",
+                      height: "38px",
                       display: "grid",
                       placeItems: "center",
                       borderRadius: "12px",
@@ -562,7 +566,7 @@ const FSMDashboard = () => {
             </div>
           </div>
 
-          <div className="dashboard-card">
+          <div className="dashboard-card fsm-recent-reports-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Reports</h2>
               <button type="button" className="view-all-link">
@@ -613,7 +617,7 @@ const FSMDashboard = () => {
             </table>
           </div>
 
-          <div className="dashboard-card">
+          <div className="dashboard-card fsm-upcoming-card">
             <div className="card-header-row">
               <h2 className="section-title">Upcoming Schedule</h2>
               <button type="button" className="view-all-link">
@@ -636,13 +640,13 @@ const FSMDashboard = () => {
                   <div
                     key={item.id}
                     style={{
-                      padding: "16px",
+                      padding: "10px 0",
                       borderBottom:
                         index < upcomingSchedule.length - 1
                           ? "1px solid #e5e7eb"
                           : "none",
                       display: "flex",
-                      gap: "16px"
+                      gap: "12px"
                     }}
                   >
                     <div

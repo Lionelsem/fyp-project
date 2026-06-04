@@ -380,6 +380,14 @@ button {
   margin: 0 auto;
 }
 
+.fsm-dashboard-page {
+  height: calc(100vh - 156px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -397,6 +405,37 @@ button {
   flex-direction: column;
   justify-content: space-between;
   min-height: 130px;
+}
+
+.fsm-dashboard-page .summary-grid {
+  flex: 0 0 auto;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.fsm-dashboard-page .summary-card {
+  min-height: 94px;
+  padding: 15px 16px;
+  border-radius: 18px;
+}
+
+.fsm-dashboard-page .card-top {
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.fsm-dashboard-page .card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.fsm-dashboard-page .card-value {
+  font-size: 25px;
+}
+
+.fsm-dashboard-page .card-trend {
+  font-size: 12px;
 }
 
 .card-top {
@@ -1238,6 +1277,14 @@ button {
   align-items: start;
 }
 
+.fsm-dashboard-page .dashboard-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.6fr) 390px;
+  gap: 18px;
+  align-items: stretch;
+}
+
 .content-left {
   display: grid;
   gap: 28px;
@@ -1248,6 +1295,21 @@ button {
   gap: 28px;
 }
 
+.fsm-dashboard-page .content-left,
+.fsm-dashboard-page .content-right {
+  min-height: 0;
+  gap: 14px;
+}
+
+.fsm-dashboard-page .content-left {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.fsm-dashboard-page .content-right {
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+  overflow: hidden;
+}
+
 .dashboard-card {
   background-color: #ffffff;
   border-radius: 22px;
@@ -1256,12 +1318,92 @@ button {
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
+.fsm-dashboard-page .dashboard-card {
+  min-height: 0;
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.fsm-chart-card {
+  overflow: hidden;
+}
+
+.fsm-dashboard-page .fsm-chart-card {
+  height: 100%;
+}
+
+.fsm-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.85fr) minmax(360px, 1.45fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.fsm-dashboard-page .fsm-chart-grid {
+  height: 100%;
+  gap: 18px;
+}
+
+.fsm-chart-panel {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+}
+
+.fsm-chart-panel + .fsm-chart-panel {
+  border-left: 1px solid #e5e7eb;
+  padding-left: 24px;
+}
+
+.fsm-chart-donut-body {
+  min-height: 260px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.fsm-dashboard-page .fsm-chart-donut-body {
+  min-height: 210px;
+  padding: 8px 0;
+}
+
+.fsm-chart-trend-body {
+  min-width: 0;
+  overflow-x: auto;
+  padding: 20px 0 0;
+}
+
+.fsm-dashboard-page .fsm-chart-trend-body {
+  overflow: hidden;
+  padding: 8px 0 0;
+}
+
 .card-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 18px;
+}
+
+.fsm-dashboard-page .card-header-row {
+  margin-bottom: 10px;
+}
+
+.fsm-dashboard-page .fsm-recent-reports-card,
+.fsm-dashboard-page .fsm-upcoming-card {
+  overflow: hidden;
+}
+
+.fsm-dashboard-page .fsm-recent-reports-card table,
+.fsm-dashboard-page .fsm-upcoming-card > div:last-child {
+  max-height: calc(100% - 34px);
+  overflow: auto;
+}
+
+.fsm-dashboard-page .fsm-quick-actions-card .card-header-row {
+  margin-bottom: 10px;
 }
 
 .section-title {
@@ -1295,6 +1437,15 @@ button {
   padding: 14px 0;
 }
 
+.fsm-dashboard-page .dashboard-table th,
+.fsm-dashboard-page .dashboard-table td {
+  padding: 8px 0;
+}
+
+.fsm-dashboard-page .dashboard-table {
+  font-size: 13px;
+}
+
 .dashboard-table thead th {
   color: #6b7280;
   font-size: 12px;
@@ -1324,6 +1475,10 @@ button {
 .status-badge {
   font-size: 12px;
   font-weight: 700;
+}
+
+.fsm-dashboard-page .status-badge {
+  font-size: 11px;
 }
 
 .result-badge {
@@ -1900,8 +2055,24 @@ button {
 }
 
 @media (max-width: 1200px) {
+  .fsm-dashboard-page {
+    height: auto;
+    overflow: visible;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .fsm-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fsm-chart-panel + .fsm-chart-panel {
+    border-left: none;
+    border-top: 1px solid #e5e7eb;
+    padding-left: 0;
+    padding-top: 24px;
   }
 
   .main-content {
