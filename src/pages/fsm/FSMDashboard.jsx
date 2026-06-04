@@ -199,7 +199,7 @@ const AnnualBarChart = ({ annualTrend }) => {
           fontSize: "14px"
         }}
       >
-        No annual trend data found.
+        No trend data found for yearly view.
       </div>
     );
   }
@@ -445,7 +445,7 @@ const FSMDashboard = () => {
                         border: "none"
                       }}
                     >
-                      Annual
+                      Annually
                     </button>
                   </div>
                 </div>
