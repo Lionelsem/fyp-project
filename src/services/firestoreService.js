@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { ROLES } from "../constants/roles";
@@ -35,6 +35,10 @@ export const addBuilding = async (data) => {
     status: data.status || STATUS.ACTIVE,
     createdAt: serverTimestamp()
   });
+};
+
+export const getBuildings = async () => {
+  return await getDocs(collection(db, COLLECTION_NAMES.BUILDINGS));
 };
 
 // Floors
