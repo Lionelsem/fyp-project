@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 
 const menuItems = [
@@ -9,7 +9,7 @@ const menuItems = [
     label: "Inspection",
     icon: "📋",
     submenu: [
-      { path: "/fsm/inspections", label: "My Inspection" },
+      { path: "/fsm/inspections", label: "My Inspections" },
       { path: "/fsm/inspections/verify", label: "Verify Closure" }
     ]
   },
@@ -55,6 +55,19 @@ const FSMSidebar = ({ profile }) => {
     setExpandedMenu(expandedMenu === path ? null : path);
   };
 
+  const location = useLocation();
+
+  const handleParentClick = (path) => {
+    toggleSubmenu(path);
+    navigate(path);
+  };
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/fsm/inspections")) {
+      setExpandedMenu("/fsm/inspections");
+    }
+  }, [location.pathname]);
+
   return (
     <aside className="admin-sidebar">
       <div className="sidebar-logo">
@@ -78,7 +91,7 @@ const FSMSidebar = ({ profile }) => {
                   <button
                     type="button"
                     className="menu-item submenu-toggle"
-                    onClick={() => toggleSubmenu(item.path)}
+                    onClick={() => handleParentClick(item.path)}
                     style={{
                       width: "100%",
                       textAlign: "left",
