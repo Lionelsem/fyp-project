@@ -1,3 +1,6 @@
+import * as fs from "./firestoreService";
+
 export const createReport = async (data) => {
-  return { ...data, id: "placeholder-report" };
+  const docRef = await fs.addReport(data);
+  return { id: docRef.id, ...data };
 };

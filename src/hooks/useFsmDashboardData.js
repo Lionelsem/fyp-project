@@ -186,29 +186,17 @@ const buildLastFiveMonths = () => {
 };
 
 const getInspectionBucket = (inspection) => {
-  const overallStatus = normalizeText(inspection.overallStatus);
-  const checklistStatus = normalizeText(inspection.checklistStatus);
-  const status = normalizeText(inspection.status);
+  const status = normalizeText(inspection.status || "");
+  const progress = Number(inspection.progressPercent || 0);
 
-  if (overallStatus === "pass" || overallStatus === "passed") return "passed";
-  if (overallStatus === "fail" || overallStatus === "failed") return "failed";
-  if (
-    overallStatus === "pending" ||
-    overallStatus === "review" ||
-    checklistStatus === "pending" ||
-    status === "pending"
-  ) {
-    return "pending";
-  }
-  if (!overallStatus && (checklistStatus === "completed" || status === "completed")) {
-    return "passed";
-  }
+  if (status === "pass" || status === "passed" || progress >= 100) return "passed";
+  if (status === "fail" || status === "failed") return "failed";
+  if (status === "pending" || status === "review" || status === "draft" || progress < 100) return "pending";
 
   return "pending";
 };
 
-const getInspectionStatus = (inspection) =>
-  normalizeText(inspection.checklistStatus || inspection.status);
+const getInspectionStatus = (inspection) => normalizeText(inspection.status || "draft");
 
 const getStatusStyle = (status) => {
   const normalized = normalizeText(status);

@@ -1,3 +1,13 @@
+import * as fs from "./firestoreService";
+
+// Create an inspection document (parent) and optional results
 export const createInspection = async (data) => {
-  return { ...data, id: "placeholder-inspection" };
+  // data should follow new inspection schema
+  const docRef = await fs.createInspection(data);
+  return { id: docRef.id, ...data };
+};
+
+export const addInspectionResult = async (data) => {
+  const docRef = await fs.addInspectionResult(data);
+  return { id: docRef.id, ...data };
 };

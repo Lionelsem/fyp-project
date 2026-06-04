@@ -1,4 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../config/firebase";
+import { COLLECTION_NAMES } from "../../constants/collectionNames";
+import { createInspection, addInspectionResult } from "../../services/inspectionService";
+import { createIssue } from "../../services/issueService";
+import { useAuth } from "../../hooks/useAuth";
+import { uploadFile } from "../../services/storageService";
 
 const initialChecklist = [
   {
@@ -223,7 +230,26 @@ const conditionOptions = [
   { value: "N.A.", label: "N.A." }
 ];
 
-const InspectionOverview = ({ completedCount, totalRows, progressPercent, inspectionInfo }) => (
+const InspectionOverview = ({
+  completedCount,
+  totalRows,
+  progressPercent,
+  inspectionInfo,
+  buildings,
+  floors,
+  equipmentList,
+  templates,
+  selectedBuilding,
+  setSelectedBuilding,
+  selectedFloor,
+  setSelectedFloor,
+  selectedEquipment,
+  setSelectedEquipment,
+  selectedTemplateId,
+  setSelectedTemplateId,
+  onSaveDraft,
+  onSubmit
+}) => (
   <section className="inspection-card overview-card">
     <div className="card-inner">
       <div className="card-title-row overview-top-row">
@@ -232,14 +258,54 @@ const InspectionOverview = ({ completedCount, totalRows, progressPercent, inspec
           <h3>Monthly Inspection Report</h3>
         </div>
         <div className="overview-actions">
-          <button type="button" className="secondary-button">Save Draft</button>
-          <button type="button" className="primary-button">Submit Inspection</button>
+          <button type="button" className="secondary-button" onClick={onSaveDraft}>Save Draft</button>
+          <button type="button" className="primary-button" onClick={onSubmit}>Submit Inspection</button>
         </div>
       </div>
       <div className="overview-grid">
         <div>
           <span className="overview-label">Building</span>
-          <p>{inspectionInfo.building}</p>
+          <label>
+            <select value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}>
+              <option value="">Select building</option>
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>{b.buildingName || b.buildingId || b.id}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div>
+          <span className="overview-label">Floor</span>
+          <label>
+            <select value={selectedFloor} onChange={(e) => setSelectedFloor(e.target.value)}>
+              <option value="">Select floor</option>
+              {floors.map((f) => (
+                <option key={f.id} value={f.id}>{f.floorName || f.floorCode || f.id}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div>
+          <span className="overview-label">Equipment</span>
+          <label>
+            <select value={selectedEquipment} onChange={(e) => setSelectedEquipment(e.target.value)}>
+              <option value="">Select equipment</option>
+              {equipmentList.map((eq) => (
+                <option key={eq.id} value={eq.id}>{eq.equipmentName || eq.equipmentCode || eq.id}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div>
+          <span className="overview-label">Template</span>
+          <label>
+            <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}>
+              <option value="">Select template</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.templateName || t.templateId || t.id}</option>
+              ))}
+            </select>
+          </label>
         </div>
         <div>
           <span className="overview-label">Month</span>
@@ -475,6 +541,14 @@ const AppendixTable = ({ entries }) => (
 const Inspections = () => {
   const [checklist, setChecklist] = useState(initialChecklist);
   const [generalRemarks, setGeneralRemarks] = useState("");
+  const [buildings, setBuildings] = useState([]);
+  const [floors, setFloors] = useState([]);
+  const [equipmentList, setEquipmentList] = useState([]);
+  const [selectedBuilding, setSelectedBuilding] = useState("");
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedEquipment, setSelectedEquipment] = useState("");
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   const totalRows = useMemo(
     () => checklist.reduce((sum, category) => sum + category.items.length, 0),
@@ -567,18 +641,20 @@ const Inspections = () => {
     );
   };
 
+  const { user } = useAuth();
+
   const handlePhotoChange = (categoryId, itemId, files) => {
     const file = files && files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      updateChecklistItem(categoryId, itemId, { photo: reader.result });
+      updateChecklistItem(categoryId, itemId, { photoPreview: reader.result, photoFile: file });
     };
     reader.readAsDataURL(file);
   };
 
   const removePhoto = (categoryId, itemId) => {
-    updateChecklistItem(categoryId, itemId, { photo: "" });
+    updateChecklistItem(categoryId, itemId, { photoPreview: "", photoFile: null, photo: "" });
   };
 
   const handleIssueUpdate = (categoryId, itemId, changes) => {
@@ -602,6 +678,222 @@ const Inspections = () => {
     );
   };
 
+  // Load buildings and templates on mount
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const bSnap = await getDocs(collection(db, COLLECTION_NAMES.BUILDINGS));
+        setBuildings(bSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+        const tSnap = await getDocs(collection(db, COLLECTION_NAMES.INSPECTION_TEMPLATES));
+        setTemplates(tSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Failed loading templates/buildings", err);
+      }
+    };
+    load();
+  }, []);
+
+  // Load floors when building selected
+  useEffect(() => {
+    const loadFloors = async () => {
+      if (!selectedBuilding) return setFloors([]);
+      const q = query(collection(db, COLLECTION_NAMES.FLOORS), where("buildingId", "==", selectedBuilding));
+      const snap = await getDocs(q);
+      setFloors(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    };
+    loadFloors();
+  }, [selectedBuilding]);
+
+  // Load equipment when floor selected
+  useEffect(() => {
+    const loadEquipment = async () => {
+      if (!selectedFloor) return setEquipmentList([]);
+      const q = query(collection(db, COLLECTION_NAMES.EQUIPMENT), where("floorId", "==", selectedFloor));
+      const snap = await getDocs(q);
+      setEquipmentList(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    };
+    loadEquipment();
+  }, [selectedFloor]);
+
+  // When template selected, map template items into checklist shape
+  useEffect(() => {
+    if (!selectedTemplateId) return;
+    const tpl = templates.find((t) => t.id === selectedTemplateId);
+    if (!tpl) return;
+    // If templates are stored per-item (multiple documents), filter and group by category
+    const items = templates.filter((t) => t.templateId === tpl.templateId || t.id === tpl.id);
+    if (items.length === 0) return;
+    // Build grouped checklist from template entries
+    const grouped = items.reduce((acc, entry) => {
+      const catId = entry.categoryCode || entry.categoryName || "uncategorized";
+      const found = acc.find((c) => c.id === catId);
+      const row = {
+        id: entry.itemCode || entry.itemLabel,
+        code: entry.itemCode || entry.itemLabel,
+        label: entry.itemLabel || entry.itemCode,
+        condition: "",
+        remark: "",
+        photo: "",
+        issue: { description: "", rectification: "", priority: entry.defaultPriority || "Medium", status: "Open", photo: "" },
+        autoCreateIssueWhenFaulty: !!entry.autoCreateIssueWhenFaulty,
+        isManualVerification: !!entry.isManualVerification,
+        expanded: false
+      };
+      if (found) found.items.push(row);
+      else acc.push({ id: catId, title: entry.categoryName || catId, description: "", expanded: true, items: [row] });
+      return acc;
+    }, []);
+    setChecklist(grouped);
+  }, [selectedTemplateId, templates]);
+
+  // Save handlers
+  const handleSaveDraft = async () => {
+    try {
+      const inspectionData = {
+        inspectionId: `inspection_${Date.now()}`,
+        buildingId: selectedBuilding,
+        floorId: selectedFloor,
+        fsmId: "user_fsm_001",
+        inspectionType: "Monthly Inspection",
+        inspectionMode: "Semi-Automated",
+        templateId: selectedTemplateId,
+        inspectionDate: new Date(),
+        progressPercent,
+        generalRemarks,
+        aiAssistanceUsed: false,
+        aiSummary: "",
+        status: "Draft"
+      };
+      const created = await createInspection(inspectionData);
+      // persist each result
+      for (const category of checklist) {
+        for (const item of category.items) {
+          let photoUrl = item.photo || "";
+          if (item.photoFile) {
+            const uploaded = await uploadFile(item.photoFile, `${COLLECTION_NAMES.INSPECTIONS}/${created.id}`);
+            photoUrl = uploaded?.url || photoUrl;
+          }
+
+          await addInspectionResult({
+            resultId: `result_${Date.now()}_${item.id}`,
+            inspectionId: created.id,
+            buildingId: selectedBuilding,
+            floorId: selectedFloor,
+            equipmentId: selectedEquipment || null,
+            templateId: selectedTemplateId,
+            categoryCode: category.id,
+            categoryName: category.title,
+            itemCode: item.code,
+            itemLabel: item.label,
+            inspectionPath: `${selectedBuilding} > ${selectedFloor} > ${selectedEquipment || "N/A"} > ${item.label}`,
+            condition: item.condition || "",
+            passFail: item.condition === "Good" ? "Pass" : "Fail",
+            remark: item.remark || "",
+            photoUrl,
+            manualVerificationRequired: !!item.isManualVerification,
+            checkedAt: new Date(),
+            checkedBy: user?.uid || "user_fsm_001",
+            qrScanned: false,
+            qrCodeValue: "",
+            historyLoaded: false,
+            aiChecklistSuggestion: "",
+            createdAt: new Date()
+          });
+        }
+      }
+      // Keep UI state; consider user feedback
+      // eslint-disable-next-line no-console
+      console.log("Draft saved", created.id);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Save draft failed", err);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const inspectionData = {
+        inspectionId: `inspection_${Date.now()}`,
+        buildingId: selectedBuilding,
+        floorId: selectedFloor,
+        fsmId: "user_fsm_001",
+        inspectionType: "Monthly Inspection",
+        inspectionMode: "Semi-Automated",
+        templateId: selectedTemplateId,
+        inspectionDate: new Date(),
+        progressPercent,
+        generalRemarks,
+        aiAssistanceUsed: false,
+        aiSummary: "",
+        status: "Submitted"
+      };
+      const created = await createInspection(inspectionData);
+      for (const category of checklist) {
+        for (const item of category.items) {
+          let photoUrl = item.photo || "";
+          if (item.photoFile) {
+            const uploaded = await uploadFile(item.photoFile, `${COLLECTION_NAMES.INSPECTIONS}/${created.id}`);
+            photoUrl = uploaded?.url || photoUrl;
+          }
+
+          const result = await addInspectionResult({
+            resultId: `result_${Date.now()}_${item.id}`,
+            inspectionId: created.id,
+            buildingId: selectedBuilding,
+            floorId: selectedFloor,
+            equipmentId: selectedEquipment || null,
+            templateId: selectedTemplateId,
+            categoryCode: category.id,
+            categoryName: category.title,
+            itemCode: item.code,
+            itemLabel: item.label,
+            inspectionPath: `${selectedBuilding} > ${selectedFloor} > ${selectedEquipment || "N/A"} > ${item.label}`,
+            condition: item.condition || "",
+            passFail: item.condition === "Good" ? "Pass" : "Fail",
+            remark: item.remark || "",
+            photoUrl,
+            manualVerificationRequired: !!item.isManualVerification,
+            checkedAt: new Date(),
+            checkedBy: user?.uid || "user_fsm_001",
+            qrScanned: false,
+            qrCodeValue: "",
+            historyLoaded: false,
+            aiChecklistSuggestion: "",
+            createdAt: new Date()
+          });
+
+          // auto-create issue when faulty and template requires it
+          if ((item.condition === "Faulty") && item.autoCreateIssueWhenFaulty) {
+            await createIssue({
+              issueId: `issue_${Date.now()}_${item.id}`,
+              inspectionId: created.id,
+              resultId: result.id || null,
+              buildingId: selectedBuilding,
+              floorId: selectedFloor,
+              equipmentId: selectedEquipment || null,
+              reportedBy: "user_fsm_001",
+              issueTitle: item.label,
+              issueDescription: item.issue?.description || item.remark || "",
+              rectification: item.issue?.rectification || "",
+              priority: item.issue?.priority || "High",
+              status: item.issue?.status || "Open",
+              issuePhotoUrl: item.issue?.photo || "",
+              aiRecommendation: "",
+              createdAt: new Date()
+            });
+          }
+        }
+      }
+      // eslint-disable-next-line no-console
+      console.log("Inspection submitted", created.id);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Submit failed", err);
+    }
+  };
+
   return (
     <main className="inspection-page">
       <section className="page-header">
@@ -621,6 +913,20 @@ const Inspections = () => {
             totalRows={totalRows}
             progressPercent={progressPercent}
             inspectionInfo={inspectionInfo}
+            buildings={buildings}
+            floors={floors}
+            equipmentList={equipmentList}
+            templates={templates}
+            selectedBuilding={selectedBuilding}
+            setSelectedBuilding={setSelectedBuilding}
+            selectedFloor={selectedFloor}
+            setSelectedFloor={setSelectedFloor}
+            selectedEquipment={selectedEquipment}
+            setSelectedEquipment={setSelectedEquipment}
+            selectedTemplateId={selectedTemplateId}
+            setSelectedTemplateId={setSelectedTemplateId}
+            onSaveDraft={handleSaveDraft}
+            onSubmit={handleSubmit}
           />
           <IssueSummary
             openCount={issueCounts.open}
