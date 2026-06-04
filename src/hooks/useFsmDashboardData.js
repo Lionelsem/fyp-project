@@ -618,6 +618,11 @@ export const useFsmDashboardData = (fsmLookupValue) => {
   return {
     loading,
     error,
+    buildings: data.buildings,
+    inspections: data.inspections,
+    reports: data.reports,
+    fireDrills: data.fireDrills,
+    issues: data.issues,
     summaryCards,
     statusBreakdown,
     monthlyTrend,

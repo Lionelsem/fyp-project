@@ -1335,6 +1335,253 @@ button {
   font-weight: 700;
 }
 
+/* Fire drill page */
+.fire-drill-page {
+  display: grid;
+  gap: 18px;
+}
+
+.fire-drill-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.fire-drill-page-header h1 {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.fire-drill-page-header p {
+  color: #64748b;
+  margin: 0;
+}
+
+.fire-drill-action-buttons,
+.fire-drill-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.fire-drill-form-card form {
+  display: grid;
+  gap: 18px;
+}
+
+.fire-drill-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.fire-drill-form-field {
+  display: grid;
+  gap: 7px;
+}
+
+.fire-drill-form-field--wide {
+  grid-column: 1 / -1;
+}
+
+.fire-drill-form-field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fire-drill-form-field input,
+.fire-drill-form-field select,
+.fire-drill-form-field textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.fire-drill-form-field textarea {
+  resize: vertical;
+}
+
+.fire-drill-form-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.conduct-drill-card form {
+  display: grid;
+  gap: 14px;
+}
+
+.conduct-drill-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.conduct-drill-summary div {
+  display: grid;
+  gap: 4px;
+}
+
+.conduct-drill-summary span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.conduct-drill-summary strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.conduct-drill-section-title {
+  color: #047857;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.conduct-photo-upload {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  min-height: 74px;
+  border: 1px dashed #94a3b8;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: center;
+  padding: 12px;
+}
+
+.conduct-photo-upload input {
+  display: none;
+}
+
+.conduct-photo-upload span {
+  justify-self: start;
+  color: #047857;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.conduct-photo-upload strong {
+  font-size: 13px;
+}
+
+.conduct-photo-upload small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.fire-drill-card {
+  display: grid;
+  gap: 10px;
+}
+
+.fire-drill-schedule-list {
+  display: grid;
+}
+
+.fire-drill-schedule-item {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.fire-drill-schedule-item:last-child {
+  border-bottom: none;
+}
+
+.fire-drill-date-badge {
+  min-height: 88px;
+  border-radius: 8px;
+  background: #d1fae5;
+  color: #064e3b;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.fire-drill-date-badge strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.fire-drill-date-badge span {
+  font-size: 11px;
+}
+
+.fire-drill-item-details {
+  min-width: 0;
+}
+
+.fire-drill-item-details h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.fire-drill-item-details p {
+  margin: 3px 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.fire-drill-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 98px;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fire-drill-history-table-wrapper {
+  overflow-x: auto;
+}
+
+.fire-drill-history-table {
+  min-width: 520px;
+}
+
+.fire-drill-empty-card-space {
+  min-height: 96px;
+}
+
 .compliance-chart {
   display: flex;
   justify-content: center;
@@ -1719,5 +1966,36 @@ button {
 
   .building-card-details {
     grid-template-columns: 1fr;
+  }
+
+  .fire-drill-page-header,
+  .fire-drill-action-buttons,
+  .fire-drill-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fire-drill-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .conduct-drill-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .fire-drill-schedule-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .fire-drill-date-badge {
+    min-height: auto;
+    grid-template-columns: auto auto auto;
+    justify-content: start;
+    gap: 8px;
+  }
+
+  .fire-drill-status-badge {
+    justify-self: start;
   }
 }
