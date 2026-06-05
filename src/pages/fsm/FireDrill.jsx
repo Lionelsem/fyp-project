@@ -143,7 +143,7 @@ const getStatusStyle = (status) => {
 };
 
 const getBuildingName = (building) =>
-  building?.buildingName || building?.name || building?.building || "";
+  building?.building_name || building?.buildingName || building?.name || building?.building || "";
 
 const getFsmLookupIds = (user) => [
   user?.uid,
@@ -151,6 +151,8 @@ const getFsmLookupIds = (user) => [
   user?.profileId,
   user?.id,
   user?.userId,
+  user?.fullName,
+  user?.displayName,
   user?.fsmId,
   user?.assignedFsmId,
   user?.staffId,

@@ -231,21 +231,40 @@ const getPriorityColor = (priority) => {
   return "#666";
 };
 
+const normalizeFieldName = (fieldName) =>
+  String(fieldName || "")
+    .replace(/[\s_-]+/g, "")
+    .toLowerCase();
+
 const getFirstTextValue = (source, fieldNames) => {
+  if (!source) return "";
+
   for (const fieldName of fieldNames) {
     const value = source?.[fieldName];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
     }
+  }
+
+  const normalizedFieldNames = new Set(fieldNames.map(normalizeFieldName));
+  const matchingEntry = Object.entries(source).find(([key, value]) => (
+    normalizedFieldNames.has(normalizeFieldName(key)) &&
+    value !== undefined &&
+    value !== null &&
+    String(value).trim()
+  ));
+
+  if (matchingEntry) {
+    return String(matchingEntry[1]).trim();
   }
 
   return "";
 };
 
 const BUILDING_NAME_FIELDS = [
+  "building_name",
   "buildingName",
   "BuildingName",
-  "building_name",
   "building name",
   "Building Name",
   "name",

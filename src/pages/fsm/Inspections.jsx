@@ -269,7 +269,7 @@ const InspectionOverview = ({
             <select value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}>
               <option value="">Select building</option>
               {buildings.map((b) => (
-                <option key={b.id} value={b.id}>{b.buildingName || b.buildingId || b.id}</option>
+                <option key={b.id} value={b.id}>{b.building_name || b.buildingName || b.buildingId || b.id}</option>
               ))}
             </select>
           </label>

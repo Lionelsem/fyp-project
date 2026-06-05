@@ -24,7 +24,7 @@ export const createUserProfile = async (user, extraData = {}) => {
 export const addBuilding = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.BUILDINGS), {
     buildingId: data.buildingId,
-    buildingName: data.buildingName,
+    building_name: data.building_name || data.buildingName,
     address: data.address,
     occupancyType: data.occupancyType,
     noOfStoreys: data.noOfStoreys,

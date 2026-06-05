@@ -35,7 +35,7 @@ const CreateBuilding = () => {
     try {
       await createBuilding({
         buildingId: form.buildingId,
-        buildingName: form.buildingName,
+        building_name: form.buildingName,
         address: form.address,
         noOfStoreys: form.storeys,
         occupantLoad: form.occupantLoad,

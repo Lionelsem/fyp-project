@@ -93,29 +93,50 @@ const getStatusStyle = (status) => {
   return { statusColor: "#475569", statusBg: "#f1f5f9" };
 };
 
+const normalizeFieldName = (fieldName) =>
+  String(fieldName || "")
+    .replace(/[\s_-]+/g, "")
+    .toLowerCase();
+
 const getFirstTextValue = (source, fieldNames) => {
+  if (!source) return "";
+
   for (const fieldName of fieldNames) {
     const value = source?.[fieldName];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
     }
+  }
+
+  const normalizedFieldNames = new Set(fieldNames.map(normalizeFieldName));
+  const matchingEntry = Object.entries(source).find(([key, value]) => (
+    normalizedFieldNames.has(normalizeFieldName(key)) &&
+    value !== undefined &&
+    value !== null &&
+    String(value).trim()
+  ));
+
+  if (matchingEntry) {
+    return String(matchingEntry[1]).trim();
   }
 
   return "";
 };
 
+const BUILDING_NAME_FIELDS = [
+  "building_name",
+  "buildingName",
+  "BuildingName",
+  "building name",
+  "Building Name",
+  "name",
+  "Name",
+  "building",
+  "Building"
+];
+
 const getBuildingName = (building) =>
-  getFirstTextValue(building, [
-    "buildingName",
-    "BuildingName",
-    "building_name",
-    "building name",
-    "Building Name",
-    "name",
-    "Name",
-    "building",
-    "Building"
-  ]) || "Unnamed Building";
+  getFirstTextValue(building, BUILDING_NAME_FIELDS) || "Unnamed Building";
 
 const isForBuilding = (record, building) => {
   const buildingId = String(building.id || "");
@@ -124,17 +145,7 @@ const isForBuilding = (record, building) => {
   return (
     String(record.buildingId || "") === buildingId ||
     normalizeText(
-      getFirstTextValue(record, [
-        "buildingName",
-        "BuildingName",
-        "building_name",
-        "building name",
-        "Building Name",
-        "name",
-        "Name",
-        "building",
-        "Building"
-      ])
+      getFirstTextValue(record, BUILDING_NAME_FIELDS)
     ) === buildingName
   );
 };
@@ -164,6 +175,7 @@ const buildBuildingCard = ({ building, reports, inspections, issues }) => {
     address: building.address || "-",
     occupancyType: building.occupancyType || "-",
     noOfStoreys: building.noOfStoreys || building.storeys || "-",
+    grossFloorAreaGfa: building.grossFloorAreaGfa || "-",
     occupantLoad: building.occupantLoad || "-",
     assignedFsm: building.assignedFsm || building.assignedFsmName || building.assignedFsmId || "Current FSM",
     customerName: building.customerName || building.customer || building.customerId || "Customer record pending",
@@ -186,6 +198,8 @@ const getFsmLookupIds = (user) => [
   user?.profileId,
   user?.id,
   user?.userId,
+  user?.fullName,
+  user?.displayName,
   user?.fsmId,
   user?.assignedFsmId,
   user?.staffId,
@@ -263,6 +277,7 @@ const MyBuilding = () => {
               <DetailItem label="Latest Report" value={selectedBuilding.latestReport} />
               <DetailItem label="Occupancy Type" value={selectedBuilding.occupancyType} />
               <DetailItem label="Storeys" value={selectedBuilding.noOfStoreys} />
+              <DetailItem label="GFA" value={selectedBuilding.grossFloorAreaGfa} />
               <DetailItem label="Occupant Load" value={selectedBuilding.occupantLoad} />
               <DetailItem label="Open Issues" value={selectedBuilding.openIssueCount} />
             </div>

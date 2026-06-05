@@ -38,6 +38,7 @@ const ManageBuildings = () => {
     return buildings.filter((building) => {
       return [
         building.buildingId,
+        building.building_name,
         building.buildingName,
         building.address,
         building.assignedFsmId,
@@ -110,7 +111,7 @@ const ManageBuildings = () => {
               filteredBuildings.map((building) => (
                 <tr key={building.id}>
                   <td className="id-cell">{building.buildingId || building.id}</td>
-                  <td>{building.buildingName || "-"}</td>
+                  <td>{building.building_name || building.buildingName || "-"}</td>
                   <td>{building.address || "-"}</td>
                   <td>{building.noOfStoreys || "-"}</td>
                   <td>{building.occupantLoad || "-"}</td>

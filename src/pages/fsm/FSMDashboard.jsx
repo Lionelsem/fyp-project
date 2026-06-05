@@ -320,6 +320,8 @@ const FSMDashboard = () => {
     user?.profileId,
     user?.id,
     user?.userId,
+    user?.fullName,
+    user?.displayName,
     user?.fsmId,
     user?.assignedFsmId,
     user?.staffId,
