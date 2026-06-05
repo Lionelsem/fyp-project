@@ -502,6 +502,7 @@ button {
 
 .primary-button,
 .secondary-button,
+.danger-button,
 .primary-btn,
 .secondary-btn {
   border-radius: 12px;
@@ -525,8 +526,15 @@ button {
   border: 1px solid #009966;
 }
 
+.danger-button {
+  background-color: #ffffff;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
 .primary-button:hover,
 .secondary-button:hover,
+.danger-button:hover,
 .primary-btn:hover,
 .secondary-btn:hover {
   transform: translateY(-1px);
@@ -1652,7 +1660,8 @@ button {
 }
 
 .primary-button:disabled,
-.secondary-button:disabled {
+.secondary-button:disabled,
+.danger-button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
   transform: none;
@@ -1669,7 +1678,7 @@ button {
 
 .fire-drill-schedule-item {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) auto;
+  grid-template-columns: 76px minmax(0, 1fr) auto auto;
   gap: 14px;
   align-items: center;
   padding: 14px 0;
@@ -1729,6 +1738,18 @@ button {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.fire-drill-schedule-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.fire-drill-schedule-actions .secondary-button,
+.fire-drill-schedule-actions .danger-button {
+  padding: 9px 12px;
+  font-size: 12px;
 }
 
 .fire-drill-history-table-wrapper {
@@ -2174,5 +2195,9 @@ button {
 
   .fire-drill-status-badge {
     justify-self: start;
+  }
+
+  .fire-drill-schedule-actions {
+    justify-content: flex-start;
   }
 }

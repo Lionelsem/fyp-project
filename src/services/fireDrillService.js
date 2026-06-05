@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   serverTimestamp,
   updateDoc
@@ -49,6 +50,17 @@ export const updateFireDrill = async (id, data) => {
     ...data,
     updatedAt: serverTimestamp()
   });
+};
+
+export const updateScheduledFireDrill = async (id, data) => {
+  return updateFireDrill(id, {
+    ...buildFireDrillPayload(data),
+    status: "Scheduled"
+  });
+};
+
+export const deleteFireDrill = async (id) => {
+  return deleteDoc(doc(db, COLLECTION_NAMES.FIRE_DRILLS, id));
 };
 
 export const completeFireDrill = async (id, data) => {

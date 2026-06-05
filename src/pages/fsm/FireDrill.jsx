@@ -3,7 +3,9 @@ import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import {
   completeFireDrill,
-  createFireDrill
+  createFireDrill,
+  deleteFireDrill,
+  updateScheduledFireDrill
 } from "../../services/fireDrillService";
 import { uploadFile } from "../../services/storageService";
 
@@ -215,7 +217,7 @@ const createConductFormFromDrill = (drill) => ({
   actualTime: getCurrentTimeInputValue()
 });
 
-const ScheduleItem = ({ drill }) => {
+const ScheduleItem = ({ drill, deleting, saving, onEdit, onDelete }) => {
   const dateParts = getDateParts(drill.drillDate);
   const statusStyle = getStatusStyle(drill.status);
 
@@ -243,12 +245,31 @@ const ScheduleItem = ({ drill }) => {
       >
         {drill.status}
       </span>
+      <div className="fire-drill-schedule-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => onEdit(drill)}
+          disabled={saving || deleting}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="danger-button"
+          onClick={() => onDelete(drill)}
+          disabled={saving || deleting}
+        >
+          {deleting ? "Deleting..." : "Delete"}
+        </button>
+      </div>
     </div>
   );
 };
 
 const ScheduleForm = ({
   buildings,
+  mode,
   form,
   formError,
   saving,
@@ -258,7 +279,7 @@ const ScheduleForm = ({
 }) => (
   <section className="dashboard-card fire-drill-form-card">
     <div className="card-header-row">
-      <h2 className="section-title">Add Schedule</h2>
+      <h2 className="section-title">{mode === "edit" ? "Edit Schedule" : "Add Schedule"}</h2>
       <button type="button" className="view-all-link" onClick={onCancel}>
         Close
       </button>
@@ -350,7 +371,7 @@ const ScheduleForm = ({
           Cancel
         </button>
         <button type="submit" className="primary-button" disabled={saving}>
-          {saving ? "Saving..." : "Save Schedule"}
+          {saving ? "Saving..." : mode === "edit" ? "Update Schedule" : "Save Schedule"}
         </button>
       </div>
     </form>
@@ -511,6 +532,8 @@ const FireDrill = () => {
   } = useFsmDashboardData(getFsmLookupIds(user));
   const [activeForm, setActiveForm] = useState(null);
   const [scheduleForm, setScheduleForm] = useState(emptyScheduleForm);
+  const [editingScheduleId, setEditingScheduleId] = useState("");
+  const [deletingScheduleId, setDeletingScheduleId] = useState("");
   const [conductForm, setConductForm] = useState(emptyConductForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -607,6 +630,7 @@ const FireDrill = () => {
 
   const closeForm = () => {
     setActiveForm(null);
+    setEditingScheduleId("");
     setFormError("");
   };
 
@@ -624,6 +648,29 @@ const FireDrill = () => {
     setFormError("");
     setConductForm(createConductFormFromDrill(todaysDrill));
     setActiveForm("conduct");
+  };
+
+  const openScheduleForm = () => {
+    setFormError("");
+    setEditingScheduleId("");
+    setScheduleForm(emptyScheduleForm);
+    setActiveForm(activeForm === "schedule" ? null : "schedule");
+  };
+
+  const openEditScheduleForm = (drill) => {
+    setFormError("");
+    setEditingScheduleId(drill.id);
+    setScheduleForm({
+      buildingId: drill.buildingId || "",
+      buildingName: drill.buildingName || "",
+      drillDate: drill.drillDate || "",
+      drillTime: drill.drillTime || "",
+      drillEndTime: drill.drillEndTime || "",
+      drillType: drill.drillType || "",
+      scope: drill.scope || "",
+      participants: drill.participants || ""
+    });
+    setActiveForm("schedule");
   };
 
   const handleScheduleChange = (field, value) => {
@@ -676,18 +723,45 @@ const FireDrill = () => {
 
     try {
       setSaving(true);
-      await createFireDrill({
+      const payload = {
         ...scheduleForm,
         buildingName,
         fsmId: getPrimaryFsmId(user),
         status: "Scheduled"
-      });
+      };
+
+      if (editingScheduleId) {
+        await updateScheduledFireDrill(editingScheduleId, payload);
+      } else {
+        await createFireDrill(payload);
+      }
+
       setScheduleForm(emptyScheduleForm);
       closeForm();
     } catch (submitError) {
       setFormError(submitError.message || "Could not save schedule.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteSchedule = async (drill) => {
+    const confirmed = window.confirm(`Delete scheduled fire drill "${drill.drillType}"?`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingScheduleId(drill.id);
+      setFormError("");
+      await deleteFireDrill(drill.id);
+
+      if (editingScheduleId === drill.id) {
+        setScheduleForm(emptyScheduleForm);
+        closeForm();
+      }
+    } catch (deleteError) {
+      setFormError(deleteError.message || "Could not delete schedule.");
+    } finally {
+      setDeletingScheduleId("");
     }
   };
 
@@ -752,10 +826,7 @@ const FireDrill = () => {
           <button
             type="button"
             className="secondary-button"
-            onClick={() => {
-              setFormError("");
-              setActiveForm(activeForm === "schedule" ? null : "schedule");
-            }}
+            onClick={openScheduleForm}
           >
             Add Schedule
           </button>
@@ -774,6 +845,7 @@ const FireDrill = () => {
       {activeForm === "schedule" && (
         <ScheduleForm
           buildings={buildings}
+          mode={editingScheduleId ? "edit" : "add"}
           form={scheduleForm}
           formError={formError}
           saving={saving}
@@ -812,7 +884,14 @@ const FireDrill = () => {
         {visibleScheduledDrills.length > 0 ? (
           <div className="fire-drill-schedule-list">
             {visibleScheduledDrills.map((drill) => (
-              <ScheduleItem key={drill.id} drill={drill} />
+              <ScheduleItem
+                key={drill.id}
+                drill={drill}
+                deleting={deletingScheduleId === drill.id}
+                saving={saving}
+                onEdit={openEditScheduleForm}
+                onDelete={handleDeleteSchedule}
+              />
             ))}
           </div>
         ) : (
