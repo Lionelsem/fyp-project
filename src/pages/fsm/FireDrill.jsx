@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import {
@@ -145,6 +145,11 @@ const getStatusStyle = (status) => {
 const getBuildingName = (building) =>
   building?.building_name || building?.buildingName || building?.name || building?.building || "";
 
+const getBuildingParticipants = (building) => {
+  const value = building?.occupantLoad || building?.participants || building?.occupants;
+  return value === undefined || value === null ? "" : String(value);
+};
+
 const getFsmLookupIds = (user) => [
   user?.uid,
   user?.authUid,
@@ -266,6 +271,7 @@ const ScheduleForm = ({
             <select
               value={form.buildingId}
               onChange={(event) => onChange("buildingId", event.target.value)}
+              disabled={buildings.length === 1}
               required
             >
               <option value="">Select building</option>
@@ -573,6 +579,32 @@ const FireDrill = () => {
   const visibleScheduledDrills = showAllSchedule ? scheduledDrills : scheduledDrills.slice(0, 3);
   const visibleHistory = showAllHistory ? drillHistory : drillHistory.slice(0, 5);
 
+  const getScheduleDefaultsForBuilding = (building) => ({
+    buildingId: building?.id || "",
+    buildingName: getBuildingName(building),
+    participants: getBuildingParticipants(building)
+  });
+
+  useEffect(() => {
+    if (buildings.length !== 1) return;
+
+    const defaults = getScheduleDefaultsForBuilding(buildings[0]);
+    setScheduleForm((current) => {
+      const currentBuilding = buildingMap.get(current.buildingId);
+      const currentDefaultParticipants = getBuildingParticipants(currentBuilding);
+
+      return {
+        ...current,
+        buildingId: defaults.buildingId,
+        buildingName: defaults.buildingName,
+        participants:
+          !current.participants || current.participants === currentDefaultParticipants
+            ? defaults.participants
+            : current.participants
+      };
+    });
+  }, [activeForm, buildingMap, buildings]);
+
   const closeForm = () => {
     setActiveForm(null);
     setFormError("");
@@ -595,6 +627,27 @@ const FireDrill = () => {
   };
 
   const handleScheduleChange = (field, value) => {
+    if (field === "buildingId") {
+      const selectedBuilding = buildingMap.get(value);
+      const defaults = getScheduleDefaultsForBuilding(selectedBuilding);
+
+      setScheduleForm((current) => {
+        const currentBuilding = buildingMap.get(current.buildingId);
+        const currentDefaultParticipants = getBuildingParticipants(currentBuilding);
+
+        return {
+          ...current,
+          buildingId: value,
+          buildingName: defaults.buildingName,
+          participants:
+            !current.participants || current.participants === currentDefaultParticipants
+              ? defaults.participants
+              : current.participants
+        };
+      });
+      return;
+    }
+
     setScheduleForm((current) => ({ ...current, [field]: value }));
   };
 
