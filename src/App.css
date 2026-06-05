@@ -1788,6 +1788,320 @@ button {
   min-height: 96px;
 }
 
+/* FSM issue ticket page */
+.issue-ticket-page {
+  display: grid;
+  gap: 24px;
+}
+
+.issue-ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.issue-ticket-header h1 {
+  margin: 0 0 8px;
+  font-size: 34px;
+}
+
+.issue-ticket-header p {
+  margin: 0;
+  color: #64748b;
+}
+
+.issue-ticket-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.issue-ticket-list-card,
+.issue-ticket-form-card,
+.issue-ticket-detail {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.issue-ticket-toolbar {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1.4fr) repeat(4, minmax(9rem, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+
+.issue-ticket-toolbar input,
+.issue-ticket-toolbar select,
+.issue-ticket-form input,
+.issue-ticket-form select,
+.issue-ticket-form textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.issue-ticket-form input[type="file"] {
+  padding: 9px;
+}
+
+.issue-ticket-table-wrapper {
+  overflow-x: auto;
+}
+
+.issue-ticket-table {
+  min-width: min(100%, 68rem);
+  table-layout: fixed;
+}
+
+.issue-ticket-table th,
+.issue-ticket-table td {
+  vertical-align: middle;
+}
+
+.issue-ticket-table th:nth-child(1),
+.issue-ticket-table td:nth-child(1) {
+  width: 18%;
+}
+
+.issue-ticket-table th:nth-child(2),
+.issue-ticket-table td:nth-child(2) {
+  width: 24%;
+}
+
+.issue-ticket-table th:nth-child(3),
+.issue-ticket-table td:nth-child(3) {
+  width: 22%;
+}
+
+.issue-ticket-table th:nth-child(4),
+.issue-ticket-table td:nth-child(4),
+.issue-ticket-table th:nth-child(5),
+.issue-ticket-table td:nth-child(5) {
+  width: 13%;
+}
+
+.issue-ticket-table th:nth-child(6),
+.issue-ticket-table td:nth-child(6) {
+  width: 12%;
+}
+
+.issue-ticket-table td {
+  white-space: nowrap;
+}
+
+.issue-ticket-table td:not(:nth-child(4)):not(:nth-child(5)) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.issue-ticket-table tbody tr {
+  cursor: pointer;
+}
+
+.issue-ticket-row-active {
+  background: #ecfdf5;
+}
+
+.issue-status,
+.issue-priority {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.issue-status--open {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.issue-status--progress {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.issue-status--resolved,
+.issue-status--closed {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.issue-status--draft {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.issue-priority--high {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.issue-priority--medium {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.issue-priority--low {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.issue-ticket-form {
+  display: grid;
+  gap: 16px;
+}
+
+.issue-ticket-form label {
+  display: grid;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.issue-ticket-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 14px;
+}
+
+.issue-ticket-photo-field {
+  display: grid;
+  grid-template-columns: minmax(min(100%, 14rem), 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.issue-ticket-photo-preview,
+.issue-ticket-detail-photo {
+  width: min(100%, 12rem);
+  aspect-ratio: 4 / 3;
+  height: auto;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.issue-ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.issue-ticket-detail .issue-ticket-actions {
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.issue-ticket-detail .issue-ticket-actions button {
+  flex: 0 1 150px;
+}
+
+.issue-ticket-detail {
+  position: static;
+}
+
+.issue-ticket-detail--empty {
+  min-height: 220px;
+}
+
+.issue-ticket-detail > .card-header-row {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.issue-ticket-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 12px;
+}
+
+.issue-ticket-detail-grid div,
+.issue-ticket-verify-summary {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.issue-ticket-detail-grid span,
+.issue-ticket-copy-block span,
+.issue-ticket-verify-summary span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.issue-ticket-detail-grid strong,
+.issue-ticket-verify-summary strong {
+  color: #0f172a;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.issue-ticket-copy-block {
+  display: grid;
+  gap: 6px;
+}
+
+.issue-ticket-copy-block p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.issue-ticket-empty {
+  padding: 28px;
+  text-align: center;
+  color: #64748b;
+}
+
+.issue-ticket-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.issue-ticket-modal {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.2);
+}
+
+.issue-ticket-modal h2,
+.issue-ticket-modal p {
+  margin: 0;
+}
+
+.issue-ticket-modal p {
+  color: #64748b;
+  line-height: 1.5;
+}
+
 .compliance-chart {
   display: flex;
   justify-content: center;
@@ -2223,5 +2537,31 @@ button {
 
   .fire-drill-schedule-actions {
     justify-content: flex-start;
+  }
+
+  .issue-ticket-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .issue-ticket-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .issue-ticket-detail {
+    position: static;
+  }
+
+  .issue-ticket-toolbar,
+  .issue-ticket-form-grid,
+  .issue-ticket-photo-field,
+  .issue-ticket-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .issue-ticket-photo-preview,
+  .issue-ticket-detail-photo {
+    width: 100%;
+    height: 180px;
   }
 }

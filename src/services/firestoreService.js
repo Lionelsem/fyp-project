@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, setDoc, getDoc, getDocs, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, getDoc, getDocs, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { ROLES } from "../constants/roles";
@@ -183,7 +183,11 @@ const buildIssuePayload = (data) => ({
   priority: data.priority || PRIORITY.MEDIUM,
   status: data.status || ISSUE_STATUS.OPEN,
   issuePhotoUrl: data.issuePhotoUrl || "",
-  aiRecommendation: data.aiRecommendation || ""
+  aiRecommendation: data.aiRecommendation || "",
+  archived: !!data.archived,
+  archivedAt: data.archivedAt || null,
+  archivedBy: data.archivedBy || "",
+  archiveReason: data.archiveReason || ""
 });
 
 const upsertByDocumentId = async (collectionName, documentId, payload) => {
@@ -193,6 +197,7 @@ const upsertByDocumentId = async (collectionName, documentId, payload) => {
     docRef,
     {
       ...payload,
+      updatedAt: serverTimestamp(),
       ...(existing.exists() ? {} : { createdAt: serverTimestamp() })
     },
     { merge: true }
@@ -275,6 +280,24 @@ export const upsertIssue = async (data) => {
   );
 };
 
+export const getIssues = async () => {
+  return await getDocs(collection(db, COLLECTION_NAMES.ISSUES));
+};
+
+export const getIssue = async (id) => {
+  return await getDoc(doc(db, COLLECTION_NAMES.ISSUES, id));
+};
+
+export const archiveIssue = async (id, data = {}) => {
+  return await updateDoc(doc(db, COLLECTION_NAMES.ISSUES, id), {
+    archived: true,
+    archivedAt: serverTimestamp(),
+    archivedBy: data.archivedBy || "",
+    archiveReason: data.archiveReason || "",
+    updatedAt: serverTimestamp()
+  });
+};
+
 export const addIssueComment = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.ISSUE_COMMENTS), {
     commentId: data.commentId,
@@ -298,6 +321,10 @@ export const addClosureVerification = async (data) => {
     verifiedAt: serverTimestamp(),
     createdAt: serverTimestamp()
   });
+};
+
+export const getClosureVerifications = async () => {
+  return await getDocs(collection(db, COLLECTION_NAMES.CLOSURE_VERIFICATIONS));
 };
 
 export const addNotification = async (data) => {
