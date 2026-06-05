@@ -1,10 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../config/firebase";
 import { COLLECTION_NAMES } from "../../constants/collectionNames";
 import { createInspection, addInspectionResult } from "../../services/inspectionService";
 import { createIssue } from "../../services/issueService";
 import { useAuth } from "../../hooks/useAuth";
+import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { uploadFile } from "../../services/storageService";
 
 const initialChecklist = [
@@ -230,23 +229,179 @@ const conditionOptions = [
   { value: "N.A.", label: "N.A." }
 ];
 
+const normalizeFieldName = (fieldName) =>
+  String(fieldName || "")
+    .replace(/[\s_-]+/g, "")
+    .toLowerCase();
+
+const getFirstTextValue = (source, fieldNames) => {
+  if (!source) return "";
+
+  for (const fieldName of fieldNames) {
+    const value = source?.[fieldName];
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+
+  const normalizedFieldNames = new Set(fieldNames.map(normalizeFieldName));
+  const matchingEntry = Object.entries(source).find(([key, value]) => (
+    normalizedFieldNames.has(normalizeFieldName(key)) &&
+    value !== undefined &&
+    value !== null &&
+    String(value).trim()
+  ));
+
+  return matchingEntry ? String(matchingEntry[1]).trim() : "";
+};
+
+const BUILDING_NAME_FIELDS = [
+  "building_name",
+  "buildingName",
+  "BuildingName",
+  "building name",
+  "Building Name",
+  "name",
+  "Name",
+  "building",
+  "Building"
+];
+
+const LEVEL_COUNT_FIELDS = [
+  "noOfStoreys",
+  "storeys",
+  "numberOfStoreys",
+  "noOfLevels",
+  "levels",
+  "levelCount",
+  "floorCount",
+  "floors"
+];
+
+const getBuildingName = (building) =>
+  getFirstTextValue(building, BUILDING_NAME_FIELDS) || "Assigned building pending";
+
+const parsePositiveInteger = (value) => {
+  if (value === undefined || value === null || Array.isArray(value)) return 0;
+  const match = String(value).match(/\d+/);
+  const count = match ? Number.parseInt(match[0], 10) : 0;
+  return Number.isFinite(count) && count > 0 ? count : 0;
+};
+
+const getBuildingLevelCount = (building) => {
+  if (!building) return 0;
+  const explicitLevels = building.levels || building.floors;
+
+  if (Array.isArray(explicitLevels)) {
+    return explicitLevels.length;
+  }
+
+  return parsePositiveInteger(getFirstTextValue(building, LEVEL_COUNT_FIELDS));
+};
+
+const buildLevelsForBuilding = (building) => {
+  if (!building) return [];
+
+  const explicitLevels = building.levels || building.floors;
+  if (Array.isArray(explicitLevels) && explicitLevels.length > 0) {
+    return explicitLevels.map((level, index) => {
+      const fallbackName = `Level ${index + 1}`;
+      if (typeof level === "string" || typeof level === "number") {
+        const label = String(level).trim() || fallbackName;
+        return { id: `level-${index + 1}`, name: label };
+      }
+
+      return {
+        id: level.id || level.floorId || level.levelId || `level-${index + 1}`,
+        name: level.floorName || level.levelName || level.floorCode || level.levelCode || fallbackName
+      };
+    });
+  }
+
+  const levelCount = getBuildingLevelCount(building);
+  return Array.from({ length: levelCount }, (_, index) => ({
+    id: `level-${index + 1}`,
+    name: `Level ${index + 1}`
+  }));
+};
+
+const createEmptyChecklist = () =>
+  initialChecklist.map((category) => ({
+    ...category,
+    items: category.items.map((item) => ({
+      ...item,
+      condition: "",
+      remark: "",
+      photo: "",
+      photoPreview: "",
+      photoFile: null,
+      issue: {
+        description: "",
+        rectification: "",
+        priority: item.issue?.priority || "Medium",
+        status: "Open",
+        photo: ""
+      },
+      expanded: false
+    }))
+  }));
+
+const getFsmLookupIds = (user) => [
+  user?.uid,
+  user?.authUid,
+  user?.profileId,
+  user?.id,
+  user?.userId,
+  user?.fullName,
+  user?.displayName,
+  user?.fsmId,
+  user?.assignedFsmId,
+  user?.staffId,
+  user?.employeeId,
+  user?.accountId,
+  user?.firestoreId
+];
+
+const getPrimaryFsmId = (user) =>
+  getFsmLookupIds(user).map((value) => String(value || "").trim()).find(Boolean) || "";
+
+const getInspectorName = (user) =>
+  user?.fullName || user?.displayName || user?.email?.split("@")[0] || "FSM";
+
+const formatInspectionMonth = () =>
+  new Date().toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric"
+  });
+
+const formatLastUpdated = () =>
+  new Date().toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+
+const getPassFail = (condition) => {
+  if (condition === "Good") return "Pass";
+  if (condition === "Faulty") return "Fail";
+  if (condition === "N.A.") return "N.A.";
+  return "";
+};
+
 const InspectionOverview = ({
   completedCount,
   totalRows,
   progressPercent,
   inspectionInfo,
-  buildings,
-  floors,
-  equipmentList,
-  templates,
-  selectedBuilding,
-  setSelectedBuilding,
-  selectedFloor,
-  setSelectedFloor,
-  selectedEquipment,
-  setSelectedEquipment,
-  selectedTemplateId,
-  setSelectedTemplateId,
+  buildingName,
+  assignmentLoading,
+  assignmentError,
+  levels,
+  selectedLevel,
+  setSelectedLevel,
+  canSave,
   onSaveDraft,
   onSubmit
 }) => (
@@ -258,51 +413,28 @@ const InspectionOverview = ({
           <h3>Monthly Inspection Report</h3>
         </div>
         <div className="overview-actions">
-          <button type="button" className="secondary-button" onClick={onSaveDraft}>Save Draft</button>
-          <button type="button" className="primary-button" onClick={onSubmit}>Submit Inspection</button>
+          <button type="button" className="secondary-button" onClick={onSaveDraft} disabled={!canSave}>Save Draft</button>
+          <button type="button" className="primary-button" onClick={onSubmit} disabled={!canSave}>Submit Inspection</button>
         </div>
       </div>
       <div className="overview-grid">
         <div>
           <span className="overview-label">Building</span>
-          <label>
-            <select value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}>
-              <option value="">Select building</option>
-              {buildings.map((b) => (
-                <option key={b.id} value={b.id}>{b.building_name || b.buildingName || b.buildingId || b.id}</option>
-              ))}
-            </select>
-          </label>
+          <p>{assignmentLoading ? "Loading assigned building..." : buildingName}</p>
         </div>
         <div>
-          <span className="overview-label">Floor</span>
+          <span className="overview-label">Level</span>
           <label>
-            <select value={selectedFloor} onChange={(e) => setSelectedFloor(e.target.value)}>
-              <option value="">Select floor</option>
-              {floors.map((f) => (
-                <option key={f.id} value={f.id}>{f.floorName || f.floorCode || f.id}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div>
-          <span className="overview-label">Equipment</span>
-          <label>
-            <select value={selectedEquipment} onChange={(e) => setSelectedEquipment(e.target.value)}>
-              <option value="">Select equipment</option>
-              {equipmentList.map((eq) => (
-                <option key={eq.id} value={eq.id}>{eq.equipmentName || eq.equipmentCode || eq.id}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div>
-          <span className="overview-label">Template</span>
-          <label>
-            <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}>
-              <option value="">Select template</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.templateName || t.templateId || t.id}</option>
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              disabled={levels.length === 0}
+            >
+              <option value="">
+                {levels.length === 0 ? "No levels configured" : "Select level"}
+              </option>
+              {levels.map((level) => (
+                <option key={level.id} value={level.id}>{level.name}</option>
               ))}
             </select>
           </label>
@@ -319,6 +451,12 @@ const InspectionOverview = ({
           <span className="overview-label">Last Updated</span>
           <p>{inspectionInfo.lastUpdated}</p>
         </div>
+        {assignmentError && (
+          <div>
+            <span className="overview-label">Assignment Status</span>
+            <p>{assignmentError}</p>
+          </div>
+        )}
       </div>
       <div className="progress-footer">
         <div className="progress-header">
@@ -539,16 +677,101 @@ const AppendixTable = ({ entries }) => (
 );
 
 const Inspections = () => {
-  const [checklist, setChecklist] = useState(initialChecklist);
-  const [generalRemarks, setGeneralRemarks] = useState("");
-  const [buildings, setBuildings] = useState([]);
-  const [floors, setFloors] = useState([]);
-  const [equipmentList, setEquipmentList] = useState([]);
-  const [selectedBuilding, setSelectedBuilding] = useState("");
-  const [selectedFloor, setSelectedFloor] = useState("");
-  const [selectedEquipment, setSelectedEquipment] = useState("");
-  const [templates, setTemplates] = useState([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const { user } = useAuth();
+  const {
+    loading: assignmentLoading,
+    error: assignmentError,
+    buildings
+  } = useFsmDashboardData(getFsmLookupIds(user));
+  const [selectedLevel, setSelectedLevel] = useState("");
+  const [levelChecklists, setLevelChecklists] = useState({});
+  const [levelRemarks, setLevelRemarks] = useState({});
+
+  const assignedBuilding = buildings[0] || null;
+  const selectedBuilding = assignedBuilding?.id || "";
+  const buildingName = assignedBuilding ? getBuildingName(assignedBuilding) : "No assigned building found";
+  const levels = useMemo(() => buildLevelsForBuilding(assignedBuilding), [assignedBuilding]);
+  const selectedLevelInfo = levels.find((level) => level.id === selectedLevel) || null;
+  const selectedLevelName = selectedLevelInfo?.name || selectedLevel;
+  const fsmId = getPrimaryFsmId(user);
+  const canSaveInspection = Boolean(selectedBuilding && selectedLevel && fsmId);
+  const activeChecklist = levelChecklists[selectedLevel];
+  const checklist = useMemo(
+    () => activeChecklist || createEmptyChecklist(),
+    [activeChecklist]
+  );
+  const generalRemarks = levelRemarks[selectedLevel] || "";
+
+  const currentInspectionInfo = useMemo(
+    () => ({
+      ...inspectionInfo,
+      building: buildingName,
+      month: formatInspectionMonth(),
+      inspector: getInspectorName(user),
+      lastUpdated: formatLastUpdated()
+    }),
+    [buildingName, user]
+  );
+
+  useEffect(() => {
+    setSelectedLevel((current) => {
+      if (levels.length === 0) return "";
+      return levels.some((level) => level.id === current) ? current : levels[0].id;
+    });
+  }, [levels]);
+
+  useEffect(() => {
+    setLevelChecklists({});
+    setLevelRemarks({});
+  }, [selectedBuilding]);
+
+  useEffect(() => {
+    if (!selectedLevel) return;
+
+    setLevelChecklists((current) => {
+      if (current[selectedLevel]) return current;
+      return {
+        ...current,
+        [selectedLevel]: createEmptyChecklist()
+      };
+    });
+  }, [selectedLevel]);
+
+  useEffect(() => {
+    if (!selectedLevel) return;
+
+    setLevelRemarks((current) => {
+      if (Object.prototype.hasOwnProperty.call(current, selectedLevel)) return current;
+      return {
+        ...current,
+        [selectedLevel]: ""
+      };
+    });
+  }, [selectedLevel]);
+
+  const setChecklistForSelectedLevel = (updater) => {
+    if (!selectedLevel) return;
+
+    setLevelChecklists((current) => {
+      const currentChecklist = current[selectedLevel] || createEmptyChecklist();
+      const nextChecklist =
+        typeof updater === "function" ? updater(currentChecklist) : updater;
+
+      return {
+        ...current,
+        [selectedLevel]: nextChecklist
+      };
+    });
+  };
+
+  const setRemarksForSelectedLevel = (value) => {
+    if (!selectedLevel) return;
+
+    setLevelRemarks((current) => ({
+      ...current,
+      [selectedLevel]: value
+    }));
+  };
 
   const totalRows = useMemo(
     () => checklist.reduce((sum, category) => sum + category.items.length, 0),
@@ -589,7 +812,7 @@ const Inspections = () => {
   }, [checklist]);
 
   const updateChecklistItem = (categoryId, itemId, changes) => {
-    setChecklist((current) =>
+    setChecklistForSelectedLevel((current) =>
       current.map((category) => {
         if (category.id !== categoryId) return category;
         return {
@@ -619,7 +842,7 @@ const Inspections = () => {
   };
 
   const toggleCategory = (categoryId) => {
-    setChecklist((current) =>
+    setChecklistForSelectedLevel((current) =>
       current.map((category) =>
         category.id === categoryId ? { ...category, expanded: !category.expanded } : category
       )
@@ -627,7 +850,7 @@ const Inspections = () => {
   };
 
   const toggleRow = (categoryId, itemId) => {
-    setChecklist((current) =>
+    setChecklistForSelectedLevel((current) =>
       current.map((category) => {
         if (category.id !== categoryId) return category;
         return {
@@ -640,8 +863,6 @@ const Inspections = () => {
       })
     );
   };
-
-  const { user } = useAuth();
 
   const handlePhotoChange = (categoryId, itemId, files) => {
     const file = files && files[0];
@@ -658,7 +879,7 @@ const Inspections = () => {
   };
 
   const handleIssueUpdate = (categoryId, itemId, changes) => {
-    setChecklist((current) =>
+    setChecklistForSelectedLevel((current) =>
       current.map((category) => {
         if (category.id !== categoryId) return category;
         return {
@@ -678,87 +899,20 @@ const Inspections = () => {
     );
   };
 
-  // Load buildings and templates on mount
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const bSnap = await getDocs(collection(db, COLLECTION_NAMES.BUILDINGS));
-        setBuildings(bSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-        const tSnap = await getDocs(collection(db, COLLECTION_NAMES.INSPECTION_TEMPLATES));
-        setTemplates(tSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("Failed loading templates/buildings", err);
-      }
-    };
-    load();
-  }, []);
-
-  // Load floors when building selected
-  useEffect(() => {
-    const loadFloors = async () => {
-      if (!selectedBuilding) return setFloors([]);
-      const q = query(collection(db, COLLECTION_NAMES.FLOORS), where("buildingId", "==", selectedBuilding));
-      const snap = await getDocs(q);
-      setFloors(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    };
-    loadFloors();
-  }, [selectedBuilding]);
-
-  // Load equipment when floor selected
-  useEffect(() => {
-    const loadEquipment = async () => {
-      if (!selectedFloor) return setEquipmentList([]);
-      const q = query(collection(db, COLLECTION_NAMES.EQUIPMENT), where("floorId", "==", selectedFloor));
-      const snap = await getDocs(q);
-      setEquipmentList(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    };
-    loadEquipment();
-  }, [selectedFloor]);
-
-  // When template selected, map template items into checklist shape
-  useEffect(() => {
-    if (!selectedTemplateId) return;
-    const tpl = templates.find((t) => t.id === selectedTemplateId);
-    if (!tpl) return;
-    // If templates are stored per-item (multiple documents), filter and group by category
-    const items = templates.filter((t) => t.templateId === tpl.templateId || t.id === tpl.id);
-    if (items.length === 0) return;
-    // Build grouped checklist from template entries
-    const grouped = items.reduce((acc, entry) => {
-      const catId = entry.categoryCode || entry.categoryName || "uncategorized";
-      const found = acc.find((c) => c.id === catId);
-      const row = {
-        id: entry.itemCode || entry.itemLabel,
-        code: entry.itemCode || entry.itemLabel,
-        label: entry.itemLabel || entry.itemCode,
-        condition: "",
-        remark: "",
-        photo: "",
-        issue: { description: "", rectification: "", priority: entry.defaultPriority || "Medium", status: "Open", photo: "" },
-        autoCreateIssueWhenFaulty: !!entry.autoCreateIssueWhenFaulty,
-        isManualVerification: !!entry.isManualVerification,
-        expanded: false
-      };
-      if (found) found.items.push(row);
-      else acc.push({ id: catId, title: entry.categoryName || catId, description: "", expanded: true, items: [row] });
-      return acc;
-    }, []);
-    setChecklist(grouped);
-  }, [selectedTemplateId, templates]);
-
   // Save handlers
   const handleSaveDraft = async () => {
+    if (!canSaveInspection) return;
+
     try {
       const inspectionData = {
-        inspectionId: `inspection_${Date.now()}`,
+        inspectionId: `inspection_${selectedLevel}_${Date.now()}`,
         buildingId: selectedBuilding,
-        floorId: selectedFloor,
-        fsmId: "user_fsm_001",
+        floorId: selectedLevel,
+        floorName: selectedLevelName,
+        fsmId,
         inspectionType: "Monthly Inspection",
         inspectionMode: "Semi-Automated",
-        templateId: selectedTemplateId,
+        templateId: null,
         inspectionDate: new Date(),
         progressPercent,
         generalRemarks,
@@ -777,24 +931,25 @@ const Inspections = () => {
           }
 
           await addInspectionResult({
-            resultId: `result_${Date.now()}_${item.id}`,
+            resultId: `result_${selectedLevel}_${Date.now()}_${item.id}`,
             inspectionId: created.id,
             buildingId: selectedBuilding,
-            floorId: selectedFloor,
-            equipmentId: selectedEquipment || null,
-            templateId: selectedTemplateId,
+            floorId: selectedLevel,
+            floorName: selectedLevelName,
+            equipmentId: null,
+            templateId: null,
             categoryCode: category.id,
             categoryName: category.title,
             itemCode: item.code,
             itemLabel: item.label,
-            inspectionPath: `${selectedBuilding} > ${selectedFloor} > ${selectedEquipment || "N/A"} > ${item.label}`,
+            inspectionPath: `${buildingName} > ${selectedLevelName} > ${item.label}`,
             condition: item.condition || "",
-            passFail: item.condition === "Good" ? "Pass" : "Fail",
+            passFail: getPassFail(item.condition),
             remark: item.remark || "",
             photoUrl,
             manualVerificationRequired: !!item.isManualVerification,
             checkedAt: new Date(),
-            checkedBy: user?.uid || "user_fsm_001",
+            checkedBy: fsmId,
             qrScanned: false,
             qrCodeValue: "",
             historyLoaded: false,
@@ -813,15 +968,18 @@ const Inspections = () => {
   };
 
   const handleSubmit = async () => {
+    if (!canSaveInspection) return;
+
     try {
       const inspectionData = {
-        inspectionId: `inspection_${Date.now()}`,
+        inspectionId: `inspection_${selectedLevel}_${Date.now()}`,
         buildingId: selectedBuilding,
-        floorId: selectedFloor,
-        fsmId: "user_fsm_001",
+        floorId: selectedLevel,
+        floorName: selectedLevelName,
+        fsmId,
         inspectionType: "Monthly Inspection",
         inspectionMode: "Semi-Automated",
-        templateId: selectedTemplateId,
+        templateId: null,
         inspectionDate: new Date(),
         progressPercent,
         generalRemarks,
@@ -839,24 +997,25 @@ const Inspections = () => {
           }
 
           const result = await addInspectionResult({
-            resultId: `result_${Date.now()}_${item.id}`,
+            resultId: `result_${selectedLevel}_${Date.now()}_${item.id}`,
             inspectionId: created.id,
             buildingId: selectedBuilding,
-            floorId: selectedFloor,
-            equipmentId: selectedEquipment || null,
-            templateId: selectedTemplateId,
+            floorId: selectedLevel,
+            floorName: selectedLevelName,
+            equipmentId: null,
+            templateId: null,
             categoryCode: category.id,
             categoryName: category.title,
             itemCode: item.code,
             itemLabel: item.label,
-            inspectionPath: `${selectedBuilding} > ${selectedFloor} > ${selectedEquipment || "N/A"} > ${item.label}`,
+            inspectionPath: `${buildingName} > ${selectedLevelName} > ${item.label}`,
             condition: item.condition || "",
-            passFail: item.condition === "Good" ? "Pass" : "Fail",
+            passFail: getPassFail(item.condition),
             remark: item.remark || "",
             photoUrl,
             manualVerificationRequired: !!item.isManualVerification,
             checkedAt: new Date(),
-            checkedBy: user?.uid || "user_fsm_001",
+            checkedBy: fsmId,
             qrScanned: false,
             qrCodeValue: "",
             historyLoaded: false,
@@ -864,16 +1023,17 @@ const Inspections = () => {
             createdAt: new Date()
           });
 
-          // auto-create issue when faulty and template requires it
+          // Auto-create an issue when a checklist item is configured for it.
           if ((item.condition === "Faulty") && item.autoCreateIssueWhenFaulty) {
             await createIssue({
-              issueId: `issue_${Date.now()}_${item.id}`,
+              issueId: `issue_${selectedLevel}_${Date.now()}_${item.id}`,
               inspectionId: created.id,
               resultId: result.id || null,
               buildingId: selectedBuilding,
-              floorId: selectedFloor,
-              equipmentId: selectedEquipment || null,
-              reportedBy: "user_fsm_001",
+              floorId: selectedLevel,
+              floorName: selectedLevelName,
+              equipmentId: null,
+              reportedBy: fsmId,
               issueTitle: item.label,
               issueDescription: item.issue?.description || item.remark || "",
               rectification: item.issue?.rectification || "",
@@ -912,19 +1072,14 @@ const Inspections = () => {
             completedCount={completedCount}
             totalRows={totalRows}
             progressPercent={progressPercent}
-            inspectionInfo={inspectionInfo}
-            buildings={buildings}
-            floors={floors}
-            equipmentList={equipmentList}
-            templates={templates}
-            selectedBuilding={selectedBuilding}
-            setSelectedBuilding={setSelectedBuilding}
-            selectedFloor={selectedFloor}
-            setSelectedFloor={setSelectedFloor}
-            selectedEquipment={selectedEquipment}
-            setSelectedEquipment={setSelectedEquipment}
-            selectedTemplateId={selectedTemplateId}
-            setSelectedTemplateId={setSelectedTemplateId}
+            inspectionInfo={currentInspectionInfo}
+            buildingName={buildingName}
+            assignmentLoading={assignmentLoading}
+            assignmentError={assignmentError}
+            levels={levels}
+            selectedLevel={selectedLevel}
+            setSelectedLevel={setSelectedLevel}
+            canSave={canSaveInspection}
             onSaveDraft={handleSaveDraft}
             onSubmit={handleSubmit}
           />
@@ -974,7 +1129,7 @@ const Inspections = () => {
                               className="encroachment-row"
                               key={item.id}
                             >
-                              <span>{item.storey}</span>
+                              <span>{item.storey === "All" ? selectedLevelName || "All" : item.storey}</span>
                               <span>{item.condition || "Pending"}</span>
                               <span>{item.location}</span>
                               <span>{item.remark}</span>
@@ -1036,7 +1191,7 @@ const Inspections = () => {
                 value={generalRemarks}
                 rows={5}
                 placeholder="Add general observation or notes for this inspection..."
-                onChange={(e) => setGeneralRemarks(e.target.value)}
+                onChange={(e) => setRemarksForSelectedLevel(e.target.value)}
               />
             </label>
           </section>

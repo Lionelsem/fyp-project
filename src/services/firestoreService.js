@@ -111,6 +111,7 @@ export const createInspection = async (data) => {
     inspectionId: data.inspectionId,
     buildingId: data.buildingId,
     floorId: data.floorId,
+    floorName: data.floorName || "",
     fsmId: data.fsmId,
     inspectionType: data.inspectionType,
     inspectionMode: data.inspectionMode || "Semi-Automated",
@@ -133,6 +134,7 @@ export const addInspectionResult = async (data) => {
     inspectionId: data.inspectionId,
     buildingId: data.buildingId,
     floorId: data.floorId,
+    floorName: data.floorName || "",
     equipmentId: data.equipmentId || null,
     templateId: data.templateId,
     categoryCode: data.categoryCode,
@@ -141,7 +143,16 @@ export const addInspectionResult = async (data) => {
     itemLabel: data.itemLabel,
     inspectionPath: data.inspectionPath || "",
     condition: data.condition,
-    passFail: data.passFail || (data.condition === "Good" ? "Pass" : "Fail"),
+    passFail:
+      data.passFail !== undefined
+        ? data.passFail
+        : data.condition === "Good"
+          ? "Pass"
+          : data.condition === "Faulty"
+            ? "Fail"
+            : data.condition === "N.A."
+              ? "N.A."
+              : "",
     remark: data.remark || "",
     photoUrl: data.photoUrl || "",
     manualVerificationRequired: !!data.manualVerificationRequired,
@@ -178,6 +189,7 @@ export const addIssue = async (data) => {
     resultId: data.resultId,
     buildingId: data.buildingId,
     floorId: data.floorId,
+    floorName: data.floorName || "",
     equipmentId: data.equipmentId || null,
     reportedBy: data.reportedBy,
     issueTitle: data.issueTitle,
