@@ -231,11 +231,33 @@ const getPriorityColor = (priority) => {
   return "#666";
 };
 
+const getFirstTextValue = (source, fieldNames) => {
+  for (const fieldName of fieldNames) {
+    const value = source?.[fieldName];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+};
+
+const BUILDING_NAME_FIELDS = [
+  "buildingName",
+  "BuildingName",
+  "building_name",
+  "building name",
+  "Building Name",
+  "name",
+  "Name",
+  "building",
+  "Building"
+];
+
 const getBuildingName = (buildingMap, buildingId, fallback) => {
   const building = buildingMap.get(buildingId);
   return (
-    building?.buildingName ||
-    building?.name ||
+    getFirstTextValue(building, BUILDING_NAME_FIELDS) ||
     fallback ||
     "Unknown Building"
   );

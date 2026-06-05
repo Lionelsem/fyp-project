@@ -93,8 +93,29 @@ const getStatusStyle = (status) => {
   return { statusColor: "#475569", statusBg: "#f1f5f9" };
 };
 
+const getFirstTextValue = (source, fieldNames) => {
+  for (const fieldName of fieldNames) {
+    const value = source?.[fieldName];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+};
+
 const getBuildingName = (building) =>
-  building.buildingName || building.name || building.building || "Unnamed Building";
+  getFirstTextValue(building, [
+    "buildingName",
+    "BuildingName",
+    "building_name",
+    "building name",
+    "Building Name",
+    "name",
+    "Name",
+    "building",
+    "Building"
+  ]) || "Unnamed Building";
 
 const isForBuilding = (record, building) => {
   const buildingId = String(building.id || "");
@@ -102,7 +123,19 @@ const isForBuilding = (record, building) => {
 
   return (
     String(record.buildingId || "") === buildingId ||
-    normalizeText(record.building || record.buildingName) === buildingName
+    normalizeText(
+      getFirstTextValue(record, [
+        "buildingName",
+        "BuildingName",
+        "building_name",
+        "building name",
+        "Building Name",
+        "name",
+        "Name",
+        "building",
+        "Building"
+      ])
+    ) === buildingName
   );
 };
 

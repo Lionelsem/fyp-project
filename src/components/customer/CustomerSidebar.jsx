@@ -1,11 +1,27 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
-import Sidebar from "../common/Sidebar";
 
-const CustomerSidebar = () => {
+const menuItems = [
+  { path: "/dashboard", label: "Dashboard", icon: "📊" },
+  { path: "/my-reports", label: "My Reports", icon: "📋" },
+  { path: "/submit-report", label: "Submit Report", icon: "📝" }
+];
+
+const CustomerSidebar = ({ profile }) => {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const displayName = profile?.name || "Customer";
+  const roleLabel = profile?.role || "Customer";
+  const initials =
+    profile?.initials ||
+    displayName
+      .split(" ")
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 
   const handleLogout = async () => {
     try {
@@ -19,20 +35,41 @@ const CustomerSidebar = () => {
   };
 
   return (
-    <Sidebar>
-      <div className="sidebar-logo">Company</div>
-      <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/my-reports" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          My Reports
-        </NavLink>
-        <NavLink to="/submit-report" className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
-          Submit Report
-        </NavLink>
+    <aside className="admin-sidebar">
+      <div className="sidebar-logo">
+        <span className="logo-text">CBRE</span>
+      </div>
+
+      <div className="sidebar-user-card">
+        <div className="user-avatar-large">{initials}</div>
+        <div className="user-info">
+          <div className="user-name">{displayName}</div>
+          <div className="user-role">{roleLabel}</div>
+        </div>
+      </div>
+
+      <nav className="sidebar-menu">
+        <ul className="sidebar-list">
+          {menuItems.map((item) => (
+            <li key={item.path}>
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active" : "menu-item"
+                }
+              >
+                <span className="menu-icon">{item.icon}</span>
+                <span className="menu-label">{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
       </nav>
-      <div className="sidebar-footer" style={{ marginTop: "auto" }}>
+
+      <div className="sidebar-footer">
+        <button type="button" className="sidebar-btn profile-btn">
+          👤 Profile
+        </button>
         <button
           type="button"
           className="sidebar-btn logout-btn"
@@ -42,7 +79,7 @@ const CustomerSidebar = () => {
           🚪 {isLoggingOut ? "Logging out..." : "Logout"}
         </button>
       </div>
-    </Sidebar>
+    </aside>
   );
 };
 

@@ -43,9 +43,9 @@ button {
   width: 240px;
   min-width: 240px;
   background:
-    linear-gradient(145deg, rgba(0, 150, 102, 0.34) 0%, rgba(0, 150, 102, 0.18) 18%, transparent 34%),
-    linear-gradient(315deg, rgba(0, 150, 102, 0.28) 0%, rgba(0, 150, 102, 0.12) 22%, transparent 38%),
-    #006045;
+    linear-gradient(145deg, rgba(79, 165, 139, 0.26) 0%, rgba(79, 165, 139, 0.12) 18%, transparent 34%),
+    linear-gradient(315deg, rgba(79, 165, 139, 0.22) 0%, rgba(79, 165, 139, 0.08) 22%, transparent 38%),
+    #0f172b;
   color: #e2e8f0;
   padding: 22px 18px;
   display: flex;
@@ -112,7 +112,7 @@ button {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #009966;
+  background: #4fa58b;
   display: grid;
   place-items: center;
   color: #ffffff;
@@ -186,15 +186,15 @@ button {
 }
 
 .menu-item:hover {
-  background: rgba(0, 153, 102, 0.12);
-  border-color: rgba(0, 153, 102, 0.22);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(167, 243, 208, 0.14);
   color: #ffffff;
 }
 
 .menu-item.active {
-  background: rgba(0, 153, 102, 0.24);
-  border-color: rgba(0, 153, 102, 0.28);
-  border-left: 4px solid #009966;
+  background: rgba(79, 165, 139, 0.24);
+  border-color: rgba(167, 243, 208, 0.28);
+  border-left: 4px solid #4fa58b;
   color: #ffffff;
   font-weight: 600;
 }
@@ -292,8 +292,8 @@ button {
 }
 
 .search-box:focus-within {
-  border-color: #009966;
-  box-shadow: 0 0 0 4px rgba(0, 153, 102, 0.12);
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
 }
 
 .search-icon {
