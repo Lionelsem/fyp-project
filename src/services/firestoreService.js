@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, setDoc, getDocs, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, getDoc, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { ROLES } from "../constants/roles";
@@ -105,65 +105,139 @@ export const addInspectionTemplate = async (data) => {
   });
 };
 
+const getInspectionPassFail = (condition) => {
+  if (condition === "Good") return "Pass";
+  if (condition === "Faulty") return "Fail";
+  if (condition === "N.A.") return "N.A.";
+  return "";
+};
+
+const buildInspectionPayload = (data) => ({
+  inspectionKey: data.inspectionKey || "",
+  inspectionId: data.inspectionId,
+  buildingId: data.buildingId,
+  floorId: data.floorId,
+  floorName: data.floorName || "",
+  fsmId: data.fsmId,
+  periodKey: data.periodKey || "",
+  inspectionType: data.inspectionType,
+  inspectionMode: data.inspectionMode || "Semi-Automated",
+  templateId: data.templateId,
+  inspectionDate: data.inspectionDate || serverTimestamp(),
+  lastUpdated: serverTimestamp(),
+  progressPercent: data.progressPercent || 0,
+  generalRemarks: data.generalRemarks || "",
+  aiAssistanceUsed: !!data.aiAssistanceUsed,
+  aiSummary: data.aiSummary || "",
+  status: data.status || STATUS.DRAFT
+});
+
+const buildInspectionResultPayload = (data) => ({
+  resultKey: data.resultKey || "",
+  resultId: data.resultId,
+  inspectionKey: data.inspectionKey || "",
+  inspectionId: data.inspectionId,
+  buildingId: data.buildingId,
+  floorId: data.floorId,
+  floorName: data.floorName || "",
+  fsmId: data.fsmId || null,
+  periodKey: data.periodKey || "",
+  equipmentId: data.equipmentId || null,
+  templateId: data.templateId,
+  categoryCode: data.categoryCode,
+  categoryName: data.categoryName,
+  itemCode: data.itemCode,
+  itemLabel: data.itemLabel,
+  inspectionPath: data.inspectionPath || "",
+  condition: data.condition,
+  passFail:
+    data.passFail !== undefined
+      ? data.passFail
+      : getInspectionPassFail(data.condition),
+  remark: data.remark || "",
+  photoUrl: data.photoUrl || "",
+  manualVerificationRequired: !!data.manualVerificationRequired,
+  checkedAt: data.checkedAt || serverTimestamp(),
+  checkedBy: data.checkedBy || null,
+  qrScanned: !!data.qrScanned,
+  qrCodeValue: data.qrCodeValue || "",
+  historyLoaded: !!data.historyLoaded,
+  aiChecklistSuggestion: data.aiChecklistSuggestion || ""
+});
+
+const buildIssuePayload = (data) => ({
+  issueKey: data.issueKey || "",
+  issueId: data.issueId,
+  inspectionKey: data.inspectionKey || "",
+  inspectionId: data.inspectionId,
+  resultKey: data.resultKey || "",
+  resultId: data.resultId,
+  buildingId: data.buildingId,
+  floorId: data.floorId,
+  floorName: data.floorName || "",
+  equipmentId: data.equipmentId || null,
+  reportedBy: data.reportedBy,
+  issueTitle: data.issueTitle,
+  issueDescription: data.issueDescription,
+  rectification: data.rectification || "",
+  priority: data.priority || PRIORITY.MEDIUM,
+  status: data.status || ISSUE_STATUS.OPEN,
+  issuePhotoUrl: data.issuePhotoUrl || "",
+  aiRecommendation: data.aiRecommendation || ""
+});
+
+const upsertByDocumentId = async (collectionName, documentId, payload) => {
+  const docRef = doc(db, collectionName, documentId);
+  const existing = await getDoc(docRef);
+  await setDoc(
+    docRef,
+    {
+      ...payload,
+      ...(existing.exists() ? {} : { createdAt: serverTimestamp() })
+    },
+    { merge: true }
+  );
+  return docRef;
+};
+
 // Create inspection (parent document)
 export const createInspection = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.INSPECTIONS), {
-    inspectionId: data.inspectionId,
-    buildingId: data.buildingId,
-    floorId: data.floorId,
-    floorName: data.floorName || "",
-    fsmId: data.fsmId,
-    inspectionType: data.inspectionType,
-    inspectionMode: data.inspectionMode || "Semi-Automated",
-    templateId: data.templateId,
-    inspectionDate: data.inspectionDate || serverTimestamp(),
-    lastUpdated: serverTimestamp(),
-    progressPercent: data.progressPercent || 0,
-    generalRemarks: data.generalRemarks || "",
-    aiAssistanceUsed: !!data.aiAssistanceUsed,
-    aiSummary: data.aiSummary || "",
-    status: data.status || STATUS.DRAFT,
+    ...buildInspectionPayload(data),
     createdAt: serverTimestamp()
   });
+};
+
+export const upsertInspection = async (data) => {
+  const inspectionKey = data.inspectionKey;
+  return await upsertByDocumentId(
+    COLLECTION_NAMES.INSPECTIONS,
+    inspectionKey,
+    buildInspectionPayload({
+      ...data,
+      inspectionId: data.inspectionId || inspectionKey
+    })
+  );
 };
 
 // Inspection result (per checklist item)
 export const addInspectionResult = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.INSPECTION_RESULTS), {
-    resultId: data.resultId,
-    inspectionId: data.inspectionId,
-    buildingId: data.buildingId,
-    floorId: data.floorId,
-    floorName: data.floorName || "",
-    equipmentId: data.equipmentId || null,
-    templateId: data.templateId,
-    categoryCode: data.categoryCode,
-    categoryName: data.categoryName,
-    itemCode: data.itemCode,
-    itemLabel: data.itemLabel,
-    inspectionPath: data.inspectionPath || "",
-    condition: data.condition,
-    passFail:
-      data.passFail !== undefined
-        ? data.passFail
-        : data.condition === "Good"
-          ? "Pass"
-          : data.condition === "Faulty"
-            ? "Fail"
-            : data.condition === "N.A."
-              ? "N.A."
-              : "",
-    remark: data.remark || "",
-    photoUrl: data.photoUrl || "",
-    manualVerificationRequired: !!data.manualVerificationRequired,
-    checkedAt: data.checkedAt || serverTimestamp(),
-    checkedBy: data.checkedBy || null,
-    qrScanned: !!data.qrScanned,
-    qrCodeValue: data.qrCodeValue || "",
-    historyLoaded: !!data.historyLoaded,
-    aiChecklistSuggestion: data.aiChecklistSuggestion || "",
+    ...buildInspectionResultPayload(data),
     createdAt: serverTimestamp()
   });
+};
+
+export const upsertInspectionResult = async (data) => {
+  const resultKey = data.resultKey;
+  return await upsertByDocumentId(
+    COLLECTION_NAMES.INSPECTION_RESULTS,
+    resultKey,
+    buildInspectionResultPayload({
+      ...data,
+      resultId: data.resultId || resultKey
+    })
+  );
 };
 
 // Equipment history
@@ -184,23 +258,21 @@ export const addEquipmentHistory = async (data) => {
 // Issues (linked to inspection results)
 export const addIssue = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.ISSUES), {
-    issueId: data.issueId,
-    inspectionId: data.inspectionId,
-    resultId: data.resultId,
-    buildingId: data.buildingId,
-    floorId: data.floorId,
-    floorName: data.floorName || "",
-    equipmentId: data.equipmentId || null,
-    reportedBy: data.reportedBy,
-    issueTitle: data.issueTitle,
-    issueDescription: data.issueDescription,
-    rectification: data.rectification || "",
-    priority: data.priority || PRIORITY.MEDIUM,
-    status: data.status || ISSUE_STATUS.OPEN,
-    issuePhotoUrl: data.issuePhotoUrl || "",
-    aiRecommendation: data.aiRecommendation || "",
+    ...buildIssuePayload(data),
     createdAt: serverTimestamp()
   });
+};
+
+export const upsertIssue = async (data) => {
+  const issueKey = data.issueKey;
+  return await upsertByDocumentId(
+    COLLECTION_NAMES.ISSUES,
+    issueKey,
+    buildIssuePayload({
+      ...data,
+      issueId: data.issueId || issueKey
+    })
+  );
 };
 
 export const addIssueComment = async (data) => {

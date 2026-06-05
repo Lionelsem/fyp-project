@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { COLLECTION_NAMES } from "../../constants/collectionNames";
-import { createInspection, addInspectionResult } from "../../services/inspectionService";
-import { createIssue } from "../../services/issueService";
+import { upsertInspection, upsertInspectionResult } from "../../services/inspectionService";
+import { upsertIssue } from "../../services/issueService";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { uploadFile } from "../../services/storageService";
@@ -390,6 +390,20 @@ const getPassFail = (condition) => {
   return "";
 };
 
+const getPeriodKey = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const sanitizeKeyPart = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "unknown";
+
+const buildRecordKey = (...parts) => parts.map(sanitizeKeyPart).join("__");
+
 const InspectionOverview = ({
   completedCount,
   totalRows,
@@ -506,6 +520,7 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
+  const photoPreview = item.photoPreview || item.photo;
 
   return (
     <div className={`checklist-row ${rowOpen ? "expanded" : ""}`}>
@@ -537,12 +552,12 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
         />
         <label className="photo-upload">
           <input type="file" accept="image/*" onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)} />
-          <span>{item.photo ? "Change photo" : "Upload photo"}</span>
+          <span>{photoPreview ? "Change photo" : "Upload photo"}</span>
         </label>
         <div className="photo-thumb-wrapper">
-          {item.photo ? (
+          {photoPreview ? (
             <>
-              <img className="photo-thumb" src={item.photo} alt="" />
+              <img className="photo-thumb" src={photoPreview} alt="" />
               <button type="button" className="photo-remove-btn" onClick={() => onRemovePhoto(categoryId, item.id)} aria-label="Remove photo">
                 ×
               </button>
@@ -694,6 +709,8 @@ const Inspections = () => {
   const selectedLevelInfo = levels.find((level) => level.id === selectedLevel) || null;
   const selectedLevelName = selectedLevelInfo?.name || selectedLevel;
   const fsmId = getPrimaryFsmId(user);
+  const periodKey = getPeriodKey();
+  const inspectionKey = buildRecordKey(fsmId, selectedBuilding, selectedLevel, periodKey);
   const canSaveInspection = Boolean(selectedBuilding && selectedLevel && fsmId);
   const activeChecklist = levelChecklists[selectedLevel];
   const checklist = useMemo(
@@ -899,17 +916,18 @@ const Inspections = () => {
     );
   };
 
-  // Save handlers
-  const handleSaveDraft = async () => {
+  const persistInspection = async (status) => {
     if (!canSaveInspection) return;
 
     try {
-      const inspectionData = {
-        inspectionId: `inspection_${selectedLevel}_${Date.now()}`,
+      const created = await upsertInspection({
+        inspectionKey,
+        inspectionId: inspectionKey,
         buildingId: selectedBuilding,
         floorId: selectedLevel,
         floorName: selectedLevelName,
         fsmId,
+        periodKey,
         inspectionType: "Monthly Inspection",
         inspectionMode: "Semi-Automated",
         templateId: null,
@@ -918,24 +936,32 @@ const Inspections = () => {
         generalRemarks,
         aiAssistanceUsed: false,
         aiSummary: "",
-        status: "Draft"
-      };
-      const created = await createInspection(inspectionData);
-      // persist each result
+        status
+      });
+
       for (const category of checklist) {
         for (const item of category.items) {
+          const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
           let photoUrl = item.photo || "";
+
           if (item.photoFile) {
-            const uploaded = await uploadFile(item.photoFile, `${COLLECTION_NAMES.INSPECTIONS}/${created.id}`);
+            const uploaded = await uploadFile(
+              item.photoFile,
+              `${COLLECTION_NAMES.INSPECTIONS}/${inspectionKey}`
+            );
             photoUrl = uploaded?.url || photoUrl;
           }
 
-          await addInspectionResult({
-            resultId: `result_${selectedLevel}_${Date.now()}_${item.id}`,
+          const result = await upsertInspectionResult({
+            resultKey,
+            resultId: resultKey,
+            inspectionKey,
             inspectionId: created.id,
             buildingId: selectedBuilding,
             floorId: selectedLevel,
             floorName: selectedLevelName,
+            fsmId,
+            periodKey,
             equipmentId: null,
             templateId: null,
             categoryCode: category.id,
@@ -953,82 +979,19 @@ const Inspections = () => {
             qrScanned: false,
             qrCodeValue: "",
             historyLoaded: false,
-            aiChecklistSuggestion: "",
-            createdAt: new Date()
-          });
-        }
-      }
-      // Keep UI state; consider user feedback
-      // eslint-disable-next-line no-console
-      console.log("Draft saved", created.id);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("Save draft failed", err);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!canSaveInspection) return;
-
-    try {
-      const inspectionData = {
-        inspectionId: `inspection_${selectedLevel}_${Date.now()}`,
-        buildingId: selectedBuilding,
-        floorId: selectedLevel,
-        floorName: selectedLevelName,
-        fsmId,
-        inspectionType: "Monthly Inspection",
-        inspectionMode: "Semi-Automated",
-        templateId: null,
-        inspectionDate: new Date(),
-        progressPercent,
-        generalRemarks,
-        aiAssistanceUsed: false,
-        aiSummary: "",
-        status: "Submitted"
-      };
-      const created = await createInspection(inspectionData);
-      for (const category of checklist) {
-        for (const item of category.items) {
-          let photoUrl = item.photo || "";
-          if (item.photoFile) {
-            const uploaded = await uploadFile(item.photoFile, `${COLLECTION_NAMES.INSPECTIONS}/${created.id}`);
-            photoUrl = uploaded?.url || photoUrl;
-          }
-
-          const result = await addInspectionResult({
-            resultId: `result_${selectedLevel}_${Date.now()}_${item.id}`,
-            inspectionId: created.id,
-            buildingId: selectedBuilding,
-            floorId: selectedLevel,
-            floorName: selectedLevelName,
-            equipmentId: null,
-            templateId: null,
-            categoryCode: category.id,
-            categoryName: category.title,
-            itemCode: item.code,
-            itemLabel: item.label,
-            inspectionPath: `${buildingName} > ${selectedLevelName} > ${item.label}`,
-            condition: item.condition || "",
-            passFail: getPassFail(item.condition),
-            remark: item.remark || "",
-            photoUrl,
-            manualVerificationRequired: !!item.isManualVerification,
-            checkedAt: new Date(),
-            checkedBy: fsmId,
-            qrScanned: false,
-            qrCodeValue: "",
-            historyLoaded: false,
-            aiChecklistSuggestion: "",
-            createdAt: new Date()
+            aiChecklistSuggestion: ""
           });
 
-          // Auto-create an issue when a checklist item is configured for it.
-          if ((item.condition === "Faulty") && item.autoCreateIssueWhenFaulty) {
-            await createIssue({
-              issueId: `issue_${selectedLevel}_${Date.now()}_${item.id}`,
+          if (status === "Submitted" && item.condition === "Faulty") {
+            const issueKey = buildRecordKey(inspectionKey, category.id, item.id);
+
+            await upsertIssue({
+              issueKey,
+              issueId: issueKey,
+              inspectionKey,
               inspectionId: created.id,
-              resultId: result.id || null,
+              resultKey,
+              resultId: result.id || resultKey,
               buildingId: selectedBuilding,
               floorId: selectedLevel,
               floorName: selectedLevelName,
@@ -1039,20 +1002,24 @@ const Inspections = () => {
               rectification: item.issue?.rectification || "",
               priority: item.issue?.priority || "High",
               status: item.issue?.status || "Open",
-              issuePhotoUrl: item.issue?.photo || "",
-              aiRecommendation: "",
-              createdAt: new Date()
+              issuePhotoUrl: photoUrl,
+              aiRecommendation: ""
             });
           }
         }
       }
+
       // eslint-disable-next-line no-console
-      console.log("Inspection submitted", created.id);
+      console.log(`Inspection ${status.toLowerCase()}`, created.id);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("Submit failed", err);
+      console.error(`${status} inspection failed`, err);
     }
   };
+
+  const handleSaveDraft = async () => persistInspection("Draft");
+
+  const handleSubmit = async () => persistInspection("Submitted");
 
   return (
     <main className="inspection-page">

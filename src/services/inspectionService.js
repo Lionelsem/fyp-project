@@ -11,3 +11,13 @@ export const addInspectionResult = async (data) => {
   const docRef = await fs.addInspectionResult(data);
   return { id: docRef.id, ...data };
 };
+
+export const upsertInspection = async (data) => {
+  const docRef = await fs.upsertInspection(data);
+  return { id: docRef.id, ...data };
+};
+
+export const upsertInspectionResult = async (data) => {
+  const docRef = await fs.upsertInspectionResult(data);
+  return { id: docRef.id, ...data };
+};

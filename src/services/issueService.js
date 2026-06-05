@@ -5,6 +5,11 @@ export const createIssue = async (data) => {
   return { id: docRef.id, ...data };
 };
 
+export const upsertIssue = async (data) => {
+  const docRef = await fs.upsertIssue(data);
+  return { id: docRef.id, ...data };
+};
+
 export const addIssueComment = async (data) => {
   const docRef = await fs.addIssueComment(data);
   return { id: docRef.id, ...data };
