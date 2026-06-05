@@ -516,6 +516,7 @@ const getConditionClass = (condition) => {
   return "";
 };
 
+// eslint-disable-next-line no-unused-vars
 const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto }) => {
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
@@ -654,6 +655,129 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
               </button>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const FaultProofChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto }) => {
+  const hasIssue = item.condition === "Faulty";
+  const rowOpen = item.expanded || hasIssue;
+  const selectClass = getConditionClass(item.condition);
+  const photoPreview = item.photoPreview || item.photo;
+
+  return (
+    <div className={`checklist-row ${rowOpen ? "expanded" : ""}`}>
+      <div className="row-main">
+        <div className="row-code">{item.code}</div>
+        <div className="row-title">
+          <span>{item.label}</span>
+          {item.remark ? <small>{item.remark}</small> : null}
+        </div>
+        <label className="select-group">
+          <span className="sr-only">Condition for {item.label}</span>
+          <select
+            className={selectClass}
+            value={item.condition}
+            onChange={(e) => onUpdate(categoryId, item.id, { condition: e.target.value })}
+          >
+            <option value="">Select condition</option>
+            {conditionOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <input
+          className="remark-input"
+          type="text"
+          value={item.remark}
+          placeholder="Remark"
+          onChange={(e) => onUpdate(categoryId, item.id, { remark: e.target.value })}
+        />
+        <button
+          type="button"
+          className="expand-btn"
+          onClick={() => onToggle(categoryId, item.id)}
+          aria-label="Toggle detail row"
+          disabled={!hasIssue}
+        >
+          {hasIssue ? (rowOpen ? "\u25be" : "\u25b8") : ""}
+        </button>
+      </div>
+      {hasIssue && rowOpen && (
+        <div className="row-detail">
+          <div className="issue-panel">
+            <h4>Issue Details <span className="issue-badge">Auto created when marked as Faulty</span></h4>
+            <label>
+              <span>Issue Description</span>
+              <textarea
+                value={item.issue.description}
+                rows={2}
+                placeholder="Describe the fault"
+                onChange={(e) => onIssueUpdate(categoryId, item.id, { description: e.target.value })}
+              />
+            </label>
+            <label>
+              <span>Proposal Rectification</span>
+              <input
+                type="text"
+                value={item.issue.rectification}
+                placeholder="Recommended rectification"
+                onChange={(e) => onIssueUpdate(categoryId, item.id, { rectification: e.target.value })}
+              />
+            </label>
+            <div className="issue-fields-row">
+              <label>
+                <span>Priority</span>
+                <select
+                  value={item.issue.priority}
+                  onChange={(e) => onIssueUpdate(categoryId, item.id, { priority: e.target.value })}
+                >
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select
+                  value={item.issue.status}
+                  onChange={(e) => onIssueUpdate(categoryId, item.id, { status: e.target.value })}
+                >
+                  <option value="Open">Open</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Resolved">Resolved</option>
+                </select>
+              </label>
+            </div>
+            <div className="fault-proof-row">
+              <label className="issue-photo-upload">
+                <span>Fault proof photo</span>
+                <input type="file" accept="image/*" onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)} />
+              </label>
+              {photoPreview && (
+                <div className="issue-photo-wrapper">
+                  <img className="issue-photo-preview" src={photoPreview} alt="" />
+                  <button
+                    type="button"
+                    className="photo-remove-btn issue-remove-btn"
+                    onClick={() => onRemovePhoto(categoryId, item.id)}
+                    aria-label="Remove proof photo"
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="issue-close-btn"
+              onClick={() => onUpdate(categoryId, item.id, { condition: "Good", photoPreview: "", photoFile: null, photo: "", "issue.status": "Resolved" })}
+            >
+              Close Issue
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1105,7 +1229,7 @@ const Inspections = () => {
                         </div>
                       ) : (
                         category.items.map((item) => (
-                          <InspectionChecklistRow
+                          <FaultProofChecklistRow
                             key={item.id}
                             item={item}
                             categoryId={category.id}
