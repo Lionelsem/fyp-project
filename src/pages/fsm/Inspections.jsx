@@ -1119,6 +1119,7 @@ const Inspections = () => {
               buildingId: selectedBuilding,
               floorId: selectedLevel,
               floorName: selectedLevelName,
+              location: selectedLevelName,
               equipmentId: null,
               reportedBy: fsmId,
               issueTitle: item.label,

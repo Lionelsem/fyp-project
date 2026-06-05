@@ -31,9 +31,19 @@ export const getIssue = async (id) => {
   return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
 };
 
-export const archiveIssue = async (id, data) => {
-  await fs.archiveIssue(id, data);
-  return { id, archived: true, ...data };
+export const getIssueById = async (id) => {
+  const snapshot = await fs.getIssueById(id);
+  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+};
+
+export const updateIssue = async (id, data) => {
+  await fs.updateIssue(id, data);
+  return { id, ...data };
+};
+
+export const deleteIssue = async (id) => {
+  await fs.deleteIssue(id);
+  return { id };
 };
 
 export const addClosureVerification = async (data) => {

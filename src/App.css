@@ -1828,7 +1828,7 @@ button {
 
 .issue-ticket-toolbar {
   display: grid;
-  grid-template-columns: minmax(14rem, 1.4fr) repeat(4, minmax(9rem, 1fr));
+  grid-template-columns: minmax(14rem, 1.5fr) repeat(2, minmax(9rem, 1fr));
   gap: 10px;
   align-items: center;
 }
@@ -2032,7 +2032,8 @@ button {
 }
 
 .issue-ticket-detail-grid div,
-.issue-ticket-verify-summary {
+.issue-ticket-verify-summary,
+.issue-ticket-original-photo {
   display: grid;
   gap: 5px;
   padding: 12px;
@@ -2042,7 +2043,8 @@ button {
 
 .issue-ticket-detail-grid span,
 .issue-ticket-copy-block span,
-.issue-ticket-verify-summary span {
+.issue-ticket-verify-summary span,
+.issue-ticket-original-photo span {
   color: #64748b;
   font-size: 12px;
 }

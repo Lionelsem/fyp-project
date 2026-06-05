@@ -4,7 +4,7 @@ import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import {
   addClosureVerification,
-  archiveIssue,
+  deleteIssue,
   upsertIssue
 } from "../../services/issueService";
 import { uploadFile } from "../../services/storageService";
@@ -15,6 +15,7 @@ const emptyIssueForm = {
   buildingId: "",
   floorId: "",
   floorName: "",
+  location: "",
   equipmentId: "",
   inspectionKey: "",
   inspectionId: "",
@@ -34,6 +35,13 @@ const emptyVerificationForm = {
   afterPhotoFile: null,
   verificationComments: ""
 };
+
+const issueTicketStatuses = [
+  ISSUE_STATUS.OPEN,
+  ISSUE_STATUS.IN_PROGRESS,
+  ISSUE_STATUS.RESOLVED,
+  ISSUE_STATUS.CLOSED
+];
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
@@ -118,6 +126,7 @@ const createFormFromIssue = (issue) => ({
   buildingId: issue.buildingId || "",
   floorId: issue.floorId || "",
   floorName: issue.floorName || "",
+  location: issue.location || "",
   equipmentId: issue.equipmentId || "",
   inspectionKey: issue.inspectionKey || "",
   inspectionId: issue.inspectionId || "",
@@ -136,13 +145,8 @@ const filterIssues = (issues, filters) => {
   const search = normalizeText(filters.search);
   const status = normalizeText(filters.status);
   const priority = normalizeText(filters.priority);
-  const archiveMode = filters.archiveMode;
 
   return issues.filter((issue) => {
-    const archived = !!issue.archived;
-    if (archiveMode === "active" && archived) return false;
-    if (archiveMode === "archived" && !archived) return false;
-
     if (status && normalizeText(issue.status) !== status) return false;
     if (priority && normalizeText(issue.priority) !== priority) return false;
 
@@ -156,6 +160,7 @@ const filterIssues = (issues, filters) => {
       issue.rectification,
       issue.buildingName,
       issue.floorName,
+      issue.location,
       issue.status,
       issue.priority
     ].some((value) => normalizeText(value).includes(search));
@@ -226,6 +231,15 @@ const IssueForm = ({
           />
         </label>
         <label>
+          <span>Specific Location</span>
+          <input
+            type="text"
+            value={form.location}
+            onChange={(event) => onChange("location", event.target.value)}
+            placeholder="e.g. North wing corridor"
+          />
+        </label>
+        <label>
           <span>Priority</span>
           <select value={form.priority} onChange={(event) => onChange("priority", event.target.value)}>
             {Object.values(PRIORITY).map((priority) => (
@@ -236,7 +250,7 @@ const IssueForm = ({
         <label>
           <span>Status</span>
           <select value={form.status} onChange={(event) => onChange("status", event.target.value)}>
-            {Object.values(ISSUE_STATUS).map((status) => (
+            {issueTicketStatuses.map((status) => (
               <option key={status} value={status}>{status}</option>
             ))}
           </select>
@@ -309,6 +323,12 @@ const VerifyClosePanel = ({
         <span>Issue</span>
         <strong>{issue.issueTitle}</strong>
       </div>
+      {issue.issuePhotoUrl && (
+        <div className="issue-ticket-original-photo">
+          <span>Original Defect Photo</span>
+          <img className="issue-ticket-detail-photo" src={issue.issuePhotoUrl} alt="" />
+        </div>
+      )}
       <label>
         <span>After Photo</span>
         <input
@@ -360,6 +380,10 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) =
         <strong>{issue.floorName || "-"}</strong>
       </div>
       <div>
+        <span>Specific Location</span>
+        <strong>{issue.location || "-"}</strong>
+      </div>
+      <div>
         <span>Priority</span>
         <strong>{issue.priority || PRIORITY.MEDIUM}</strong>
       </div>
@@ -384,34 +408,38 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) =
       <img className="issue-ticket-detail-photo" src={issue.issuePhotoUrl} alt="" />
     )}
     <div className="issue-ticket-actions">
-      <button type="button" className="secondary-button" onClick={() => onEdit(issue)} disabled={issue.archived}>
+      <button type="button" className="secondary-button" onClick={() => onEdit(issue)}>
         Edit
       </button>
-      <button type="button" className="primary-button" onClick={() => onVerifyClose(issue)} disabled={issue.archived || issue.status === ISSUE_STATUS.CLOSED}>
+      <button type="button" className="primary-button" onClick={() => onVerifyClose(issue)} disabled={issue.status === ISSUE_STATUS.CLOSED}>
         Verify & Close
       </button>
-      <button type="button" className="danger-button" onClick={() => onDelete(issue)} disabled={issue.archived}>
+      <button type="button" className="danger-button" onClick={() => onDelete(issue)}>
         Delete
       </button>
     </div>
   </aside>
 );
 
-const DeleteModal = ({ issue, saving, onCancel, onConfirm }) => (
-  <div className="issue-ticket-modal-backdrop" role="presentation">
-    <div className="issue-ticket-modal" role="dialog" aria-modal="true" aria-labelledby="delete-issue-title">
-      <h2 id="delete-issue-title">Delete Issue Ticket?</h2>
-      <p>This will remove the ticket from active issue management.</p>
-      <strong>{issue.issueTitle}</strong>
-      <div className="issue-ticket-actions">
-        <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
-        <button type="button" className="danger-button" onClick={onConfirm} disabled={saving}>
-          {saving ? "Deleting..." : "Delete Issue"}
-        </button>
+const DeleteModal = ({ issue, saving, onCancel, onConfirm }) => {
+  const issueName = issue.issueTitle || issue.issueId || issue.id;
+
+  return (
+    <div className="issue-ticket-modal-backdrop" role="presentation">
+      <div className="issue-ticket-modal" role="dialog" aria-modal="true" aria-labelledby="delete-issue-title">
+        <h2 id="delete-issue-title">Delete Issue Ticket?</h2>
+        <p>Delete fire safety issue ticket "{issueName}"?</p>
+        <strong>{issue.issueId || issue.id}</strong>
+        <div className="issue-ticket-actions">
+          <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
+          <button type="button" className="danger-button" onClick={onConfirm} disabled={saving}>
+            {saving ? "Deleting..." : "Delete Issue"}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Issues = () => {
   const { user } = useAuthContext();
@@ -419,9 +447,7 @@ const Issues = () => {
   const [filters, setFilters] = useState({
     search: "",
     status: "",
-    priority: "",
-    sort: "updated",
-    archiveMode: "active"
+    priority: ""
   });
   const [activeIssueId, setActiveIssueId] = useState("");
   const [activeForm, setActiveForm] = useState(null);
@@ -446,7 +472,7 @@ const Issues = () => {
   );
 
   const visibleIssues = useMemo(
-    () => sortIssues(filterIssues(enrichedIssues, filters), filters.sort),
+    () => sortIssues(filterIssues(enrichedIssues, filters), "updated"),
     [enrichedIssues, filters]
   );
 
@@ -522,8 +548,7 @@ const Issues = () => {
         issueKey,
         issueId: issueForm.issueId || issueKey,
         reportedBy: getPrimaryFsmId(user),
-        issuePhotoUrl,
-        archived: false
+        issuePhotoUrl
       };
       delete payload.photoFile;
 
@@ -542,14 +567,11 @@ const Issues = () => {
 
     try {
       setSaving(true);
-      await archiveIssue(deleteTarget.id, {
-        archivedBy: getPrimaryFsmId(user),
-        archiveReason: "Deleted by FSM"
-      });
+      await deleteIssue(deleteTarget.id);
       if (activeIssueId === deleteTarget.id) setActiveIssueId("");
       setDeleteTarget(null);
-    } catch (archiveError) {
-      setFormError(archiveError.message || "Could not delete issue.");
+    } catch (deleteError) {
+      setFormError(deleteError.message || "Could not delete issue.");
     } finally {
       setSaving(false);
     }
@@ -585,7 +607,7 @@ const Issues = () => {
         ...createFormFromIssue(activeIssue),
         reportedBy: activeIssue.reportedBy || getPrimaryFsmId(user),
         status: ISSUE_STATUS.CLOSED,
-        archived: !!activeIssue.archived
+        location: activeIssue.location || ""
       });
 
       closePanels();
@@ -663,7 +685,7 @@ const Issues = () => {
             />
             <select value={filters.status} onChange={(event) => handleFilterChange("status", event.target.value)}>
               <option value="">All statuses</option>
-              {Object.values(ISSUE_STATUS).map((status) => (
+              {issueTicketStatuses.map((status) => (
                 <option key={status} value={status}>{status}</option>
               ))}
             </select>
@@ -672,17 +694,6 @@ const Issues = () => {
               {Object.values(PRIORITY).map((priority) => (
                 <option key={priority} value={priority}>{priority}</option>
               ))}
-            </select>
-            <select value={filters.sort} onChange={(event) => handleFilterChange("sort", event.target.value)}>
-              <option value="updated">Latest updated</option>
-              <option value="priority">Priority</option>
-              <option value="status">Status</option>
-              <option value="title">Title</option>
-            </select>
-            <select value={filters.archiveMode} onChange={(event) => handleFilterChange("archiveMode", event.target.value)}>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-              <option value="all">All</option>
             </select>
           </div>
 

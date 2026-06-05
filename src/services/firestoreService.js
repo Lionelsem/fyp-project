@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, setDoc, getDoc, getDocs, serverTimestamp, updateDoc } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, getDoc, getDocs, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { ROLES } from "../constants/roles";
@@ -175,6 +175,7 @@ const buildIssuePayload = (data) => ({
   buildingId: data.buildingId,
   floorId: data.floorId,
   floorName: data.floorName || "",
+  location: data.location || "",
   equipmentId: data.equipmentId || null,
   reportedBy: data.reportedBy,
   issueTitle: data.issueTitle,
@@ -183,11 +184,7 @@ const buildIssuePayload = (data) => ({
   priority: data.priority || PRIORITY.MEDIUM,
   status: data.status || ISSUE_STATUS.OPEN,
   issuePhotoUrl: data.issuePhotoUrl || "",
-  aiRecommendation: data.aiRecommendation || "",
-  archived: !!data.archived,
-  archivedAt: data.archivedAt || null,
-  archivedBy: data.archivedBy || "",
-  archiveReason: data.archiveReason || ""
+  aiRecommendation: data.aiRecommendation || ""
 });
 
 const upsertByDocumentId = async (collectionName, documentId, payload) => {
@@ -204,6 +201,11 @@ const upsertByDocumentId = async (collectionName, documentId, payload) => {
   );
   return docRef;
 };
+
+const removeUndefinedFields = (data) =>
+  Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  );
 
 // Create inspection (parent document)
 export const createInspection = async (data) => {
@@ -264,7 +266,8 @@ export const addEquipmentHistory = async (data) => {
 export const addIssue = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.ISSUES), {
     ...buildIssuePayload(data),
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   });
 };
 
@@ -288,14 +291,19 @@ export const getIssue = async (id) => {
   return await getDoc(doc(db, COLLECTION_NAMES.ISSUES, id));
 };
 
-export const archiveIssue = async (id, data = {}) => {
+export const getIssueById = async (id) => {
+  return await getIssue(id);
+};
+
+export const updateIssue = async (id, data) => {
   return await updateDoc(doc(db, COLLECTION_NAMES.ISSUES, id), {
-    archived: true,
-    archivedAt: serverTimestamp(),
-    archivedBy: data.archivedBy || "",
-    archiveReason: data.archiveReason || "",
+    ...removeUndefinedFields(data),
     updatedAt: serverTimestamp()
   });
+};
+
+export const deleteIssue = async (id) => {
+  return await deleteDoc(doc(db, COLLECTION_NAMES.ISSUES, id));
 };
 
 export const addIssueComment = async (data) => {
