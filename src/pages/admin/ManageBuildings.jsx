@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllBuildings } from "../../services/buildingService";
+import { getAllUsers } from "../../services/userService";
 
 const statusStyles = {
   Compliant: { backgroundColor: "#dcfce7", color: "#166534" },
@@ -10,15 +11,17 @@ const statusStyles = {
 
 const ManageBuildings = () => {
   const [buildings, setBuildings] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadBuildings = async () => {
+    const loadData = async () => {
       try {
-        const data = await getAllBuildings();
-        setBuildings(data);
+        const [buildingData, userData] = await Promise.all([getAllBuildings(), getAllUsers()]);
+        setBuildings(buildingData);
+        setUsers(userData);
       } catch (error) {
         console.error("Failed to load buildings", error);
       } finally {
@@ -26,8 +29,20 @@ const ManageBuildings = () => {
       }
     };
 
-    loadBuildings();
+    loadData();
   }, []);
+
+  const userMap = useMemo(
+    () => new Map(users.map((user) => [user.uid, user.fullName || user.email || user.uid])),
+    [users]
+  );
+
+  const getAssignedFsmName = (assignedFsmId) => {
+    if (!assignedFsmId) {
+      return "Unassigned";
+    }
+    return userMap.get(assignedFsmId) || assignedFsmId;
+  };
 
   const filteredBuildings = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -41,13 +56,13 @@ const ManageBuildings = () => {
         building.building_name,
         building.buildingName,
         building.address,
-        building.assignedFsmId,
+        getAssignedFsmName(building.assignedFsmId),
         building.status
       ]
         .filter(Boolean)
         .some((value) => value.toString().toLowerCase().includes(query));
     });
-  }, [buildings, search]);
+  }, [buildings, search, userMap]);
 
   return (
     <div className="dashboard-container">
@@ -115,7 +130,7 @@ const ManageBuildings = () => {
                   <td>{building.address || "-"}</td>
                   <td>{building.noOfStoreys || "-"}</td>
                   <td>{building.occupantLoad || "-"}</td>
-                  <td>{building.assignedFsmId || "Unassigned"}</td>
+                  <td>{getAssignedFsmName(building.assignedFsmId)}</td>
                   <td>
                     <span
                       style={{

@@ -10,6 +10,11 @@ export const createBuilding = async (data) => {
   return { id: docRef.id, ...data };
 };
 
+export const updateBuilding = async (id, data) => {
+  await fs.updateBuilding(id, data);
+  return { id, ...data };
+};
+
 export const createFloor = async (data) => {
   const docRef = await fs.addFloor(data);
   return { id: docRef.id, ...data };

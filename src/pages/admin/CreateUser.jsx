@@ -12,6 +12,15 @@ const initialForm = {
   password: ""
 };
 
+const normalizeUserPayload = (form) => ({
+  firstName: form.firstName.trim(),
+  lastName: form.lastName.trim(),
+  email: form.email.trim().toLowerCase(),
+  phoneNumber: String(form.phoneNumber || "").trim(),
+  role: form.role,
+  password: form.password
+});
+
 const CreateUser = () => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
@@ -33,21 +42,14 @@ const CreateUser = () => {
 
     setLoading(true);
     try {
-      await createUserAccount({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        phoneNumber: form.phoneNumber,
-        role: form.role,
-        password: form.password
-      });
-
+      await createUserAccount(normalizeUserPayload(form));
       setMessage({ type: "success", text: "User created successfully." });
       setForm(initialForm);
+      navigate("/users");
     } catch (error) {
       console.error("Could not create user", error);
       const errorCode = error.code ? `${error.code}: ` : "";
-      const errorMessage = error.message || "Failed to create user.";
+      const errorMessage = error.details || error.message || "Failed to create user.";
       setMessage({ type: "error", text: `${errorCode}${errorMessage}` });
     } finally {
       setLoading(false);
@@ -66,7 +68,7 @@ const CreateUser = () => {
           </div>
           <button
             type="button"
-            className="secondary-btn"
+            className="primary-btn"
             onClick={() => navigate("/users")}
             style={{ height: "40px" }}
           >

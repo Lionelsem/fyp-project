@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 const summaryCards = [
   {
@@ -153,9 +154,9 @@ const AdminDashboard = () => {
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Issues</h2>
-              <button type="button" className="view-all-link">
+              <Link to="/issues-defects" className="view-all-link">
                 View All
-              </button>
+              </Link>
             </div>
             <table className="dashboard-table">
               <thead>
@@ -189,9 +190,9 @@ const AdminDashboard = () => {
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Fire Drill Records</h2>
-              <button type="button" className="view-all-link">
+              <Link to="/fire-drill" className="view-all-link">
                 View All
-              </button>
+              </Link>
             </div>
             <table className="dashboard-table">
               <thead>
@@ -228,9 +229,9 @@ const AdminDashboard = () => {
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Submitted Reports</h2>
-              <button type="button" className="view-all-link">
+              <Link to="/reports" className="view-all-link">
                 View All
-              </button>
+              </Link>
             </div>
             <table className="dashboard-table">
               <thead>

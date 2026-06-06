@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 
@@ -287,32 +286,7 @@ const EmptyTableRow = ({ colSpan, children }) => (
   </tr>
 );
 
-const quickActions = [
-  {
-    label: "Schedule Fire Drill",
-    path: "/fsm/fire-drill",
-    icon: "🚒",
-    color: "#f97316",
-    background: "#fff7ed"
-  },
-  {
-    label: "Start Inspection",
-    path: "/fsm/inspections",
-    icon: "📋",
-    color: "#2563eb",
-    background: "#eff6ff"
-  },
-  {
-    label: "Verify Issues",
-    path: "/fsm/issues",
-    icon: "⚠️",
-    color: "#059669",
-    background: "#ecfdf5"
-  }
-];
-
 const FSMDashboard = () => {
-  const navigate = useNavigate();
   const { user } = useAuthContext();
   const fsmLookupIds = [
     user?.uid,
@@ -504,71 +478,7 @@ const FSMDashboard = () => {
         </div>
 
         <div className="content-right">
-          <div className="dashboard-card fsm-quick-actions-card">
-            <div className="card-header-row">
-              <h2 className="section-title">Quick Actions</h2>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                gap: "12px"
-              }}
-            >
-              {quickActions.map((action) => (
-                <button
-                  key={action.label}
-                  type="button"
-                  onClick={() => navigate(action.path)}
-                  style={{
-                    minHeight: "88px",
-                    display: "grid",
-                    gridTemplateRows: "38px 1fr",
-                    justifyItems: "center",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "10px 8px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "14px",
-                    background: "#f8fafc",
-                    color: "#0f172a",
-                    cursor: "pointer",
-                    textAlign: "center"
-                  }}
-                >
-                  <span
-                    style={{
-                      width: "44px",
-                      height: "38px",
-                      display: "grid",
-                      placeItems: "center",
-                      borderRadius: "12px",
-                      backgroundColor: action.background,
-                      color: action.color,
-                      fontSize: "22px",
-                      fontWeight: 800
-                    }}
-                  >
-                    {action.icon}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 700,
-                      lineHeight: 1.2,
-                      maxWidth: "90px",
-                      whiteSpace: "normal",
-                      wordBreak: "normal"
-                    }}
-                  >
-                    {action.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="dashboard-card fsm-recent-reports-card">
+            <div className="dashboard-card fsm-recent-reports-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Reports</h2>
               <button type="button" className="view-all-link">

@@ -12,6 +12,20 @@ const initialForm = {
   status: "Compliant"
 };
 
+const normalizeBuildingPayload = (form) => ({
+  buildingId: form.buildingId.trim(),
+  buildingName: form.buildingName.trim(),
+  building_name: form.buildingName.trim(),
+  address: form.address.trim(),
+  noOfStoreys: form.storeys ? Number(form.storeys) : null,
+  occupantLoad: String(form.occupantLoad || "").trim(),
+  assignedFsmId: String(form.assignedFsm || "").trim(),
+  occupancyType: "",
+  grossFloorAreaGfa: "",
+  customerId: "",
+  status: form.status
+});
+
 const CreateBuilding = () => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
@@ -33,20 +47,15 @@ const CreateBuilding = () => {
 
     setLoading(true);
     try {
-      await createBuilding({
-        buildingId: form.buildingId,
-        building_name: form.buildingName,
-        address: form.address,
-        noOfStoreys: form.storeys,
-        occupantLoad: form.occupantLoad,
-        assignedFsmId: form.assignedFsm,
-        status: form.status
-      });
+      const payload = normalizeBuildingPayload(form);
+      await createBuilding(payload);
       setMessage({ type: "success", text: "Building created successfully." });
       setForm(initialForm);
+      navigate("/buildings");
     } catch (error) {
       console.error("Could not create building", error);
-      setMessage({ type: "error", text: error.message || "Failed to create building." });
+      const errorMessage = error.details || error.message || "Failed to create building.";
+      setMessage({ type: "error", text: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -64,7 +73,7 @@ const CreateBuilding = () => {
           </div>
           <button
             type="button"
-            className="secondary-btn"
+            className="primary-btn"
             onClick={() => navigate("/buildings")}
             style={{ height: "40px" }}
           >

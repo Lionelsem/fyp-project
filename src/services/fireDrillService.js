@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   serverTimestamp,
   updateDoc
 } from "firebase/firestore";
@@ -43,6 +44,11 @@ export const createFireDrill = async (data) => {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+};
+
+export const getAllFireDrills = async () => {
+  const snapshot = await getDocs(collection(db, COLLECTION_NAMES.FIRE_DRILLS));
+  return snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
 };
 
 export const updateFireDrill = async (id, data) => {

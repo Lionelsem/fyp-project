@@ -24,14 +24,15 @@ export const createUserProfile = async (user, extraData = {}) => {
 export const addBuilding = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.BUILDINGS), {
     buildingId: data.buildingId,
+    buildingName: data.buildingName || data.building_name,
     building_name: data.building_name || data.buildingName,
     address: data.address,
-    occupancyType: data.occupancyType,
+    occupancyType: data.occupancyType || "",
     noOfStoreys: data.noOfStoreys,
-    grossFloorAreaGfa: data.grossFloorAreaGfa,
+    grossFloorAreaGfa: data.grossFloorAreaGfa || "",
     occupantLoad: data.occupantLoad,
     assignedFsmId: data.assignedFsmId,
-    customerId: data.customerId,
+    customerId: data.customerId || "",
     status: data.status || STATUS.ACTIVE,
     createdAt: serverTimestamp()
   });
@@ -39,6 +40,13 @@ export const addBuilding = async (data) => {
 
 export const getBuildings = async () => {
   return await getDocs(collection(db, COLLECTION_NAMES.BUILDINGS));
+};
+
+export const updateBuilding = async (id, data) => {
+  return await updateDoc(doc(db, COLLECTION_NAMES.BUILDINGS, id), {
+    ...removeUndefinedFields(data),
+    updatedAt: serverTimestamp()
+  });
 };
 
 // Floors
