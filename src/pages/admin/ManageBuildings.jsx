@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllBuildings } from "../../services/buildingService";
+import { getAllBuildings, deleteBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
 
 const statusStyles = {
@@ -13,6 +13,7 @@ const ManageBuildings = () => {
   const [buildings, setBuildings] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingBuildingId, setDeletingBuildingId] = useState("");
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
@@ -107,6 +108,7 @@ const ManageBuildings = () => {
               <th>OCCUPANT LOAD</th>
               <th>ASSIGNED FSM</th>
               <th>STATUS</th>
+              <th>ACTION</th>
             </tr>
           </thead>
           <tbody>
@@ -145,6 +147,39 @@ const ManageBuildings = () => {
                     >
                       {building.status || "Compliant"}
                     </span>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="secondary-btn action-icon-btn"
+                        title="Edit building"
+                        onClick={() => navigate(`/buildings/edit/${building.id}`)}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-button action-icon-btn"
+                        title="Delete building"
+                        disabled={deletingBuildingId === building.id}
+                        onClick={async () => {
+                          const confirmed = window.confirm(`Delete building ${building.buildingName || building.buildingId || building.id}?`);
+                          if (!confirmed) return;
+                          setDeletingBuildingId(building.id);
+                          try {
+                            await deleteBuilding(building.id);
+                            setBuildings((prev) => prev.filter((item) => item.id !== building.id));
+                          } catch (deleteError) {
+                            console.error("Failed to delete building", deleteError);
+                          } finally {
+                            setDeletingBuildingId("");
+                          }
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

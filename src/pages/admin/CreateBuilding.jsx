@@ -75,7 +75,12 @@ const CreateBuilding = () => {
             type="button"
             className="primary-btn"
             onClick={() => navigate("/buildings")}
-            style={{ height: "40px" }}
+            style={{
+              height: "40px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
           >
             ← Back to Buildings
           </button>

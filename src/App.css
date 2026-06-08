@@ -718,6 +718,30 @@ button {
   transform: translateY(-1px);
 }
 
+.action-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.action-icon-btn:hover {
+  background-color: #f8fafc;
+}
+
+.action-icon-btn.danger {
+  border-color: #fee2e2;
+  color: #b91c1c;
+}
+
 .inspection-grid {
   display: grid;
   grid-template-columns: 1.75fr 0.95fr;

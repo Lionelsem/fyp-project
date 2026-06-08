@@ -70,7 +70,12 @@ const CreateUser = () => {
             type="button"
             className="primary-btn"
             onClick={() => navigate("/users")}
-            style={{ height: "40px" }}
+            style={{
+              height: "40px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
           >
             ← Back to Users
           </button>

@@ -15,6 +15,16 @@ export const updateBuilding = async (id, data) => {
   return { id, ...data };
 };
 
+export const getBuildingById = async (id) => {
+  const snapshot = await fs.getBuilding(id);
+  if (!snapshot.exists()) return null;
+  return { id: snapshot.id, ...snapshot.data() };
+};
+
+export const deleteBuilding = async (id) => {
+  await fs.deleteBuilding(id);
+};
+
 export const createFloor = async (data) => {
   const docRef = await fs.addFloor(data);
   return { id: docRef.id, ...data };

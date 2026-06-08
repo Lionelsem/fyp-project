@@ -20,6 +20,21 @@ export const createUserProfile = async (user, extraData = {}) => {
   });
 };
 
+export const getUserById = async (uid) => {
+  return await getDoc(doc(db, COLLECTION_NAMES.USERS, uid));
+};
+
+export const updateUser = async (uid, data) => {
+  return await updateDoc(doc(db, COLLECTION_NAMES.USERS, uid), {
+    ...removeUndefinedFields(data),
+    updatedAt: serverTimestamp()
+  });
+};
+
+export const deleteUser = async (uid) => {
+  return await deleteDoc(doc(db, COLLECTION_NAMES.USERS, uid));
+};
+
 // Buildings
 export const addBuilding = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.BUILDINGS), {
@@ -40,6 +55,14 @@ export const addBuilding = async (data) => {
 
 export const getBuildings = async () => {
   return await getDocs(collection(db, COLLECTION_NAMES.BUILDINGS));
+};
+
+export const getBuilding = async (id) => {
+  return await getDoc(doc(db, COLLECTION_NAMES.BUILDINGS, id));
+};
+
+export const deleteBuilding = async (id) => {
+  return await deleteDoc(doc(db, COLLECTION_NAMES.BUILDINGS, id));
 };
 
 export const updateBuilding = async (id, data) => {
