@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ISSUE_STATUS, PRIORITY, APPROVAL_STATUS } from "../../constants/status";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
@@ -21,6 +22,9 @@ const emptyIssueForm = {
   inspectionId: "",
   resultKey: "",
   resultId: "",
+  categoryCode: "",
+  itemCode: "",
+  itemLabel: "",
   issueTitle: "",
   issueDescription: "",
   rectification: "",
@@ -132,6 +136,9 @@ const createFormFromIssue = (issue) => ({
   inspectionId: issue.inspectionId || "",
   resultKey: issue.resultKey || "",
   resultId: issue.resultId || "",
+  categoryCode: issue.categoryCode || "",
+  itemCode: issue.itemCode || "",
+  itemLabel: issue.itemLabel || "",
   issueTitle: issue.issueTitle || "",
   issueDescription: issue.issueDescription || "",
   rectification: issue.rectification || "",
@@ -412,7 +419,7 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) =
         Edit
       </button>
       <button type="button" className="primary-button" onClick={() => onVerifyClose(issue)} disabled={issue.status === ISSUE_STATUS.CLOSED}>
-        Verify & Close
+        Verify Issue
       </button>
       <button type="button" className="danger-button" onClick={() => onDelete(issue)}>
         Delete
@@ -443,6 +450,7 @@ const DeleteModal = ({ issue, saving, onCancel, onConfirm }) => {
 
 const Issues = () => {
   const { user } = useAuthContext();
+  const navigate = useNavigate();
   const { loading, error, buildings, issues } = useFsmDashboardData(getFsmLookupIds(user));
   const [filters, setFilters] = useState({
     search: "",
@@ -511,10 +519,10 @@ const Issues = () => {
   };
 
   const openVerifyClose = (issue) => {
-    setActiveIssueId(issue.id);
-    setVerificationForm(emptyVerificationForm);
-    setActiveForm("verify");
-    setFormError("");
+    const issueId = issue.id || getIssueKey(issue);
+    navigate(`/fsm/inspections/verify?issueId=${encodeURIComponent(issueId)}`, {
+      state: { issue }
+    });
   };
 
   const handleIssueFormChange = (field, value) => {

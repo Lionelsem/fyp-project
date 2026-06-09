@@ -830,6 +830,30 @@ button {
   width: 100%;
 }
 
+.verification-banner {
+  display: grid;
+  gap: 14px;
+  border-color: #2563eb;
+}
+
+.verification-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.verification-banner-grid span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.verification-banner-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 13px;
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -962,6 +986,11 @@ button {
   border: 1px solid #e5e7eb;
   overflow: hidden;
   background: #ffffff;
+}
+
+.checklist-row.verify-highlight {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
 }
 
 .row-main {
