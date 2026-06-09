@@ -289,15 +289,18 @@ const EmptyTableRow = ({ colSpan, children }) => (
 
 const quickActions = [
   {
+    icon: "\uD83D\uDCCB",
     label: "Start Inspection",
     path: "/fsm/inspections"
   },
   {
+    icon: "\u2713",
     label: "Verify Closure",
     path: "/fsm/inspections/verify"
   },
   {
-    label: "View Issues",
+    icon: "\uD83D\uDD0D",
+    label: "Verify Issue",
     path: "/fsm/issues"
   }
 ];
@@ -507,7 +510,10 @@ const FSMDashboard = () => {
                   className="fsm-quick-action-btn"
                   onClick={() => navigate(action.path)}
                 >
-                  {action.label}
+                  <span className="fsm-quick-action-icon" aria-hidden="true">
+                    {action.icon}
+                  </span>
+                  <span>{action.label}</span>
                 </button>
               ))}
             </div>

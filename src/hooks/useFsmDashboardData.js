@@ -80,7 +80,17 @@ const toDate = (value) => {
     return new Date(value.seconds * 1000);
   }
 
-  const date = new Date(value);
+  const text = String(value).trim();
+  const dateOnlyMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    return new Date(
+      Number(dateOnlyMatch[1]),
+      Number(dateOnlyMatch[2]) - 1,
+      Number(dateOnlyMatch[3])
+    );
+  }
+
+  const date = new Date(text);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
@@ -245,6 +255,17 @@ const getPriorityColor = (priority) => {
     return "#b45309";
   }
   return "#666";
+};
+
+const isCompletedFireDrill = (drill) => {
+  const status = normalizeText(drill.status);
+  const performanceStatus = normalizeText(drill.performanceStatus);
+
+  return (
+    ["completed", "conducted", "done", "submitted"].includes(status) ||
+    ["completed", "conducted", "done", "submitted"].includes(performanceStatus) ||
+    Boolean(drill.completedAt || drill.actualDate || drill.conductedDate)
+  );
 };
 
 const normalizeFieldName = (fieldName) =>
@@ -412,6 +433,7 @@ const buildUpcomingSchedule = (fireDrills, buildingMap) => {
   todayStart.setHours(0, 0, 0, 0);
 
   return fireDrills
+    .filter((drill) => !isCompletedFireDrill(drill))
     .map((drill) => {
       const dateTime = combineDateAndTime(drill.drillDate, drill.drillTime);
       return {

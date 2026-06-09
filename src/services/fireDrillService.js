@@ -20,6 +20,8 @@ const buildFireDrillPayload = (data) => ({
   drillDate: textValue(data.drillDate),
   drillTime: textValue(data.drillTime),
   drillEndTime: textValue(data.drillEndTime),
+  evacuationType: textValue(data.evacuationType),
+  customEvacuationType: textValue(data.customEvacuationType),
   drillType: textValue(data.drillType),
   scope: textValue(data.scope),
   participants: textValue(data.participants),
