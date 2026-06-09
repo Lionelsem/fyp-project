@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useAuthContext } from "../../context/AuthContext";
+import { logout } from "../../services/authService";
 
 const menuItems = [
   { path: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -10,7 +10,6 @@ const menuItems = [
 
 const CustomerSidebar = ({ profile }) => {
   const navigate = useNavigate();
-  const { logout } = useAuthContext();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const displayName = profile?.name || "Customer";
