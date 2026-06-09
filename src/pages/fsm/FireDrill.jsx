@@ -15,6 +15,8 @@ const emptyScheduleForm = {
   drillDate: "",
   drillTime: "",
   drillEndTime: "",
+  evacuationType: "",
+  customEvacuationType: "",
   drillType: "",
   scope: "",
   participants: ""
@@ -32,6 +34,51 @@ const emptyConductForm = {
 };
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const OTHER_EVACUATION_TYPE = "Other";
+
+const EVACUATION_TYPE_OPTIONS = [
+  "Fire",
+  "Security threat",
+  "Failure",
+  "Leak",
+  "Gas",
+  OTHER_EVACUATION_TYPE
+];
+
+const getEvacuationTypeOption = (value) => {
+  const normalized = normalizeText(value);
+  return EVACUATION_TYPE_OPTIONS.find((option) => normalizeText(option) === normalized) || "";
+};
+
+const getResolvedEvacuationType = (form) =>
+  form.evacuationType === OTHER_EVACUATION_TYPE
+    ? String(form.customEvacuationType || "").trim()
+    : String(form.evacuationType || "").trim();
+
+const getEvacuationFormFields = (drill) => {
+  const storedType = drill?.evacuationType || drill?.drillType || "";
+  const selectedType = getEvacuationTypeOption(storedType);
+
+  if (selectedType === OTHER_EVACUATION_TYPE) {
+    return {
+      evacuationType: OTHER_EVACUATION_TYPE,
+      customEvacuationType: drill?.customEvacuationType || drill?.drillType || ""
+    };
+  }
+
+  if (selectedType) {
+    return {
+      evacuationType: selectedType,
+      customEvacuationType: ""
+    };
+  }
+
+  return {
+    evacuationType: storedType ? OTHER_EVACUATION_TYPE : "",
+    customEvacuationType: drill?.customEvacuationType || drill?.drillType || ""
+  };
+};
 
 const getTodayInputValue = () => {
   const date = new Date();
@@ -203,7 +250,15 @@ const normalizeDrill = (drill, buildingMap) => {
   return {
     ...drill,
     buildingName: drill.buildingName || getBuildingName(building) || "Building TBC",
-    drillType: drill.drillType || drill.task || drill.type || "Fire Drill",
+    drillType:
+      drill.drillType ||
+      drill.customEvacuationType ||
+      drill.evacuationType ||
+      drill.task ||
+      drill.type ||
+      "Fire Drill",
+    evacuationType: drill.evacuationType || drill.drillType || "",
+    customEvacuationType: drill.customEvacuationType || "",
     scope: drill.scope || drill.location || "Scope TBC",
     participants: drill.participants || drill.occupants || "Participants TBC",
     status
@@ -315,14 +370,32 @@ const ScheduleForm = ({
           </label>
         )}
         <label className="fire-drill-form-field">
-          <span>Drill Type</span>
-          <input
-            type="text"
-            value={form.drillType}
-            onChange={(event) => onChange("drillType", event.target.value)}
+          <span>Evacuation Type</span>
+          <select
+            value={form.evacuationType}
+            onChange={(event) => onChange("evacuationType", event.target.value)}
             required
-          />
+          >
+            <option value="">Select evacuation type</option>
+            {EVACUATION_TYPE_OPTIONS.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
         </label>
+        {form.evacuationType === OTHER_EVACUATION_TYPE && (
+          <label className="fire-drill-form-field">
+            <span>Other Evacuation</span>
+            <input
+              type="text"
+              value={form.customEvacuationType}
+              onChange={(event) => onChange("customEvacuationType", event.target.value)}
+              placeholder="Enter evacuation type"
+              required
+            />
+          </label>
+        )}
         <label className="fire-drill-form-field">
           <span>Date</span>
           <input
@@ -658,6 +731,8 @@ const FireDrill = () => {
   };
 
   const openEditScheduleForm = (drill) => {
+    const evacuationFields = getEvacuationFormFields(drill);
+
     setFormError("");
     setEditingScheduleId(drill.id);
     setScheduleForm({
@@ -667,6 +742,7 @@ const FireDrill = () => {
       drillTime: drill.drillTime || "",
       drillEndTime: drill.drillEndTime || "",
       drillType: drill.drillType || "",
+      ...evacuationFields,
       scope: drill.scope || "",
       participants: drill.participants || ""
     });
@@ -695,6 +771,27 @@ const FireDrill = () => {
       return;
     }
 
+    if (field === "evacuationType") {
+      setScheduleForm((current) => ({
+        ...current,
+        evacuationType: value,
+        customEvacuationType:
+          value === OTHER_EVACUATION_TYPE ? current.customEvacuationType : "",
+        drillType:
+          value === OTHER_EVACUATION_TYPE ? current.customEvacuationType : value
+      }));
+      return;
+    }
+
+    if (field === "customEvacuationType") {
+      setScheduleForm((current) => ({
+        ...current,
+        customEvacuationType: value,
+        drillType: value
+      }));
+      return;
+    }
+
     setScheduleForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -716,8 +813,9 @@ const FireDrill = () => {
     setFormError("");
 
     const buildingName = getSelectedBuildingName(scheduleForm.buildingId, scheduleForm.buildingName);
-    if (!buildingName || !scheduleForm.drillDate || !scheduleForm.drillType.trim()) {
-      setFormError("Building, drill type, and date are required.");
+    const resolvedEvacuationType = getResolvedEvacuationType(scheduleForm);
+    if (!buildingName || !scheduleForm.drillDate || !resolvedEvacuationType) {
+      setFormError("Building, evacuation type, and date are required.");
       return;
     }
 
@@ -726,6 +824,11 @@ const FireDrill = () => {
       const payload = {
         ...scheduleForm,
         buildingName,
+        drillType: resolvedEvacuationType,
+        customEvacuationType:
+          scheduleForm.evacuationType === OTHER_EVACUATION_TYPE
+            ? scheduleForm.customEvacuationType
+            : "",
         fsmId: getPrimaryFsmId(user),
         status: "Scheduled"
       };

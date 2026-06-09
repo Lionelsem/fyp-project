@@ -1,87 +1,109 @@
-import React, { useState } from "react";
+import React from "react";
 
-const mockReports = [
+const reportActions = [
   {
-    id: "RPT-001",
-    reportType: "Monthly FSM Report",
-    building: "Building A",
-    date: "May 18, 2026",
-    status: "Submitted",
-    statusColor: "#047857",
-    statusBg: "#ecfdf5"
+    title: "Monthly Fire Safety Inspection",
+    description: "Track and view regular monthly inspections",
+    action: "View Reports",
+    icon: "\uD83D\uDCCB",
+    tone: "green"
   },
   {
-    id: "RPT-002",
-    reportType: "Fire Drill Summary",
-    building: "Building B",
-    date: "May 15, 2026",
-    status: "Draft",
-    statusColor: "#b45309",
-    statusBg: "#fef3c7"
+    title: "Annual Fire Safety Report",
+    description: "Comprehensive yearly compliance review",
+    action: "View Reports",
+    icon: "\uD83D\uDCC5",
+    tone: "blue"
   },
   {
-    id: "RPT-003",
-    reportType: "Annual Compliance Report",
-    building: "Building A",
-    date: "May 10, 2026",
-    status: "Submitted",
-    statusColor: "#047857",
-    statusBg: "#ecfdf5"
+    title: "Fire Drill Report",
+    description: "Logs and results of evacuation drills",
+    action: "View Reports",
+    icon: "\uD83D\uDD25",
+    tone: "orange"
+  },
+  {
+    title: "Upload Manual Report",
+    description: "Upload external contractor assessments etc.",
+    action: "Upload New",
+    icon: "\u2601",
+    tone: "purple"
   }
 ];
 
-const Reports = () => {
-  const [reports] = useState(mockReports);
+const latestReports = [
+  {
+    title: "May 2026 Monthly Report",
+    submittedDate: "01 May 2026",
+    status: "Approved",
+    tone: "approved"
+  },
+  {
+    title: "Annual Report 2026",
+    submittedDate: "10 May 2026",
+    status: "Approved",
+    tone: "approved"
+  },
+  {
+    title: "Evacuation Drill",
+    submittedDate: "22 May 2026",
+    status: "Follow-Up",
+    tone: "follow-up"
+  },
+  {
+    title: "Fire Safety Inspection",
+    submittedDate: "15 May 2026",
+    status: "Approved",
+    tone: "approved"
+  }
+];
 
-  return (
-    <div className="dashboard-container">
-      <div className="dashboard-card">
+const Reports = () => (
+  <div className="dashboard-container fsm-reports-page">
+    <div className="fsm-reports-panel">
+      <section className="fsm-report-action-list" aria-label="Report actions">
+        {reportActions.map((report) => (
+          <button
+            key={report.title}
+            type="button"
+            className={`fsm-report-action-card fsm-report-action-card--${report.tone}`}
+          >
+            <span className="fsm-report-action-icon" aria-hidden="true">
+              {report.icon}
+            </span>
+            <span className="fsm-report-action-body">
+              <strong>{report.title}</strong>
+              <span>{report.description}</span>
+              <em>{report.action}</em>
+            </span>
+          </button>
+        ))}
+      </section>
+
+      <section className="dashboard-card fsm-latest-report-card">
         <div className="card-header-row">
-          <h2 className="section-title">Reports</h2>
-          <button type="button" className="view-all-link" style={{ backgroundColor: "#047857", color: "white", padding: "8px 16px", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-            + Generate Report
+          <h2 className="section-title">Latest Report</h2>
+          <button type="button" className="view-all-link">
+            View All
           </button>
         </div>
 
-        <table className="dashboard-table">
-          <thead>
-            <tr>
-              <th>REPORT ID</th>
-              <th>REPORT TYPE</th>
-              <th>BUILDING</th>
-              <th>DATE</th>
-              <th>STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((report) => (
-              <tr key={report.id}>
-                <td className="id-cell">{report.id}</td>
-                <td>{report.reportType}</td>
-                <td>{report.building}</td>
-                <td>{report.date}</td>
-                <td>
-                  <span
-                    className="status-badge"
-                    style={{
-                      backgroundColor: report.statusBg,
-                      color: report.statusColor,
-                      padding: "4px 12px",
-                      borderRadius: "4px",
-                      fontSize: "12px",
-                      fontWeight: "500"
-                    }}
-                  >
-                    {report.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <div className="fsm-latest-report-list">
+          {latestReports.map((report) => (
+            <div key={`${report.title}-${report.submittedDate}`} className="fsm-latest-report-row">
+              <div className="fsm-latest-report-copy">
+                <strong>{report.title}</strong>
+                <span>Submitted on {report.submittedDate}</span>
+              </div>
+              <span className={`fsm-report-status-pill fsm-report-status-pill--${report.tone}`}>
+                {report.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
-  );
-};
+  </div>
+);
 
 export default Reports;

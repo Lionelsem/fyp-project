@@ -1,8 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 
 const FSMNavbar = ({ pageTitle = "FSM Dashboard" }) => {
-  const [searchValue, setSearchValue] = useState("");
-
   const today = useMemo(
     () =>
       new Date().toLocaleDateString(undefined, {
@@ -18,19 +16,6 @@ const FSMNavbar = ({ pageTitle = "FSM Dashboard" }) => {
     <nav className="admin-navbar">
       <div className="navbar-left">
         <h1 className="navbar-title">{pageTitle}</h1>
-      </div>
-
-      <div className="navbar-center">
-        <div className="search-box">
-          <span className="search-icon">🔍</span>
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search..."
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-          />
-        </div>
       </div>
 
       <div className="navbar-right">
