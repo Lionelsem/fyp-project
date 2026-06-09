@@ -1,6 +1,13 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { COLLECTION_NAMES } from "../../constants/collectionNames";
-import { upsertInspection, upsertInspectionResult } from "../../services/inspectionService";
+import {
+  getInspectionByAssignmentPeriod,
+  getInspectionByAssignmentPeriodStatus,
+  getInspectionResultsByInspectionId,
+  getInspectionResultsByInspectionKey,
+  upsertInspection,
+  upsertInspectionResult
+} from "../../services/inspectionService";
 import { upsertIssue } from "../../services/issueService";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
@@ -330,7 +337,7 @@ const createEmptyChecklist = () =>
     ...category,
     items: category.items.map((item) => ({
       ...item,
-      condition: "",
+      condition: "Good",
       remark: "",
       photo: "",
       photoPreview: "",
@@ -395,6 +402,115 @@ const getPeriodKey = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 };
 
+const getPreviousMonthPeriodKey = (periodKey) => {
+  const match = String(periodKey || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "";
+
+  const year = Number.parseInt(match[1], 10);
+  const monthIndex = Number.parseInt(match[2], 10) - 1;
+  const previousMonth = new Date(year, monthIndex - 1, 1);
+
+  return `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const buildChecklistResultKey = (categoryCode, itemCode) =>
+  `${String(categoryCode || "").trim()}::${String(itemCode || "").trim()}`;
+
+const getResultFallbackItemId = (result) => {
+  const directId = result?.itemId || result?.checklistItemId;
+  if (directId) return directId;
+
+  const resultKey = result?.resultKey || result?.resultId || result?.id || "";
+  const parts = String(resultKey).split("__");
+  return parts.length > 0 ? parts[parts.length - 1] : "";
+};
+
+const buildPreviousResultsMap = (previousResults = []) => {
+  const resultMap = new Map();
+
+  previousResults.forEach((result) => {
+    const categoryCode = result.categoryCode || result.categoryId;
+    const itemCode = result.itemCode || result.itemId || result.checklistItemId;
+    const fallbackItemId = getResultFallbackItemId(result);
+
+    if (categoryCode && itemCode) {
+      resultMap.set(buildChecklistResultKey(categoryCode, itemCode), result);
+    }
+
+    if (categoryCode && fallbackItemId) {
+      resultMap.set(buildChecklistResultKey(categoryCode, fallbackItemId), result);
+    }
+  });
+
+  return resultMap;
+};
+
+const hydrateChecklistFromPreviousMonth = (templateChecklist, previousResults = []) => {
+  const previousResultMap = buildPreviousResultsMap(previousResults);
+
+  return templateChecklist.map((category) => ({
+    ...category,
+    items: category.items.map((item) => {
+      const previousResult =
+        previousResultMap.get(buildChecklistResultKey(category.id, item.code)) ||
+        previousResultMap.get(buildChecklistResultKey(category.id, item.id));
+
+      return {
+        ...item,
+        condition: previousResult?.condition || "Good",
+        remark: previousResult?.remark || "",
+        photo: "",
+        photoPreview: "",
+        photoFile: null,
+        issue: {
+          ...item.issue,
+          description: previousResult?.issueDescription || previousResult?.issue?.description || "",
+          rectification: previousResult?.rectification || previousResult?.issue?.rectification || "",
+          priority: previousResult?.priority || previousResult?.issue?.priority || item.issue?.priority || "Medium",
+          status: "Open",
+          photo: ""
+        },
+        expanded: false
+      };
+    })
+  }));
+};
+
+const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) => {
+  const savedResultMap = buildPreviousResultsMap(savedResults);
+
+  return templateChecklist.map((category) => ({
+    ...category,
+    items: category.items.map((item) => {
+      const savedResult =
+        savedResultMap.get(buildChecklistResultKey(category.id, item.code)) ||
+        savedResultMap.get(buildChecklistResultKey(category.id, item.id));
+
+      if (!savedResult) return item;
+
+      const condition = savedResult.condition || "";
+
+      return {
+        ...item,
+        condition,
+        remark: savedResult.remark || "",
+        photo: savedResult.photoUrl || "",
+        photoPreview: "",
+        photoFile: null,
+        issue: {
+          ...item.issue,
+          description: savedResult.issueDescription || savedResult.issue?.description || "",
+          rectification: savedResult.rectification || savedResult.issue?.rectification || "",
+          priority: savedResult.priority || savedResult.issue?.priority || item.issue?.priority || "Medium",
+          status: savedResult.issueStatus || savedResult.issue?.status || "Open",
+          photo: ""
+        },
+        expanded: condition === "Faulty"
+      };
+    })
+  }));
+};
+
 const sanitizeKeyPart = (value) =>
   String(value || "")
     .trim()
@@ -416,7 +532,6 @@ const InspectionOverview = ({
   selectedLevel,
   setSelectedLevel,
   canSave,
-  onSaveDraft,
   onSubmit
 }) => (
   <section className="inspection-card overview-card">
@@ -427,7 +542,6 @@ const InspectionOverview = ({
           <h3>Monthly Inspection Report</h3>
         </div>
         <div className="overview-actions">
-          <button type="button" className="secondary-button" onClick={onSaveDraft} disabled={!canSave}>Save Draft</button>
           <button type="button" className="primary-button" onClick={onSubmit} disabled={!canSave}>Submit Inspection</button>
         </div>
       </div>
@@ -825,6 +939,7 @@ const Inspections = () => {
   const [selectedLevel, setSelectedLevel] = useState("");
   const [levelChecklists, setLevelChecklists] = useState({});
   const [levelRemarks, setLevelRemarks] = useState({});
+  const [prefilledInspectionKeys, setPrefilledInspectionKeys] = useState({});
 
   const assignedBuilding = buildings[0] || null;
   const selectedBuilding = assignedBuilding?.id || "";
@@ -864,6 +979,7 @@ const Inspections = () => {
   useEffect(() => {
     setLevelChecklists({});
     setLevelRemarks({});
+    setPrefilledInspectionKeys({});
   }, [selectedBuilding]);
 
   useEffect(() => {
@@ -889,6 +1005,120 @@ const Inspections = () => {
       };
     });
   }, [selectedLevel]);
+
+  useEffect(() => {
+    if (!canSaveInspection || prefilledInspectionKeys[inspectionKey]) return undefined;
+
+    let isCancelled = false;
+
+    const fetchInspectionResults = async (inspection) => {
+      let results = await getInspectionResultsByInspectionId(
+        inspection.inspectionId || inspection.id
+      );
+
+      if (results.length === 0 && inspection.inspectionKey) {
+        results = await getInspectionResultsByInspectionKey(inspection.inspectionKey);
+      }
+
+      return results;
+    };
+
+    const loadChecklistForCurrentPeriod = async () => {
+      const templateChecklist = createEmptyChecklist();
+
+      try {
+        const currentInspection = await getInspectionByAssignmentPeriod({
+          buildingId: selectedBuilding,
+          floorId: selectedLevel,
+          fsmId,
+          periodKey
+        });
+
+        if (isCancelled) return;
+
+        if (currentInspection) {
+          const currentResults = await fetchInspectionResults(currentInspection);
+          if (isCancelled) return;
+
+          setLevelChecklists((current) => ({
+            ...current,
+            [selectedLevel]: hydrateChecklistFromSavedResults(templateChecklist, currentResults)
+          }));
+
+          setLevelRemarks((current) => ({
+            ...current,
+            [selectedLevel]: currentInspection.generalRemarks || ""
+          }));
+
+          setPrefilledInspectionKeys((current) => ({ ...current, [inspectionKey]: true }));
+          return;
+        }
+
+        const previousPeriodKey = getPreviousMonthPeriodKey(periodKey);
+        let previousInspection = null;
+        let previousResults = [];
+
+        if (previousPeriodKey) {
+          previousInspection = await getInspectionByAssignmentPeriodStatus({
+            buildingId: selectedBuilding,
+            floorId: selectedLevel,
+            fsmId,
+            periodKey: previousPeriodKey,
+            status: "Submitted"
+          });
+
+          if (isCancelled) return;
+
+          if (previousInspection) {
+            previousResults = await fetchInspectionResults(previousInspection);
+          }
+        }
+
+        if (isCancelled) return;
+
+        setLevelChecklists((current) => ({
+          ...current,
+          [selectedLevel]: hydrateChecklistFromPreviousMonth(templateChecklist, previousResults)
+        }));
+
+        setLevelRemarks((current) => ({
+          ...current,
+          [selectedLevel]: previousInspection?.generalRemarks || ""
+        }));
+
+        setPrefilledInspectionKeys((current) => ({ ...current, [inspectionKey]: true }));
+      } catch (err) {
+        if (isCancelled) return;
+
+        setLevelChecklists((current) => ({
+          ...current,
+          [selectedLevel]: current[selectedLevel] || templateChecklist
+        }));
+        setLevelRemarks((current) => ({
+          ...current,
+          [selectedLevel]: current[selectedLevel] || ""
+        }));
+        setPrefilledInspectionKeys((current) => ({ ...current, [inspectionKey]: true }));
+
+        // eslint-disable-next-line no-console
+        console.error("Inspection checklist hydration failed", err);
+      }
+    };
+
+    loadChecklistForCurrentPeriod();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    canSaveInspection,
+    fsmId,
+    inspectionKey,
+    periodKey,
+    prefilledInspectionKeys,
+    selectedBuilding,
+    selectedLevel
+  ]);
 
   const setChecklistForSelectedLevel = (updater) => {
     if (!selectedLevel) return;
@@ -974,6 +1204,10 @@ const Inspections = () => {
             });
             if (changes.condition === "Faulty") {
               updated.expanded = true;
+              updated.issue = {
+                ...updated.issue,
+                status: "Open"
+              };
             }
             return updated;
           })
@@ -1097,6 +1331,9 @@ const Inspections = () => {
             passFail: getPassFail(item.condition),
             remark: item.remark || "",
             photoUrl,
+            issueDescription: item.issue?.description || "",
+            rectification: item.issue?.rectification || "",
+            priority: item.issue?.priority || "",
             manualVerificationRequired: !!item.isManualVerification,
             checkedAt: new Date(),
             checkedBy: fsmId,
@@ -1142,8 +1379,6 @@ const Inspections = () => {
     }
   };
 
-  const handleSaveDraft = async () => persistInspection("Draft");
-
   const handleSubmit = async () => persistInspection("Submitted");
 
   return (
@@ -1172,7 +1407,6 @@ const Inspections = () => {
             selectedLevel={selectedLevel}
             setSelectedLevel={setSelectedLevel}
             canSave={canSaveInspection}
-            onSaveDraft={handleSaveDraft}
             onSubmit={handleSubmit}
           />
           <IssueSummary

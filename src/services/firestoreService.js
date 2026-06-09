@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, setDoc, getDoc, getDocs, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, getDoc, getDocs, query, where, limit, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { ROLES } from "../constants/roles";
@@ -187,6 +187,9 @@ const buildInspectionResultPayload = (data) => ({
       : getInspectionPassFail(data.condition),
   remark: data.remark || "",
   photoUrl: data.photoUrl || "",
+  issueDescription: data.issueDescription || "",
+  rectification: data.rectification || "",
+  priority: data.priority || "",
   manualVerificationRequired: !!data.manualVerificationRequired,
   checkedAt: data.checkedAt || serverTimestamp(),
   checkedBy: data.checkedBy || null,
@@ -258,6 +261,44 @@ export const upsertInspection = async (data) => {
   );
 };
 
+export const getInspectionByAssignmentPeriodStatus = async ({
+  buildingId,
+  floorId,
+  fsmId,
+  periodKey,
+  status
+}) => {
+  const inspectionQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTIONS),
+    where("buildingId", "==", buildingId),
+    where("floorId", "==", floorId),
+    where("fsmId", "==", fsmId),
+    where("periodKey", "==", periodKey),
+    where("status", "==", status),
+    limit(1)
+  );
+
+  return await getDocs(inspectionQuery);
+};
+
+export const getInspectionByAssignmentPeriod = async ({
+  buildingId,
+  floorId,
+  fsmId,
+  periodKey
+}) => {
+  const inspectionQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTIONS),
+    where("buildingId", "==", buildingId),
+    where("floorId", "==", floorId),
+    where("fsmId", "==", fsmId),
+    where("periodKey", "==", periodKey),
+    limit(1)
+  );
+
+  return await getDocs(inspectionQuery);
+};
+
 // Inspection result (per checklist item)
 export const addInspectionResult = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.INSPECTION_RESULTS), {
@@ -276,6 +317,24 @@ export const upsertInspectionResult = async (data) => {
       resultId: data.resultId || resultKey
     })
   );
+};
+
+export const getInspectionResultsByInspectionId = async (inspectionId) => {
+  const resultsQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTION_RESULTS),
+    where("inspectionId", "==", inspectionId)
+  );
+
+  return await getDocs(resultsQuery);
+};
+
+export const getInspectionResultsByInspectionKey = async (inspectionKey) => {
+  const resultsQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTION_RESULTS),
+    where("inspectionKey", "==", inspectionKey)
+  );
+
+  return await getDocs(resultsQuery);
 };
 
 // Equipment history

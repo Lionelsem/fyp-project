@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 
@@ -286,8 +287,24 @@ const EmptyTableRow = ({ colSpan, children }) => (
   </tr>
 );
 
+const quickActions = [
+  {
+    label: "Start Inspection",
+    path: "/fsm/inspections"
+  },
+  {
+    label: "Verify Closure",
+    path: "/fsm/inspections/verify"
+  },
+  {
+    label: "View Issues",
+    path: "/fsm/issues"
+  }
+];
+
 const FSMDashboard = () => {
   const { user } = useAuthContext();
+  const navigate = useNavigate();
   const fsmLookupIds = [
     user?.uid,
     user?.authUid,
@@ -392,38 +409,23 @@ const FSMDashboard = () => {
               </section>
 
               <section className="fsm-chart-panel">
-                <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "18px", paddingRight: "88px" }}>
                   <h2 className="section-title">Inspection Trend</h2>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      type="button"
-                      onClick={() => setTrendTab("monthly")}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: "8px",
-                        background: trendTab === "monthly" ? "#2563eb" : "#f3f4f6",
-                        color: trendTab === "monthly" ? "#fff" : "#111",
-                        cursor: "pointer",
-                        border: "none"
-                      }}
-                    >
-                      Monthly
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTrendTab("annual")}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: "8px",
-                        background: trendTab === "annual" ? "#2563eb" : "#f3f4f6",
-                        color: trendTab === "annual" ? "#fff" : "#111",
-                        cursor: "pointer",
-                        border: "none"
-                      }}
-                    >
-                      Annually
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTrendTab((current) => (current === "monthly" ? "annual" : "monthly"))}
+                    style={{
+                      minWidth: "92px",
+                      padding: "6px 10px",
+                      borderRadius: "8px",
+                      background: "#2563eb",
+                      color: "#fff",
+                      cursor: "pointer",
+                      border: "none"
+                    }}
+                  >
+                    {trendTab === "monthly" ? "Monthly" : "Annually"}
+                  </button>
                 </div>
                 <div className="fsm-chart-trend-body">
                   {trendTab === "monthly" ? (
@@ -478,6 +480,24 @@ const FSMDashboard = () => {
         </div>
 
         <div className="content-right">
+          <div className="dashboard-card fsm-quick-actions-card">
+            <div className="card-header-row">
+              <h2 className="section-title">Quick Actions</h2>
+            </div>
+            <div className="fsm-quick-actions-list">
+              {quickActions.map((action) => (
+                <button
+                  key={action.path}
+                  type="button"
+                  className="fsm-quick-action-btn"
+                  onClick={() => navigate(action.path)}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
             <div className="dashboard-card fsm-recent-reports-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Reports</h2>

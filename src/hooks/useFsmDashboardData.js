@@ -189,7 +189,7 @@ const getInspectionBucket = (inspection) => {
   const status = normalizeText(inspection.status || "");
   const progress = Number(inspection.progressPercent || 0);
 
-  if (status === "pass" || status === "passed" || progress >= 100) return "passed";
+  if (["pass", "passed", "completed", "submitted", "approved"].includes(status)) return "passed";
   if (status === "fail" || status === "failed") return "failed";
   if (status === "pending" || status === "review" || status === "draft" || progress < 100) return "pending";
 
@@ -197,6 +197,22 @@ const getInspectionBucket = (inspection) => {
 };
 
 const getInspectionStatus = (inspection) => normalizeText(inspection.status || "draft");
+
+const isPendingInspection = (inspection) => {
+  const status = getInspectionStatus(inspection);
+  const progress = Number(inspection.progressPercent || 0);
+
+  if (["completed", "submitted", "approved", "pass", "passed", "failed"].includes(status)) {
+    return false;
+  }
+
+  return ["pending", "review", "draft", "in progress"].includes(status) || progress < 100;
+};
+
+const isCompletedInspection = (inspection) => {
+  const status = getInspectionStatus(inspection);
+  return ["completed", "submitted", "approved", "pass", "passed"].includes(status);
+};
 
 const getStatusStyle = (status) => {
   const normalized = normalizeText(status);
@@ -283,12 +299,8 @@ const getBuildingName = (buildingMap, buildingId, fallback) => {
 };
 
 const buildSummaryCards = (inspections, issues) => {
-  const pendingCount = inspections.filter(
-    (inspection) => getInspectionStatus(inspection) === "pending"
-  ).length;
-  const completedCount = inspections.filter(
-    (inspection) => getInspectionStatus(inspection) === "completed"
-  ).length;
+  const pendingCount = inspections.filter(isPendingInspection).length;
+  const completedCount = inspections.filter(isCompletedInspection).length;
   const urgentIssueCount = issues.filter((issue) => {
     const priority = normalizeText(issue.priority);
     const status = normalizeText(issue.status);

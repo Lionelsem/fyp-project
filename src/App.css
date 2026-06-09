@@ -1634,6 +1634,46 @@ button {
   margin-bottom: 10px;
 }
 
+.fsm-dashboard-page .fsm-quick-actions-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.fsm-dashboard-page .fsm-quick-action-btn {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.fsm-dashboard-page .fsm-quick-action-btn:hover {
+  border-color: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  .fsm-dashboard-page .fsm-quick-actions-list {
+    grid-template-columns: 1fr;
+  }
+
+  .fsm-dashboard-page .fsm-quick-action-btn {
+    min-height: 42px;
+    text-align: left;
+  }
+}
+
 .section-title {
   font-size: 16px;
   font-weight: 700;
