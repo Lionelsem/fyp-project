@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 
 const menuItems = [
@@ -9,14 +9,19 @@ const menuItems = [
     label: "Inspection",
     icon: "📋",
     submenu: [
-      { path: "/fsm/inspections", label: "My Inspection" },
-      { path: "/fsm/inspections/verify", label: "Verify Inspection" }
+      { path: "/fsm/inspections", label: "My Inspections" },
+      { path: "/fsm/inspections/verify", label: "Verify Closure" }
     ]
   },
-  { path: "/fsm/issues", label: "Issues / Defects", icon: "⚠️" },
-  { path: "/fsm/fire-drill", label: "Fire Drill", icon: "🚒" },
-  { path: "/fsm/reports", label: "Reports", icon: "📄" },
-  { path: "/fsm/building", label: "My Building", icon: "🏢" }
+  {
+    path: "/fsm/building",
+    label: "My Building",
+    icon: "🏢",
+    submenu: [
+      { path: "/fsm/fire-drill", label: "Fire Drill" },
+      { path: "/fsm/reports", label: "Reports" }
+    ]
+  }
 ];
 
 const FSMSidebar = ({ profile }) => {
@@ -50,6 +55,19 @@ const FSMSidebar = ({ profile }) => {
     setExpandedMenu(expandedMenu === path ? null : path);
   };
 
+  const location = useLocation();
+
+  const handleParentClick = (path) => {
+    toggleSubmenu(path);
+    navigate(path);
+  };
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/fsm/inspections")) {
+      setExpandedMenu("/fsm/inspections");
+    }
+  }, [location.pathname]);
+
   return (
     <aside className="admin-sidebar">
       <div className="sidebar-logo">
@@ -73,7 +91,7 @@ const FSMSidebar = ({ profile }) => {
                   <button
                     type="button"
                     className="menu-item submenu-toggle"
-                    onClick={() => toggleSubmenu(item.path)}
+                    onClick={() => handleParentClick(item.path)}
                     style={{
                       width: "100%",
                       textAlign: "left",
@@ -97,18 +115,14 @@ const FSMSidebar = ({ profile }) => {
                     </span>
                   </button>
                   {expandedMenu === item.path && (
-                    <ul className="submenu" style={{ paddingLeft: "0", marginTop: "0", backgroundColor: "#f9fafb" }}>
+                    <ul className="submenu">
                       {item.submenu.map((subitem) => (
-                        <li key={subitem.path} style={{ listStyle: "none" }}>
+                        <li key={subitem.path}>
                           <NavLink
                             to={subitem.path}
                             className={({ isActive }) =>
                               isActive ? "menu-item submenu-item active" : "menu-item submenu-item"
                             }
-                            style={{
-                              paddingLeft: "52px",
-                              fontSize: "14px"
-                            }}
                           >
                             {subitem.label}
                           </NavLink>

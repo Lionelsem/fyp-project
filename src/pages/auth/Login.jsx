@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { login, logout } from "../../services/authService";
 import { useAuth } from "../../hooks/useAuth";
+import { Link } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -18,15 +19,6 @@ const Login = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Logout failed");
-    }
-  };
-
   if (loading) {
     return <div>Loading authentication...</div>;
   }
@@ -38,8 +30,8 @@ const Login = () => {
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       <input
-        placeholder="Email"
-        type="email"
+        placeholder="Username"
+        type="text"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
@@ -54,18 +46,9 @@ const Login = () => {
       <br />
 
       <button onClick={handleLogin}>Login</button>
-      <button onClick={handleLogout} style={{ marginLeft: "8px" }}>
-        Logout
-      </button>
-
-      {user && (
-        <div style={{ marginTop: "16px" }}>
-          <h3>Signed in user</h3>
-          <p>Email: {user.email}</p>
-          {user.fullName && <p>Full Name: {user.fullName}</p>}
-          {user.role && <p>Role: {user.role}</p>}
-        </div>
-      )}
+      <Link to="/register" style={{ marginLeft: "8px" }}>
+        <button>Sign Up</button>
+      </Link>
     </div>
   );
 };

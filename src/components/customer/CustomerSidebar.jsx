@@ -1,100 +1,86 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
-import Sidebar from "../common/Sidebar";
+
+const menuItems = [
+  { path: "/dashboard", label: "Dashboard", icon: "📊" },
+  { path: "/my-reports", label: "My Reports", icon: "📋" },
+  { path: "/submit-report", label: "Submit Report", icon: "📝" }
+];
 
 const CustomerSidebar = ({ profile }) => {
   const navigate = useNavigate();
   const { logout } = useAuthContext();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const displayName = profile?.name || "Customer";
+  const roleLabel = profile?.role || "Customer";
+  const initials =
+    profile?.initials ||
+    displayName
+      .split(" ")
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       await logout();
       navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);
+      setIsLoggingOut(false);
     }
   };
 
   return (
-    <Sidebar>
-      <div className="sidebar-logo">CBRE</div>
-      
-      {profile && (
-        <div className="sidebar-user-card">
-          <div className="user-avatar-large">{profile.initials}</div>
-          <div className="user-info">
-            <div className="user-name">{profile.name}</div>
-            <div className="user-role">{profile.role}</div>
-          </div>
+    <aside className="admin-sidebar">
+      <div className="sidebar-logo">
+        <span className="logo-text">CBRE</span>
+      </div>
+
+      <div className="sidebar-user-card">
+        <div className="user-avatar-large">{initials}</div>
+        <div className="user-info">
+          <div className="user-name">{displayName}</div>
+          <div className="user-role">{roleLabel}</div>
         </div>
-      )}
+      </div>
 
       <nav className="sidebar-menu">
-        <NavLink 
-          to="/dashboard" 
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-        >
-          <span className="menu-icon">🏠</span>
-          <span className="menu-label">Dashboard</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/issue-progress" 
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-        >
-          <span className="menu-icon">⚠️</span>
-          <span className="menu-label">Issue Progress</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/inspections" 
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-        >
-          <span className="menu-icon">📋</span>
-          <span className="menu-label">Inspection Reports</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/firedrill" 
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-        >
-          <span className="menu-icon">📅</span>
-          <span className="menu-label">Fire Drill Reports</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/annual" 
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-        >
-          <span className="menu-icon">📍</span>
-          <span className="menu-label">Annual Reports</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/feedbacks" 
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-        >
-          <span className="menu-icon">💬</span>
-          <span className="menu-label">Comments / Feedback</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/building" 
-          className={({ isActive }) => (isActive ? "menu-item active" : "menu-item")}
-        >
-          <span className="menu-icon">🏢</span>
-          <span className="menu-label">My Building</span>
-        </NavLink>
+        <ul className="sidebar-list">
+          {menuItems.map((item) => (
+            <li key={item.path}>
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  isActive ? "menu-item active" : "menu-item"
+                }
+              >
+                <span className="menu-icon">{item.icon}</span>
+                <span className="menu-label">{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
       </nav>
 
       <div className="sidebar-footer">
-        <button className="sidebar-btn profile-btn">👤 Profile</button>
-        <button className="sidebar-btn logout-btn" onClick={handleLogout}>
-          🚪 Logout
+        <button type="button" className="sidebar-btn profile-btn">
+          👤 Profile
+        </button>
+        <button
+          type="button"
+          className="sidebar-btn logout-btn"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+        >
+          🚪 {isLoggingOut ? "Logging out..." : "Logout"}
         </button>
       </div>
-    </Sidebar>
+    </aside>
   );
 };
 

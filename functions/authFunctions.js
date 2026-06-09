@@ -8,9 +8,21 @@ if (!admin.apps.length) {
 const auth = admin.auth();
 const db = admin.firestore();
 
+const isAdminUser = async (uid) => {
+  const adminUserDoc = await db.collection("users").doc(uid).get();
+  if (!adminUserDoc.exists) return false;
+  const adminUserData = adminUserDoc.data();
+  return adminUserData?.role === "Admin";
+};
+
 exports.createUserAccount = functions.region("us-central1").https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Authentication required to create users.");
+  }
+
+  const callerUid = context.auth.uid;
+  if (!(await isAdminUser(callerUid))) {
+    throw new functions.https.HttpsError("permission-denied", "Only administrators can create new user accounts.");
   }
 
   const { firstName, lastName, email, phoneNumber, role, password } = data;
@@ -29,6 +41,7 @@ exports.createUserAccount = functions.region("us-central1").https.onCall(async (
     });
 
     await db.collection("users").doc(userRecord.uid).set({
+      userId: displayName,
       fullName: displayName,
       email,
       phoneNumber: phoneNumber || "",
@@ -37,7 +50,7 @@ exports.createUserAccount = functions.region("us-central1").https.onCall(async (
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    return { uid: userRecord.uid };
+    return { uid: userRecord.uid, userId: displayName };
   } catch (error) {
     console.error("Error creating user account:", error);
 

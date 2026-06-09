@@ -15,15 +15,15 @@ const FSMRoutes = () => {
     <ProtectedRoute allowedRoles={[ROLES.FSM]}>
       <FSMLayout>
         <Routes>
-          <Route index element={<FSMDashboard />} />
-          <Route path="dashboard" element={<FSMDashboard />} />
-          <Route path="inspections" element={<Inspections />} />
-          <Route path="inspections/verify" element={<Inspections />} />
-          <Route path="issues" element={<Issues />} />
-          <Route path="fire-drill" element={<FireDrill />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="building" element={<MyBuilding />} />
-          <Route path="*" element={<Navigate to="dashboard" replace />} />
+          <Route path="/fsm" element={<Navigate to="/fsm/dashboard" replace />} />
+          <Route path="/fsm/dashboard" element={<FSMDashboard />} />
+          <Route path="/fsm/inspections" element={<Inspections />} />
+          <Route path="/fsm/inspections/verify" element={<Inspections />} />
+          <Route path="/fsm/issues" element={<Issues />} />
+          <Route path="/fsm/fire-drill" element={<FireDrill />} />
+          <Route path="/fsm/reports" element={<Reports />} />
+          <Route path="/fsm/building" element={<MyBuilding />} />
+          <Route path="*" element={<Navigate to="/fsm/dashboard" replace />} />
         </Routes>
       </FSMLayout>
     </ProtectedRoute>

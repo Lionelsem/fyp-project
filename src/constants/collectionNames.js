@@ -1,12 +1,17 @@
 export const COLLECTION_NAMES = {
   USERS: "users",
   BUILDINGS: "buildings",
+  FLOORS: "floors",
+  EQUIPMENT: "equipment",
+  FIRE_DRILLS: "fireDrills",
+  INSPECTION_TEMPLATES: "inspectionTemplates",
   INSPECTIONS: "inspections",
-  INSPECTION_ITEMS: "inspectionItems",
-  REPORTS: "reports",
-  NOTIFICATIONS: "notifications",
+  INSPECTION_RESULTS: "inspectionResults",
+  EQUIPMENT_HISTORY: "equipmentHistory",
   ISSUES: "issues",
   ISSUE_COMMENTS: "issueComments",
-  FIRE_DRILLS: "fireDrills",
-  CLOSURE_VERIFICATIONS: "closureVerifications"
+  CLOSURE_VERIFICATIONS: "closureVerifications",
+  NOTIFICATIONS: "notifications",
+  REPORTS: "reports",
+  AI_AUDIT_LOGS: "aiAuditLogs"
 };

@@ -15,12 +15,13 @@ export const AuthProvider = ({ children }) => {
       auth,
       async (firebaseUser) => {
         if (firebaseUser) {
-          const profile = await getUserProfile(firebaseUser.uid);
+          const profile = await getUserProfile(firebaseUser.uid, firebaseUser.email);
           setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
             ...profile,
-            role: ROLES.CUSTOMER
+            uid: firebaseUser.uid,
+            authUid: firebaseUser.uid,
+            email: firebaseUser.email,
+            role: (profile && profile.role) || ROLES.CUSTOMER
           });
         } else {
           setUser(null);

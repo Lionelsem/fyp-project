@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllUsers } from "../../services/userService";
+import { getAllUsers, deleteUser } from "../../services/userService";
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingUserId, setDeletingUserId] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,6 +53,7 @@ const ManageUsers = () => {
               <th>ASSIGNED BUILDING</th>
               <th>EMAIL</th>
               <th>STATUS</th>
+              <th>ACTION</th>
             </tr>
           </thead>
           <tbody>
@@ -76,6 +78,39 @@ const ManageUsers = () => {
                   <td>{user.assignedBuilding || "-"}</td>
                   <td>{user.email || "-"}</td>
                   <td>{user.status || "Active"}</td>
+                  <td>
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="secondary-btn action-icon-btn"
+                        title="Edit user"
+                        onClick={() => navigate(`/users/edit/${user.uid}`)}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-button action-icon-btn"
+                        title="Delete user"
+                        disabled={deletingUserId === user.uid}
+                        onClick={async () => {
+                          const confirmed = window.confirm(`Delete user ${user.fullName || user.email}?`);
+                          if (!confirmed) return;
+                          setDeletingUserId(user.uid);
+                          try {
+                            await deleteUser(user.uid);
+                            setUsers((prev) => prev.filter((item) => item.uid !== user.uid));
+                          } catch (deleteError) {
+                            console.error("Failed to delete user", deleteError);
+                          } finally {
+                            setDeletingUserId("");
+                          }
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}

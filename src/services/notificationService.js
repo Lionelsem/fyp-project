@@ -1,3 +1,6 @@
+import * as fs from "./firestoreService";
+
 export const sendNotification = async (data) => {
-  return { ...data, id: "placeholder-notification" };
+  const docRef = await fs.addNotification(data);
+  return { id: docRef.id, ...data };
 };

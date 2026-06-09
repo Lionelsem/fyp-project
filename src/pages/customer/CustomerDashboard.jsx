@@ -1,37 +1,33 @@
 import React from "react";
 
-const statusCards = [
+const summaryCards = [
   {
     label: "Open Issues",
     value: 3,
     icon: "⚠️",
     iconBg: "#fee2e2",
-    iconColor: "#dc2626",
-    status: "Requires attention"
+    iconColor: "#dc2626"
   },
   {
     label: "In Progress",
     value: 5,
     icon: "🔄",
     iconBg: "#fed7aa",
-    iconColor: "#ea580c",
-    status: "Currently fixing"
+    iconColor: "#ea580c"
   },
   {
     label: "Resolved",
     value: 12,
     icon: "✅",
     iconBg: "#dcfce7",
-    iconColor: "#16a34a",
-    status: "Awaiting verification"
+    iconColor: "#16a34a"
   },
   {
     label: "Closed",
     value: 48,
     icon: "🔒",
     iconBg: "#eef2ff",
-    iconColor: "#4338ca",
-    status: "Completed & verified"
+    iconColor: "#4338ca"
   }
 ];
 
@@ -90,6 +86,23 @@ const latestReports = [
 const CustomerDashboard = () => {
   return (
     <div className="dashboard-container">
+      <div className="summary-grid">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="summary-card">
+            <div className="card-top">
+              <div
+                className="card-icon"
+                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
+              >
+                {card.icon}
+              </div>
+              <div className="card-label">{card.label}</div>
+            </div>
+            <div className="card-value">{card.value}</div>
+          </div>
+        ))}
+      </div>
+
       <div className="building-card-section">
         <div className="dashboard-card building-card">
           <div className="building-card-header">
@@ -113,23 +126,7 @@ const CustomerDashboard = () => {
         </div>
       </div>
 
-      <div className="status-cards-grid">
-        {statusCards.map((card) => (
-          <div key={card.label} className="status-card">
-            <div className="status-card-top">
-              <div
-                className="status-card-icon"
-                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
-              >
-                {card.icon}
-              </div>
-              <div className="status-card-label">{card.label}</div>
-            </div>
-            <div className="status-card-value">{card.value}</div>
-            <div className="status-card-subtitle">{card.status}</div>
-          </div>
-        ))}
-      </div>
+      
 
       <div className="dashboard-grid">
         <div className="content-left">

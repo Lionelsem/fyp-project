@@ -1,15 +1,25 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createUserAccount } from "../../services/authService";
+import { ROLES } from "../../constants/roles";
 
 const initialForm = {
   firstName: "",
   lastName: "",
   email: "",
   phoneNumber: "",
-  role: "FSM",
+  role: ROLES.FSM,
   password: ""
 };
+
+const normalizeUserPayload = (form) => ({
+  firstName: form.firstName.trim(),
+  lastName: form.lastName.trim(),
+  email: form.email.trim().toLowerCase(),
+  phoneNumber: String(form.phoneNumber || "").trim(),
+  role: form.role,
+  password: form.password
+});
 
 const CreateUser = () => {
   const [form, setForm] = useState(initialForm);
@@ -32,21 +42,14 @@ const CreateUser = () => {
 
     setLoading(true);
     try {
-      await createUserAccount({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        phoneNumber: form.phoneNumber,
-        role: form.role,
-        password: form.password
-      });
-
+      await createUserAccount(normalizeUserPayload(form));
       setMessage({ type: "success", text: "User created successfully." });
       setForm(initialForm);
+      navigate("/users");
     } catch (error) {
       console.error("Could not create user", error);
       const errorCode = error.code ? `${error.code}: ` : "";
-      const errorMessage = error.message || "Failed to create user.";
+      const errorMessage = error.details || error.message || "Failed to create user.";
       setMessage({ type: "error", text: `${errorCode}${errorMessage}` });
     } finally {
       setLoading(false);
@@ -65,9 +68,14 @@ const CreateUser = () => {
           </div>
           <button
             type="button"
-            className="secondary-btn"
+            className="primary-btn"
             onClick={() => navigate("/users")}
-            style={{ height: "40px" }}
+            style={{
+              height: "40px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
           >
             ← Back to Users
           </button>
@@ -124,8 +132,8 @@ const CreateUser = () => {
             <div className="form-field">
               <label className="form-label">User Role *</label>
               <select className="form-input" value={form.role} onChange={handleChange("role")}> 
-                <option value="FSM">FSM</option>
-                <option value="Customer">Customer</option>
+                <option value={ROLES.FSM}>{ROLES.FSM}</option>
+                <option value={ROLES.CUSTOMER}>{ROLES.CUSTOMER}</option>
               </select>
             </div>
             <div className="form-field">
