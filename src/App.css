@@ -872,7 +872,6 @@ button {
 .verification-banner {
   display: grid;
   gap: 14px;
-  border-color: #2563eb;
 }
 
 .verification-banner-grid {
@@ -1028,8 +1027,8 @@ button {
 }
 
 .checklist-row.verify-highlight {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.16);
 }
 
 .row-main {
