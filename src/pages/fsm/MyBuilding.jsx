@@ -47,6 +47,37 @@ const mockBuildings = [
   }
 ];
 
+const reportActions = [
+  {
+    title: "Monthly Fire Safety Inspection",
+    description: "Track monthly inspection reports for this building",
+    action: "View reports",
+    icon: "MI",
+    tone: "green"
+  },
+  {
+    title: "Annual Fire Safety Report",
+    description: "Review yearly compliance reporting",
+    action: "View reports",
+    icon: "AR",
+    tone: "blue"
+  },
+  {
+    title: "Fire Drill Report",
+    description: "Check fire drill logs and results",
+    action: "View reports",
+    icon: "FD",
+    tone: "orange"
+  },
+  {
+    title: "Upload Manual Report",
+    description: "Attach external contractor assessments",
+    action: "Upload new",
+    icon: "UP",
+    tone: "purple"
+  }
+];
+
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
 const toDate = (value) => {
@@ -242,7 +273,7 @@ const MyBuilding = () => {
   const selectedBuilding = buildingCards[0];
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container my-building-page">
       {error && (
         <div className="error-state" style={{ marginBottom: "18px" }}>
           {error}
@@ -256,32 +287,68 @@ const MyBuilding = () => {
       )}
 
       {selectedBuilding && (
-        <div className="building-card-section">
-          <div className="dashboard-card building-card">
-            <div className="building-card-header">
-              <span className="building-icon">BLD</span>
+        <div className="my-building-content">
+          <div className="building-card-section">
+            <div className="dashboard-card building-card">
+              <div className="building-card-header">
+                <span className="building-icon">BLD</span>
+                <div>
+                  <h3 className="building-label">Customer Building Card</h3>
+                  <h2 className="building-name">{selectedBuilding.buildingName}</h2>
+                  <p className="building-address">{selectedBuilding.address}</p>
+                </div>
+              </div>
+
+              <div
+                className="building-card-details"
+                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}
+              >
+                <DetailItem label="Customer" value={selectedBuilding.customerName} />
+                <DetailItem label="FSM Assigned" value={selectedBuilding.assignedFsm} />
+                <DetailItem label="Next Inspection" value={selectedBuilding.nextInspection} />
+                <DetailItem label="Latest Report" value={selectedBuilding.latestReport} />
+                <DetailItem label="Occupancy Type" value={selectedBuilding.occupancyType} />
+                <DetailItem label="Storeys" value={selectedBuilding.noOfStoreys} />
+                <DetailItem label="GFA" value={selectedBuilding.grossFloorAreaGfa} />
+                <DetailItem label="Occupant Load" value={selectedBuilding.occupantLoad} />
+                <DetailItem label="Open Issues" value={selectedBuilding.openIssueCount} />
+              </div>
+            </div>
+          </div>
+
+          <section className="my-building-reports" aria-labelledby="building-reports-title">
+            <div className="my-building-section-heading">
               <div>
-                <h3 className="building-label">Customer Building Card</h3>
-                <h2 className="building-name">{selectedBuilding.buildingName}</h2>
-                <p className="building-address">{selectedBuilding.address}</p>
+                <h2 id="building-reports-title" className="section-title">
+                  Reports
+                </h2>
+                <p className="my-building-section-subtitle">
+                  Reports linked to {selectedBuilding.buildingName}
+                </p>
               </div>
             </div>
 
-            <div
-              className="building-card-details"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}
-            >
-              <DetailItem label="Customer" value={selectedBuilding.customerName} />
-              <DetailItem label="FSM Assigned" value={selectedBuilding.assignedFsm} />
-              <DetailItem label="Next Inspection" value={selectedBuilding.nextInspection} />
-              <DetailItem label="Latest Report" value={selectedBuilding.latestReport} />
-              <DetailItem label="Occupancy Type" value={selectedBuilding.occupancyType} />
-              <DetailItem label="Storeys" value={selectedBuilding.noOfStoreys} />
-              <DetailItem label="GFA" value={selectedBuilding.grossFloorAreaGfa} />
-              <DetailItem label="Occupant Load" value={selectedBuilding.occupantLoad} />
-              <DetailItem label="Open Issues" value={selectedBuilding.openIssueCount} />
+            <div className="my-building-report-layout">
+              <section className="fsm-report-action-list" aria-label="Report actions">
+                {reportActions.map((report) => (
+                  <button
+                    key={report.title}
+                    type="button"
+                    className={`fsm-report-action-card fsm-report-action-card--${report.tone}`}
+                  >
+                    <span className="fsm-report-action-icon" aria-hidden="true">
+                      {report.icon}
+                    </span>
+                    <span className="fsm-report-action-body">
+                      <strong>{report.title}</strong>
+                      <span>{report.description}</span>
+                      <em>{report.action}</em>
+                    </span>
+                  </button>
+                ))}
+              </section>
             </div>
-          </div>
+          </section>
         </div>
       )}
 
