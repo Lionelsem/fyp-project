@@ -187,6 +187,10 @@ const buildInspectionResultPayload = (data) => ({
       : getInspectionPassFail(data.condition),
   remark: data.remark || "",
   photoUrl: data.photoUrl || "",
+  defectPhotoUrl: data.defectPhotoUrl || data.photoUrl || "",
+  defectPhotoStoragePath: data.defectPhotoStoragePath || "",
+  defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
+  defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
   issueDescription: data.issueDescription || "",
   rectification: data.rectification || "",
   priority: data.priority || "",
@@ -222,6 +226,14 @@ const buildIssuePayload = (data) => ({
   priority: data.priority || PRIORITY.MEDIUM,
   status: data.status || ISSUE_STATUS.OPEN,
   issuePhotoUrl: data.issuePhotoUrl || "",
+  defectPhotoUrl: data.defectPhotoUrl || data.issuePhotoUrl || "",
+  defectPhotoStoragePath: data.defectPhotoStoragePath || "",
+  defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
+  defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
+  fixPhotoUrl: data.fixPhotoUrl || "",
+  fixPhotoStoragePath: data.fixPhotoStoragePath || "",
+  fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
+  fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
   aiRecommendation: data.aiRecommendation || ""
 });
 
@@ -358,6 +370,17 @@ export const addEquipmentHistory = async (data) => {
 
 // Issues (linked to inspection results)
 export const addIssue = async (data) => {
+  if (data.issueKey) {
+    return await upsertByDocumentId(
+      COLLECTION_NAMES.ISSUES,
+      data.issueKey,
+      buildIssuePayload({
+        ...data,
+        issueId: data.issueId || data.issueKey
+      })
+    );
+  }
+
   return await addDoc(collection(db, COLLECTION_NAMES.ISSUES), {
     ...buildIssuePayload(data),
     createdAt: serverTimestamp(),
@@ -386,7 +409,24 @@ export const getIssue = async (id) => {
 };
 
 export const getIssueById = async (id) => {
-  return await getIssue(id);
+  const directIssue = await getIssue(id);
+  if (directIssue.exists()) return directIssue;
+
+  const issueKeyQuery = query(
+    collection(db, COLLECTION_NAMES.ISSUES),
+    where("issueKey", "==", id),
+    limit(1)
+  );
+  const issueKeySnapshot = await getDocs(issueKeyQuery);
+  if (!issueKeySnapshot.empty) return issueKeySnapshot.docs[0];
+
+  const issueIdQuery = query(
+    collection(db, COLLECTION_NAMES.ISSUES),
+    where("issueId", "==", id),
+    limit(1)
+  );
+  const issueIdSnapshot = await getDocs(issueIdQuery);
+  return issueIdSnapshot.docs[0] || directIssue;
 };
 
 export const updateIssue = async (id, data) => {
@@ -418,6 +458,14 @@ export const addClosureVerification = async (data) => {
     verifiedBy: data.verifiedBy,
     beforePhotoUrl: data.beforePhotoUrl || "",
     afterPhotoUrl: data.afterPhotoUrl || "",
+    defectPhotoUrl: data.defectPhotoUrl || data.beforePhotoUrl || "",
+    defectPhotoStoragePath: data.defectPhotoStoragePath || "",
+    defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
+    defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
+    fixPhotoUrl: data.fixPhotoUrl || data.afterPhotoUrl || "",
+    fixPhotoStoragePath: data.fixPhotoStoragePath || "",
+    fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
+    fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
     verificationComments: data.verificationComments || "",
     approvalStatus: data.approvalStatus || APPROVAL_STATUS.PENDING,
     verifiedAt: serverTimestamp(),

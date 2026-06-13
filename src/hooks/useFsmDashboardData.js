@@ -45,8 +45,8 @@ const normalizeLookupIds = (value) => {
 
 const mapSnapshot = (snapshot) =>
   snapshot.docs.map((docItem) => ({
-    id: docItem.id,
-    ...docItem.data()
+    ...docItem.data(),
+    id: docItem.id
   }));
 
 const chunkArray = (items, size) => {

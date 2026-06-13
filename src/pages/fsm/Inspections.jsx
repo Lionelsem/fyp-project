@@ -9,8 +9,8 @@ import {
   upsertInspection,
   upsertInspectionResult
 } from "../../services/inspectionService";
-import { getIssueById, upsertIssue } from "../../services/issueService";
-import { ISSUE_STATUS } from "../../constants/status";
+import { addClosureVerification, getIssueById, upsertIssue } from "../../services/issueService";
+import { APPROVAL_STATUS, ISSUE_STATUS } from "../../constants/status";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { uploadFile } from "../../services/storageService";
@@ -569,12 +569,16 @@ const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) 
       if (!savedResult) return item;
 
       const condition = normalizeChecklistCondition(savedResult.condition) || item.condition;
+      const defectPhotoUrl = savedResult.defectPhotoUrl || savedResult.photoUrl || "";
 
       return {
         ...item,
         condition,
         remark: savedResult.remark || "",
-        photo: savedResult.photoUrl || "",
+        photo: defectPhotoUrl,
+        defectPhotoStoragePath: savedResult.defectPhotoStoragePath || "",
+        defectPhotoUploadedAt: savedResult.defectPhotoUploadedAt || null,
+        defectPhotoUploadedBy: savedResult.defectPhotoUploadedBy || "",
         photoPreview: "",
         photoFile: null,
         issue: {
@@ -607,6 +611,12 @@ const getIssueTargetItemCode = (issue) => {
 
 const getIssueRowDomId = (categoryId, itemId) =>
   `inspection-row-${sanitizeKeyPart(categoryId)}-${sanitizeKeyPart(itemId)}`;
+
+const getDefectPhotoUrl = (source) =>
+  source?.defectPhotoUrl || source?.issuePhotoUrl || source?.photoUrl || "";
+
+const getFixPhotoUrl = (source) =>
+  source?.fixPhotoUrl || source?.afterPhotoUrl || "";
 
 const isIssueTargetRow = (issue, category, item) => {
   const categoryCode = getIssueTargetCategoryCode(issue);
@@ -669,6 +679,9 @@ const InspectionOverview = ({
   selectedLevel,
   setSelectedLevel,
   canSave,
+  isSubmitting,
+  submitLabel,
+  submittingLabel,
   onSubmit
 }) => (
   <section className="inspection-card overview-card">
@@ -679,7 +692,9 @@ const InspectionOverview = ({
           <h3>Monthly Inspection Report</h3>
         </div>
         <div className="overview-actions">
-          <button type="button" className="primary-button" onClick={onSubmit} disabled={!canSave}>Submit Inspection</button>
+          <button type="button" className="primary-button" onClick={onSubmit} disabled={!canSave || isSubmitting}>
+            {isSubmitting ? submittingLabel : submitLabel}
+          </button>
         </div>
       </div>
       <div className="overview-grid">
@@ -1090,6 +1105,10 @@ const Inspections = () => {
   const [verificationIssueError, setVerificationIssueError] = useState("");
   const [focusedVerificationKey, setFocusedVerificationKey] = useState("");
   const [inspectionSubmitError, setInspectionSubmitError] = useState("");
+  const [inspectionSubmitSuccess, setInspectionSubmitSuccess] = useState("");
+  const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
+  const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
+  const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
 
   const assignedBuilding =
     (isVerifyMode && verificationIssue?.buildingId
@@ -1128,6 +1147,8 @@ const Inspections = () => {
     if (!isVerifyMode) {
       setVerificationIssue(null);
       setVerificationIssueError("");
+      setFixProofPhotoFile(null);
+      setFixProofPhotoPreview("");
       return undefined;
     }
 
@@ -1500,6 +1521,18 @@ const Inspections = () => {
     updateChecklistItem(categoryId, itemId, { photoPreview: "", photoFile: null, photo: "" });
   };
 
+  const handleFixProofPhotoChange = (files) => {
+    const file = files && files[0];
+    if (!file) {
+      setFixProofPhotoFile(null);
+      setFixProofPhotoPreview("");
+      return;
+    }
+
+    setFixProofPhotoFile(file);
+    setFixProofPhotoPreview(URL.createObjectURL(file));
+  };
+
   const handleIssueUpdate = (categoryId, itemId, changes) => {
     setChecklistForSelectedLevel((current) =>
       current.map((category) => {
@@ -1522,8 +1555,9 @@ const Inspections = () => {
   };
 
   const persistInspection = async (status) => {
-    if (!canSaveInspection) return;
+    if (!canSaveInspection || inspectionSubmitting) return;
 
+    setInspectionSubmitSuccess("");
     const unansweredItem = findFirstUnansweredChecklistItem(checklist);
     if (status === "Submitted" && unansweredItem) {
       setInspectionSubmitError("Please answer every checklist row with Good, Faulty, or N.A. before submitting.");
@@ -1545,7 +1579,31 @@ const Inspections = () => {
       return;
     }
 
+    if (status === "Submitted" && isVerifyMode && verificationIssue) {
+      const targetCategoryCode = getIssueTargetCategoryCode(verificationIssue);
+      const targetItemCode = getIssueTargetItemCode(verificationIssue);
+      const targetCategory = checklist.find((category) => category.id === targetCategoryCode);
+      const targetItem = targetCategory?.items.find((item) => item.code === targetItemCode || item.id === targetItemCode);
+
+      if (targetItem && targetItem.condition !== "Faulty" && !fixProofPhotoFile && !getFixPhotoUrl(verificationIssue)) {
+        setInspectionSubmitError("Please upload a fix-proof photo before closing this issue.");
+        return;
+      }
+    }
+
+    if (status === "Submitted") {
+      const confirmationMessage =
+        isVerifyMode && verificationIssue
+          ? "Close this issue? Please confirm the defect has been fixed and the uploaded proof photo is correct."
+          : "Submit this inspection checklist? This will save the inspection results and defect evidence.";
+
+      if (!window.confirm(confirmationMessage)) {
+        return;
+      }
+    }
+
     try {
+      setInspectionSubmitting(true);
       setInspectionSubmitError("");
       const created = await upsertInspection({
         inspectionKey,
@@ -1570,6 +1628,9 @@ const Inspections = () => {
         for (const item of category.items) {
           const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
           let photoUrl = item.photo || "";
+          let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
+          let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
+          let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
 
           if (item.photoFile) {
             const uploaded = await uploadFile(
@@ -1577,7 +1638,12 @@ const Inspections = () => {
               `${COLLECTION_NAMES.INSPECTIONS}/${inspectionKey}`
             );
             photoUrl = uploaded?.url || photoUrl;
+            defectPhotoStoragePath = uploaded?.path || "";
+            defectPhotoUploadedAt = new Date();
+            defectPhotoUploadedBy = fsmId;
           }
+
+          const defectPhotoUrl = photoUrl;
 
           const result = await upsertInspectionResult({
             resultKey,
@@ -1600,6 +1666,10 @@ const Inspections = () => {
             passFail: getPassFail(item.condition),
             remark: item.remark || "",
             photoUrl,
+            defectPhotoUrl,
+            defectPhotoStoragePath,
+            defectPhotoUploadedAt,
+            defectPhotoUploadedBy,
             issueDescription: item.issue?.description || "",
             rectification: item.issue?.rectification || "",
             priority: item.issue?.priority || "",
@@ -1611,6 +1681,16 @@ const Inspections = () => {
             qrCodeValue: "",
             historyLoaded: false,
             aiChecklistSuggestion: ""
+          });
+
+          // eslint-disable-next-line no-console
+          console.log("Saved inspection result doc", {
+            inspectionDocId: created.id,
+            inspectionKey,
+            resultDocId: result.id,
+            resultKey,
+            defectPhotoUrl,
+            defectPhotoStoragePath
           });
 
           if (status === "Submitted" && item.condition === "Faulty") {
@@ -1638,6 +1718,14 @@ const Inspections = () => {
               priority: item.issue?.priority || "High",
               status: item.issue?.status || "Open",
               issuePhotoUrl: photoUrl,
+              defectPhotoUrl,
+              defectPhotoStoragePath,
+              defectPhotoUploadedAt,
+              defectPhotoUploadedBy,
+              fixPhotoUrl: verificationIssue?.fixPhotoUrl || "",
+              fixPhotoStoragePath: verificationIssue?.fixPhotoStoragePath || "",
+              fixPhotoUploadedAt: verificationIssue?.fixPhotoUploadedAt || null,
+              fixPhotoUploadedBy: verificationIssue?.fixPhotoUploadedBy || "",
               aiRecommendation: ""
             });
           }
@@ -1651,7 +1739,42 @@ const Inspections = () => {
         const targetItem = targetCategory?.items.find((item) => item.code === targetItemCode || item.id === targetItemCode);
 
         if (targetItem && targetItem.condition !== "Faulty") {
-          const issueKey = verificationIssue.issueKey || verificationIssue.issueId || verificationIssue.id;
+          const issueKey = verificationIssue.issueKey || verificationIssue.id || verificationIssue.issueId;
+          let fixPhotoUrl = getFixPhotoUrl(verificationIssue);
+          let fixPhotoStoragePath = verificationIssue.fixPhotoStoragePath || "";
+          let fixPhotoUploadedAt = verificationIssue.fixPhotoUploadedAt || null;
+          let fixPhotoUploadedBy = verificationIssue.fixPhotoUploadedBy || "";
+
+          if (fixProofPhotoFile) {
+            const uploaded = await uploadFile(
+              fixProofPhotoFile,
+              `closure-verifications/${issueKey}`
+            );
+            fixPhotoUrl = uploaded?.url || fixPhotoUrl;
+            fixPhotoStoragePath = uploaded?.path || "";
+            fixPhotoUploadedAt = new Date();
+            fixPhotoUploadedBy = fsmId;
+          }
+
+          await addClosureVerification({
+            verificationId: `closure-${issueKey}-${Date.now()}`,
+            issueId: issueKey,
+            resultId: verificationIssue.resultId || buildRecordKey(inspectionKey, targetCategory.id, targetItem.id),
+            verifiedBy: fixPhotoUploadedBy || fsmId,
+            beforePhotoUrl: getDefectPhotoUrl(verificationIssue),
+            afterPhotoUrl: fixPhotoUrl,
+            defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+            defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
+            defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
+            defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
+            fixPhotoUrl,
+            fixPhotoStoragePath,
+            fixPhotoUploadedAt,
+            fixPhotoUploadedBy,
+            verificationComments: targetItem.remark || verificationIssue.rectification || "",
+            approvalStatus: APPROVAL_STATUS.APPROVED
+          });
+
           await upsertIssue({
             ...verificationIssue,
             issueKey,
@@ -1670,16 +1793,41 @@ const Inspections = () => {
             issueDescription: verificationIssue.issueDescription || targetItem.issue?.description || targetItem.remark || "",
             rectification: verificationIssue.rectification || targetItem.issue?.rectification || "",
             priority: verificationIssue.priority || targetItem.issue?.priority || "Medium",
-            status: ISSUE_STATUS.CLOSED
+            status: ISSUE_STATUS.CLOSED,
+            defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+            defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
+            defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
+            defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
+            fixPhotoUrl,
+            fixPhotoStoragePath,
+            fixPhotoUploadedAt,
+            fixPhotoUploadedBy
           });
+
+          setVerificationIssue((current) => ({
+            ...current,
+            status: ISSUE_STATUS.CLOSED,
+            fixPhotoUrl,
+            fixPhotoStoragePath,
+            fixPhotoUploadedAt,
+            fixPhotoUploadedBy
+          }));
         }
       }
 
       // eslint-disable-next-line no-console
       console.log(`Inspection ${status.toLowerCase()}`, created.id);
+      setInspectionSubmitSuccess(
+        isVerifyMode && verificationIssue
+          ? "Issue closed successfully."
+          : "Inspection checklist submitted successfully."
+      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`${status} inspection failed`, err);
+      setInspectionSubmitError(err.message || `Could not ${status.toLowerCase()} inspection.`);
+    } finally {
+      setInspectionSubmitting(false);
     }
   };
 
@@ -1714,11 +1862,42 @@ const Inspections = () => {
                 <span>Level <strong>{verificationIssue?.floorName || selectedLevelName || "-"}</strong></span>
                 <span>Rectification <strong>{verificationIssue?.rectification || "-"}</strong></span>
               </div>
+              {(getDefectPhotoUrl(verificationIssue) || fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)) && (
+                <div className="verification-photo-grid">
+                  {getDefectPhotoUrl(verificationIssue) && (
+                    <figure className="verification-photo">
+                      <figcaption>Before</figcaption>
+                      <img src={getDefectPhotoUrl(verificationIssue)} alt="Original defect evidence" />
+                    </figure>
+                  )}
+                  {(fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)) && (
+                    <figure className="verification-photo">
+                      <figcaption>After</figcaption>
+                      <img src={fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)} alt="Closure evidence" />
+                    </figure>
+                  )}
+                </div>
+              )}
+              {isVerifyMode && verificationIssue && (
+                <label className="verification-fix-photo-upload">
+                  <span>Fix-proof photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleFixProofPhotoChange(event.target.files)}
+                  />
+                </label>
+              )}
             </section>
           )}
           {inspectionSubmitError && (
             <div className="error-state" style={{ marginBottom: "18px" }}>
               {inspectionSubmitError}
+            </div>
+          )}
+          {inspectionSubmitSuccess && (
+            <div className="success-state" style={{ marginBottom: "18px" }}>
+              {inspectionSubmitSuccess}
             </div>
           )}
           <InspectionOverview
@@ -1733,6 +1912,9 @@ const Inspections = () => {
             selectedLevel={selectedLevel}
             setSelectedLevel={setSelectedLevel}
             canSave={canSaveInspection}
+            isSubmitting={inspectionSubmitting}
+            submitLabel={isVerifyMode ? "Close Issue" : "Submit Inspection"}
+            submittingLabel={isVerifyMode ? "Closing..." : "Submitting..."}
             onSubmit={handleSubmit}
           />
           <IssueSummary
