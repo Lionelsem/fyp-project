@@ -382,13 +382,16 @@ export const addNotification = async (data) => {
 
 export const addReport = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.REPORTS), {
-    reportId: data.reportId,
-    inspectionId: data.inspectionId,
-    buildingId: data.buildingId,
-    generatedBy: data.generatedBy,
+    reportId: data.reportId ?? null,
+    inspectionId: data.inspectionId ?? null,
+    buildingId: data.buildingId ?? null,
+    generatedBy: data.generatedBy ?? null,
     generatedDate: data.generatedDate || serverTimestamp(),
     reportType: data.reportType || "Inspection",
     reportFileUrl: data.reportFileUrl || "",
+    reportTitle: data.reportTitle || "",
+    period: data.period || "",
+    priority: data.priority || "Normal",
     aiSummaryIncluded: !!data.aiSummaryIncluded,
     status: data.status || REPORT_STATUS.DRAFT,
     createdAt: serverTimestamp()

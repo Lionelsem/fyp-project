@@ -1,145 +1,156 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { getAllBuildings } from "../../services/buildingService";
+import { getAllFireDrills } from "../../services/fireDrillService";
+import { getIssues } from "../../services/issueService";
+import { getAllReports } from "../../services/reportService";
+import { getAllUsers } from "../../services/userService";
+import { ROLES } from "../../constants/roles";
 
-const summaryCards = [
-  {
-    label: "Total Buildings",
-    value: 182,
-    icon: "🏢",
-    iconBg: "#ecfdf5",
-    iconColor: "#047857"
-  },
-  {
-    label: "Total FSM Users",
-    value: 45,
-    icon: "👥",
-    iconBg: "#eff6ff",
-    iconColor: "#1d4ed8"
-  },
-  {
-    label: "Assigned Buildings",
-    value: 168,
-    icon: "📍",
-    iconBg: "#eef2ff",
-    iconColor: "#4338ca"
-  },
-  {
-    label: "Outstanding Issues",
-    value: 28,
-    icon: "⚠️",
-    iconBg: "#fffbeb",
-    iconColor: "#b45309"
-  },
-  {
-    label: "Resolved Issues",
-    value: 114,
-    icon: "✅",
-    iconBg: "#ecfdf5",
-    iconColor: "#047857"
-  },
-  {
-    label: "Closed Issues",
-    value: 452,
-    icon: "🔒",
-    iconBg: "#eef2ff",
-    iconColor: "#4338ca"
-  },
-  {
-    label: "Completed Fire Drills",
-    value: 156,
-    icon: "🚒",
-    iconBg: "#fce7f3",
-    iconColor: "#be185d"
-  },
-  {
-    label: "Pending Reports",
-    value: 8,
-    icon: "📄",
-    iconBg: "#ffedd5",
-    iconColor: "#c2410c"
-  }
-];
+const CIRCUMFERENCE = 2 * Math.PI * 72;
 
-const recentIssues = [
-  {
-    id: "ISS-042",
-    building: "Building A",
-    finding: "Zone 3 indicator LED blown",
-    status: "Open",
-    statusColor: "#dc2626"
-  },
-  {
-    id: "ISS-041",
-    building: "Tech Park B",
-    finding: "Extinguisher expired",
-    status: "In Progress",
-    statusColor: "#ea580c"
-  },
-  {
-    id: "ISS-040",
-    building: "Logistics Hub",
-    finding: "Corridor blocked by boxes",
-    status: "Resolved",
-    statusColor: "#16a34a"
-  }
-];
+const parseDate = (v) => {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (typeof v.toDate === "function") return v.toDate();
+  if (typeof v.seconds === "number") return new Date(v.seconds * 1000);
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
 
-const fireDrills = [
-  {
-    date: "May 15, 2026",
-    building: "Building A",
-    evacuationTime: "4m 12s",
-    result: "Pass",
-    resultBg: "#dcfce7",
-    resultColor: "#166534"
-  },
-  {
-    date: "May 10, 2026",
-    building: "Tech Park B",
-    evacuationTime: "6m 45s",
-    result: "Review",
-    resultBg: "#fef3c7",
-    resultColor: "#b45309"
-  }
-];
+const fmtDate = (v) => {
+  const d = parseDate(v);
+  if (!d) return "-";
+  return d.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" });
+};
 
-const submittedReports = [
-  {
-    type: "Monthly FSM Report",
-    building: "Building A",
-    date: "May 1, 2026"
-  },
-  {
-    type: "Annual Certificate",
-    building: "Logistics Hub",
-    date: "Apr 28, 2026"
-  }
-];
+const statusStyle = (s) => {
+  const lower = String(s || "").toLowerCase();
+  if (lower === "open")        return { color: "#dc2626" };
+  if (lower === "in progress") return { color: "#ea580c" };
+  if (lower === "resolved")    return { color: "#16a34a" };
+  if (lower === "closed")      return { color: "#6b7280" };
+  return { color: "#475569" };
+};
 
-const reportingShortcuts = [
-  {
-    title: "Generate Monthly Report",
-    description: "Summary of all building stats",
-    icon: "📊"
-  },
-  {
-    title: "Generate Annual Report",
-    description: "Full compliance certification",
-    icon: "📄"
-  }
-];
+const drillResultStyle = (drill) => {
+  const s = String(drill.performanceStatus || drill.status || "").toLowerCase();
+  if (["passed", "completed"].includes(s)) return { backgroundColor: "#dcfce7", color: "#166534" };
+  if (s === "failed")                       return { backgroundColor: "#fee2e2", color: "#991b1b" };
+  return { backgroundColor: "#fef3c7", color: "#b45309" };
+};
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [buildings, setBuildings] = useState([]);
+  const [users, setUsers]         = useState([]);
+  const [issues, setIssues]       = useState([]);
+  const [drills, setDrills]       = useState([]);
+  const [reports, setReports]     = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      getAllBuildings(),
+      getAllUsers(),
+      getIssues(),
+      getAllFireDrills(),
+      getAllReports()
+    ]).then(([b, u, i, d, r]) => {
+      if (!active) return;
+      setBuildings(b);
+      setUsers(u);
+      setIssues(i);
+      setDrills(d);
+      setReports(r);
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const buildingMap = useMemo(
+    () => new Map(buildings.map((b) => [b.id, b.buildingName || b.building_name || b.id])),
+    [buildings]
+  );
+
+  // ── Computed stats ──
+  const fsmCount        = useMemo(() => users.filter((u) => u.role === ROLES.FSM).length, [users]);
+  const assignedCount   = useMemo(() => buildings.filter((b) => b.assignedFsmId).length, [buildings]);
+
+  const openIssues      = useMemo(() => issues.filter((i) => String(i.status || "").toLowerCase() === "open"),        [issues]);
+  const inProgressIssues= useMemo(() => issues.filter((i) => String(i.status || "").toLowerCase() === "in progress"), [issues]);
+  const resolvedIssues  = useMemo(() => issues.filter((i) => String(i.status || "").toLowerCase() === "resolved"),    [issues]);
+  const closedIssues    = useMemo(() => issues.filter((i) => String(i.status || "").toLowerCase() === "closed"),      [issues]);
+
+  const completedDrills = useMemo(
+    () => drills.filter((d) => String(d.status || "").toLowerCase() === "completed"),
+    [drills]
+  );
+  const pendingReports  = useMemo(
+    () => reports.filter((r) => ["draft", "pending"].includes(String(r.status || "").toLowerCase())),
+    [reports]
+  );
+
+  const summaryCards = [
+    { label: "Total Buildings",     value: buildings.length,                         icon: "🏢", iconBg: "#ecfdf5", iconColor: "#047857" },
+    { label: "Total FSM Users",     value: fsmCount,                                 icon: "👥", iconBg: "#eff6ff", iconColor: "#1d4ed8" },
+    { label: "Assigned Buildings",  value: assignedCount,                            icon: "📍", iconBg: "#eef2ff", iconColor: "#4338ca" },
+    { label: "Outstanding Issues",  value: openIssues.length + inProgressIssues.length, icon: "⚠️", iconBg: "#fffbeb", iconColor: "#b45309" },
+    { label: "Resolved Issues",     value: resolvedIssues.length,                   icon: "✅", iconBg: "#ecfdf5", iconColor: "#047857" },
+    { label: "Closed Issues",       value: closedIssues.length,                     icon: "🔒", iconBg: "#eef2ff", iconColor: "#4338ca" },
+    { label: "Completed Fire Drills",value: completedDrills.length,                 icon: "🚒", iconBg: "#fce7f3", iconColor: "#be185d" },
+    { label: "Pending Reports",     value: pendingReports.length,                   icon: "📄", iconBg: "#ffedd5", iconColor: "#c2410c" }
+  ];
+
+  // ── Recent records ──
+  const recentIssues = useMemo(
+    () => [...issues].sort((a, b) => (parseDate(b.createdAt) || 0) - (parseDate(a.createdAt) || 0)).slice(0, 5),
+    [issues]
+  );
+  const recentDrills = useMemo(
+    () => [...drills]
+      .sort((a, b) => {
+        const da = parseDate(b.conductedDate || b.actualDate || b.createdAt) || new Date(0);
+        const db2 = parseDate(a.conductedDate || a.actualDate || a.createdAt) || new Date(0);
+        return da - db2;
+      })
+      .slice(0, 3),
+    [drills]
+  );
+  const recentReports = useMemo(() => reports.slice(0, 3), [reports]);
+
+  // ── Compliance chart ──
+  const compliant     = resolvedIssues.length + closedIssues.length;
+  const pending       = inProgressIssues.length;
+  const nonCompliant  = openIssues.length;
+  const totalIssues   = issues.length;
+
+  const cDash = totalIssues > 0 ? (compliant    / totalIssues) * CIRCUMFERENCE : 0;
+  const pDash = totalIssues > 0 ? (pending      / totalIssues) * CIRCUMFERENCE : 0;
+  const nDash = totalIssues > 0 ? (nonCompliant / totalIssues) * CIRCUMFERENCE : 0;
+
+  const o1 = CIRCUMFERENCE / 4;
+  const o2 = o1 - cDash;
+  const o3 = o2 - pDash;
+
+  const compliantPct = totalIssues > 0 ? Math.round((compliant / totalIssues) * 100) : null;
+
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <div className="loading-state">Loading dashboard...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
+      {/* Summary cards */}
       <div className="summary-grid">
         {summaryCards.map((card) => (
           <div key={card.label} className="summary-card">
             <div className="card-top">
-              <div
-                className="card-icon"
-                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
-              >
+              <div className="card-icon" style={{ backgroundColor: card.iconBg, color: card.iconColor }}>
                 {card.icon}
               </div>
               <div className="card-label">{card.label}</div>
@@ -151,190 +162,197 @@ const AdminDashboard = () => {
 
       <div className="dashboard-grid">
         <div className="content-left">
+          {/* Recent Issues */}
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Issues</h2>
-              <Link to="/issues-defects" className="view-all-link">
-                View All
-              </Link>
+              <Link to="/issues-defects" className="view-all-link">View All</Link>
             </div>
-            <table className="dashboard-table">
-              <thead>
-                <tr>
-                  <th>ISSUE ID</th>
-                  <th>BUILDING</th>
-                  <th>FINDING</th>
-                  <th>STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentIssues.map((issue) => (
-                  <tr key={issue.id}>
-                    <td className="id-cell">{issue.id}</td>
-                    <td>{issue.building}</td>
-                    <td>{issue.finding}</td>
-                    <td>
-                      <span
-                        className="status-badge"
-                        style={{ color: issue.statusColor }}
-                      >
-                        {issue.status}
-                      </span>
-                    </td>
+            {recentIssues.length === 0 ? (
+              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No issues recorded.</p>
+            ) : (
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>ISSUE ID</th>
+                    <th>BUILDING</th>
+                    <th>FINDING</th>
+                    <th>STATUS</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentIssues.map((issue) => (
+                    <tr key={issue.id}>
+                      <td className="id-cell">{issue.issueId || issue.id}</td>
+                      <td>{buildingMap.get(issue.buildingId) || issue.buildingId || "-"}</td>
+                      <td>{issue.issueTitle || issue.issueDescription || "-"}</td>
+                      <td>
+                        <span className="status-badge" style={statusStyle(issue.status)}>
+                          {issue.status || "-"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
+          {/* Recent Fire Drills */}
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Fire Drill Records</h2>
-              <Link to="/fire-drill" className="view-all-link">
-                View All
-              </Link>
+              <Link to="/fire-drill" className="view-all-link">View All</Link>
             </div>
-            <table className="dashboard-table">
-              <thead>
-                <tr>
-                  <th>DATE</th>
-                  <th>BUILDING</th>
-                  <th>EVACUATION TIME</th>
-                  <th>RESULT</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fireDrills.map((drill, index) => (
-                  <tr key={index}>
-                    <td>{drill.date}</td>
-                    <td>{drill.building}</td>
-                    <td>{drill.evacuationTime}</td>
-                    <td>
-                      <span
-                        className="result-badge"
-                        style={{
-                          backgroundColor: drill.resultBg,
-                          color: drill.resultColor
-                        }}
-                      >
-                        {drill.result}
-                      </span>
-                    </td>
+            {recentDrills.length === 0 ? (
+              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No fire drills recorded.</p>
+            ) : (
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>DATE</th>
+                    <th>BUILDING</th>
+                    <th>EVACUATION TIME</th>
+                    <th>RESULT</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentDrills.map((drill) => (
+                    <tr key={drill.id}>
+                      <td>{drill.conductedDate || drill.actualDate || drill.drillDate || "-"}</td>
+                      <td>{buildingMap.get(drill.buildingId) || drill.buildingName || "-"}</td>
+                      <td>{drill.totalEvacuationTime || drill.evacuationTime || "-"}</td>
+                      <td>
+                        <span className="result-badge" style={drillResultStyle(drill)}>
+                          {drill.performanceStatus || drill.status || "-"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
+          {/* Recent Reports */}
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Submitted Reports</h2>
-              <Link to="/reports" className="view-all-link">
-                View All
-              </Link>
+              <Link to="/reports" className="view-all-link">View All</Link>
             </div>
-            <table className="dashboard-table">
-              <thead>
-                <tr>
-                  <th>REPORT TYPE</th>
-                  <th>BUILDING</th>
-                  <th>DATE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {submittedReports.map((report, index) => (
-                  <tr key={index}>
-                    <td>{report.type}</td>
-                    <td>{report.building}</td>
-                    <td>{report.date}</td>
+            {recentReports.length === 0 ? (
+              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No reports generated yet.</p>
+            ) : (
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>REPORT TYPE</th>
+                    <th>BUILDING</th>
+                    <th>DATE</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentReports.map((report) => (
+                    <tr key={report.id}>
+                      <td>{report.reportTitle || report.reportType || "-"}</td>
+                      <td>{buildingMap.get(report.buildingId) || "All Buildings"}</td>
+                      <td>{fmtDate(report.generatedDate || report.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
         <div className="content-right">
+          {/* Compliance chart */}
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Compliance Status</h2>
             </div>
             <div className="compliance-chart">
               <svg width="180" height="180" viewBox="0 0 180 180">
-                <circle
-                  cx="90"
-                  cy="90"
-                  r="72"
-                  fill="none"
-                  stroke="#d1fae5"
-                  strokeWidth="16"
-                />
-                <circle
-                  cx="90"
-                  cy="90"
-                  r="72"
-                  fill="none"
-                  stroke="#10b981"
-                  strokeWidth="16"
-                  strokeDasharray="226 452"
-                  strokeDashoffset="20"
-                  strokeLinecap="round"
-                />
-                <circle
-                  cx="90"
-                  cy="90"
-                  r="72"
-                  fill="none"
-                  stroke="#fbbf24"
-                  strokeWidth="16"
-                  strokeDasharray="70 452"
-                  strokeDashoffset="-206"
-                  strokeLinecap="round"
-                />
-                <circle
-                  cx="90"
-                  cy="90"
-                  r="72"
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth="16"
-                  strokeDasharray="40 452"
-                  strokeDashoffset="-276"
-                  strokeLinecap="round"
-                />
+                {totalIssues === 0 ? (
+                  <circle cx="90" cy="90" r="72" fill="none" stroke="#e5e7eb" strokeWidth="16" />
+                ) : (
+                  <>
+                    <circle cx="90" cy="90" r="72" fill="none" stroke="#f3f4f6" strokeWidth="16" />
+                    {cDash > 0 && (
+                      <circle
+                        cx="90" cy="90" r="72" fill="none"
+                        stroke="#10b981" strokeWidth="16"
+                        strokeDasharray={`${cDash} ${CIRCUMFERENCE}`}
+                        strokeDashoffset={o1}
+                        strokeLinecap="round"
+                      />
+                    )}
+                    {pDash > 0 && (
+                      <circle
+                        cx="90" cy="90" r="72" fill="none"
+                        stroke="#fbbf24" strokeWidth="16"
+                        strokeDasharray={`${pDash} ${CIRCUMFERENCE}`}
+                        strokeDashoffset={o2}
+                        strokeLinecap="round"
+                      />
+                    )}
+                    {nDash > 0 && (
+                      <circle
+                        cx="90" cy="90" r="72" fill="none"
+                        stroke="#ef4444" strokeWidth="16"
+                        strokeDasharray={`${nDash} ${CIRCUMFERENCE}`}
+                        strokeDashoffset={o3}
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </>
+                )}
+                <text x="90" y="86" textAnchor="middle" fontSize="22" fontWeight="bold" fill="#1f2937">
+                  {compliantPct !== null ? `${compliantPct}%` : "—"}
+                </text>
+                <text x="90" y="104" textAnchor="middle" fontSize="11" fill="#6b7280">
+                  {totalIssues > 0 ? "Compliant" : "No data"}
+                </text>
               </svg>
             </div>
             <div className="compliance-legend">
               <div className="legend-item">
                 <span className="legend-dot" style={{ backgroundColor: "#10b981" }} />
-                <span>Compliant</span>
+                <span>Compliant ({compliant})</span>
               </div>
               <div className="legend-item">
                 <span className="legend-dot" style={{ backgroundColor: "#fbbf24" }} />
-                <span>Pending Rectification</span>
+                <span>Pending Rectification ({pending})</span>
               </div>
               <div className="legend-item">
                 <span className="legend-dot" style={{ backgroundColor: "#ef4444" }} />
-                <span>Non-Compliant</span>
+                <span>Non-Compliant ({nonCompliant})</span>
               </div>
             </div>
           </div>
 
+          {/* Shortcuts */}
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Reporting Shortcuts</h2>
             </div>
             <div className="shortcuts-container">
-              {reportingShortcuts.map((shortcut) => (
-                <button key={shortcut.title} type="button" className="shortcut-btn">
-                  <span className="shortcut-icon">{shortcut.icon}</span>
-                  <span className="shortcut-content">
-                    <span className="shortcut-title">{shortcut.title}</span>
-                    <span className="shortcut-desc">{shortcut.description}</span>
-                  </span>
-                  <span className="shortcut-arrow">→</span>
-                </button>
-              ))}
+              <button type="button" className="shortcut-btn" onClick={() => navigate("/reports")}>
+                <span className="shortcut-icon">📊</span>
+                <span className="shortcut-content">
+                  <span className="shortcut-title">Generate Monthly Report</span>
+                  <span className="shortcut-desc">Summary of all building stats</span>
+                </span>
+                <span className="shortcut-arrow">→</span>
+              </button>
+              <button type="button" className="shortcut-btn" onClick={() => navigate("/reports")}>
+                <span className="shortcut-icon">📄</span>
+                <span className="shortcut-content">
+                  <span className="shortcut-title">Generate Annual Report</span>
+                  <span className="shortcut-desc">Full compliance certification</span>
+                </span>
+                <span className="shortcut-arrow">→</span>
+              </button>
             </div>
           </div>
         </div>
