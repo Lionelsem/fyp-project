@@ -36,12 +36,12 @@ const FSMLayout = ({ children }) => {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell fsm-shell">
       <div className="app-body">
         <FSMSidebar profile={sidebarProfile} />
         <div className="app-main">
           <FSMNavbar pageTitle={pageTitle} />
-          <main className="main-content">{children}</main>
+          <main className="main-content fsm-main-content">{children}</main>
         </div>
       </div>
     </div>

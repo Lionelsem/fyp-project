@@ -45,8 +45,8 @@ const normalizeLookupIds = (value) => {
 
 const mapSnapshot = (snapshot) =>
   snapshot.docs.map((docItem) => ({
-    id: docItem.id,
-    ...docItem.data()
+    ...docItem.data(),
+    id: docItem.id
   }));
 
 const chunkArray = (items, size) => {
@@ -80,7 +80,17 @@ const toDate = (value) => {
     return new Date(value.seconds * 1000);
   }
 
-  const date = new Date(value);
+  const text = String(value).trim();
+  const dateOnlyMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    return new Date(
+      Number(dateOnlyMatch[1]),
+      Number(dateOnlyMatch[2]) - 1,
+      Number(dateOnlyMatch[3])
+    );
+  }
+
+  const date = new Date(text);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
@@ -189,7 +199,7 @@ const getInspectionBucket = (inspection) => {
   const status = normalizeText(inspection.status || "");
   const progress = Number(inspection.progressPercent || 0);
 
-  if (status === "pass" || status === "passed" || progress >= 100) return "passed";
+  if (["pass", "passed", "completed", "submitted", "approved"].includes(status)) return "passed";
   if (status === "fail" || status === "failed") return "failed";
   if (status === "pending" || status === "review" || status === "draft" || progress < 100) return "pending";
 
@@ -197,6 +207,22 @@ const getInspectionBucket = (inspection) => {
 };
 
 const getInspectionStatus = (inspection) => normalizeText(inspection.status || "draft");
+
+const isPendingInspection = (inspection) => {
+  const status = getInspectionStatus(inspection);
+  const progress = Number(inspection.progressPercent || 0);
+
+  if (["completed", "submitted", "approved", "pass", "passed", "failed"].includes(status)) {
+    return false;
+  }
+
+  return ["pending", "review", "draft", "in progress"].includes(status) || progress < 100;
+};
+
+const isCompletedInspection = (inspection) => {
+  const status = getInspectionStatus(inspection);
+  return ["completed", "submitted", "approved", "pass", "passed"].includes(status);
+};
 
 const getStatusStyle = (status) => {
   const normalized = normalizeText(status);
@@ -229,6 +255,17 @@ const getPriorityColor = (priority) => {
     return "#b45309";
   }
   return "#666";
+};
+
+const isCompletedFireDrill = (drill) => {
+  const status = normalizeText(drill.status);
+  const performanceStatus = normalizeText(drill.performanceStatus);
+
+  return (
+    ["completed", "conducted", "done", "submitted"].includes(status) ||
+    ["completed", "conducted", "done", "submitted"].includes(performanceStatus) ||
+    Boolean(drill.completedAt || drill.actualDate || drill.conductedDate)
+  );
 };
 
 const normalizeFieldName = (fieldName) =>
@@ -283,12 +320,8 @@ const getBuildingName = (buildingMap, buildingId, fallback) => {
 };
 
 const buildSummaryCards = (inspections, issues) => {
-  const pendingCount = inspections.filter(
-    (inspection) => getInspectionStatus(inspection) === "pending"
-  ).length;
-  const completedCount = inspections.filter(
-    (inspection) => getInspectionStatus(inspection) === "completed"
-  ).length;
+  const pendingCount = inspections.filter(isPendingInspection).length;
+  const completedCount = inspections.filter(isCompletedInspection).length;
   const urgentIssueCount = issues.filter((issue) => {
     const priority = normalizeText(issue.priority);
     const status = normalizeText(issue.status);
@@ -400,6 +433,7 @@ const buildUpcomingSchedule = (fireDrills, buildingMap) => {
   todayStart.setHours(0, 0, 0, 0);
 
   return fireDrills
+    .filter((drill) => !isCompletedFireDrill(drill))
     .map((drill) => {
       const dateTime = combineDateAndTime(drill.drillDate, drill.drillTime);
       return {

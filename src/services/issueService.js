@@ -2,23 +2,31 @@ import * as fs from "./firestoreService";
 
 const mapSnapshot = (snapshot) =>
   snapshot.docs.map((docItem) => ({
-    id: docItem.id,
-    ...docItem.data()
+    ...docItem.data(),
+    id: docItem.id
   }));
 
 export const createIssue = async (data) => {
   const docRef = await fs.addIssue(data);
-  return { id: docRef.id, ...data };
+  return { ...data, id: docRef.id };
 };
 
 export const upsertIssue = async (data) => {
   const docRef = await fs.upsertIssue(data);
-  return { id: docRef.id, ...data };
+  // eslint-disable-next-line no-console
+  console.log("Saved issue doc", {
+    docId: docRef.id,
+    issueKey: data.issueKey,
+    issueId: data.issueId,
+    defectPhotoUrl: data.defectPhotoUrl || "",
+    fixPhotoUrl: data.fixPhotoUrl || ""
+  });
+  return { ...data, id: docRef.id };
 };
 
 export const addIssueComment = async (data) => {
   const docRef = await fs.addIssueComment(data);
-  return { id: docRef.id, ...data };
+  return { ...data, id: docRef.id };
 };
 
 export const getIssues = async () => {
@@ -28,17 +36,39 @@ export const getIssues = async () => {
 
 export const getIssue = async (id) => {
   const snapshot = await fs.getIssue(id);
-  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+  if (!snapshot.exists()) return null;
+  const issue = { ...snapshot.data(), id: snapshot.id };
+  // eslint-disable-next-line no-console
+  console.log("Loaded issue doc", {
+    requestedId: id,
+    docId: issue.id,
+    issueKey: issue.issueKey,
+    issueId: issue.issueId,
+    defectPhotoUrl: issue.defectPhotoUrl || issue.issuePhotoUrl || "",
+    fixPhotoUrl: issue.fixPhotoUrl || ""
+  });
+  return issue;
 };
 
 export const getIssueById = async (id) => {
   const snapshot = await fs.getIssueById(id);
-  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+  if (!snapshot.exists()) return null;
+  const issue = { ...snapshot.data(), id: snapshot.id };
+  // eslint-disable-next-line no-console
+  console.log("Loaded issue doc by id", {
+    requestedId: id,
+    docId: issue.id,
+    issueKey: issue.issueKey,
+    issueId: issue.issueId,
+    defectPhotoUrl: issue.defectPhotoUrl || issue.issuePhotoUrl || "",
+    fixPhotoUrl: issue.fixPhotoUrl || ""
+  });
+  return issue;
 };
 
 export const updateIssue = async (id, data) => {
   await fs.updateIssue(id, data);
-  return { id, ...data };
+  return { ...data, id };
 };
 
 export const deleteIssue = async (id) => {
@@ -48,7 +78,7 @@ export const deleteIssue = async (id) => {
 
 export const addClosureVerification = async (data) => {
   const docRef = await fs.addClosureVerification(data);
-  return { id: docRef.id, ...data };
+  return { ...data, id: docRef.id };
 };
 
 export const getClosureVerifications = async () => {

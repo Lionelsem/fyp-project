@@ -29,7 +29,7 @@ const CustomerSidebar = ({ profile }) => {
       await logout();
       navigate("/login");
     } catch (error) {
-      console.error("Logout failed", error);
+      console.error("Logout failed:", error);
       setIsLoggingOut(false);
     }
   };

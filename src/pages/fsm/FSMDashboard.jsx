@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 
@@ -286,8 +287,27 @@ const EmptyTableRow = ({ colSpan, children }) => (
   </tr>
 );
 
+const quickActions = [
+  {
+    icon: "\uD83D\uDCCB",
+    label: "Start Inspection",
+    path: "/fsm/inspections"
+  },
+  {
+    icon: "\u2713",
+    label: "Verify Closure",
+    path: "/fsm/inspections/verify"
+  },
+  {
+    icon: "\uD83D\uDD0D",
+    label: "Verify Issue",
+    path: "/fsm/issues"
+  }
+];
+
 const FSMDashboard = () => {
   const { user } = useAuthContext();
+  const navigate = useNavigate();
   const fsmLookupIds = [
     user?.uid,
     user?.authUid,
@@ -392,7 +412,7 @@ const FSMDashboard = () => {
               </section>
 
               <section className="fsm-chart-panel">
-                <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "18px", paddingRight: "8px" }}>
                   <h2 className="section-title">Inspection Trend</h2>
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button
@@ -478,6 +498,27 @@ const FSMDashboard = () => {
         </div>
 
         <div className="content-right">
+          <div className="dashboard-card fsm-quick-actions-card">
+            <div className="card-header-row">
+              <h2 className="section-title">Quick Actions</h2>
+            </div>
+            <div className="fsm-quick-actions-list">
+              {quickActions.map((action) => (
+                <button
+                  key={action.path}
+                  type="button"
+                  className="fsm-quick-action-btn"
+                  onClick={() => navigate(action.path)}
+                >
+                  <span className="fsm-quick-action-icon" aria-hidden="true">
+                    {action.icon}
+                  </span>
+                  <span>{action.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
             <div className="dashboard-card fsm-recent-reports-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Reports</h2>

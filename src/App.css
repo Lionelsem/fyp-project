@@ -51,6 +51,45 @@ button {
   overflow: hidden;
 }
 
+.fsm-shell {
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.fsm-shell .app-body {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fsm-shell .app-main {
+  height: 100vh;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fsm-shell .admin-sidebar {
+  flex: 0 0 240px;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fsm-shell .admin-navbar {
+  flex: 0 0 auto;
+}
+
+.fsm-main-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
 .admin-sidebar {
   width: 240px;
   min-width: 240px;
@@ -830,6 +869,66 @@ button {
   width: 100%;
 }
 
+.verification-banner {
+  display: grid;
+  gap: 14px;
+}
+
+.verification-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.verification-banner-grid span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.verification-banner-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.verification-photo-grid,
+.issue-ticket-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 12px;
+}
+
+.verification-photo,
+.issue-ticket-evidence-grid figure {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.verification-photo figcaption,
+.issue-ticket-evidence-grid figcaption,
+.verification-fix-photo-upload span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.verification-photo img {
+  width: min(100%, 14rem);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.verification-fix-photo-upload {
+  display: grid;
+  gap: 8px;
+  max-width: 24rem;
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -962,6 +1061,11 @@ button {
   border: 1px solid #e5e7eb;
   overflow: hidden;
   background: #ffffff;
+}
+
+.checklist-row.verify-highlight {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.16);
 }
 
 .row-main {
@@ -1632,6 +1736,62 @@ button {
 
 .fsm-dashboard-page .fsm-quick-actions-card .card-header-row {
   margin-bottom: 10px;
+}
+
+.fsm-dashboard-page .fsm-quick-actions-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.fsm-dashboard-page .fsm-quick-action-btn {
+  display: grid;
+  gap: 4px;
+  place-items: center;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.fsm-dashboard-page .fsm-quick-action-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.fsm-dashboard-page .fsm-quick-action-btn:hover {
+  border-color: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  .fsm-dashboard-page .fsm-quick-actions-list {
+    grid-template-columns: 1fr;
+  }
+
+  .fsm-dashboard-page .fsm-quick-action-btn {
+    grid-template-columns: auto 1fr;
+    justify-content: start;
+    min-height: 42px;
+    padding: 8px 10px;
+    text-align: left;
+  }
 }
 
 .section-title {
@@ -2385,6 +2545,24 @@ button {
   margin-bottom: 24px;
 }
 
+.my-building-page {
+  height: calc(100vh - 156px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.my-building-content {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.my-building-content .building-card-section {
+  margin-bottom: 0;
+}
+
 .building-card {
   background: linear-gradient(135deg, #047857 0%, #059669 100%);
   color: #ffffff;
@@ -2392,6 +2570,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.my-building-content .building-card {
+  padding: 16px 18px;
+  gap: 14px;
 }
 
 .building-card-header {
@@ -2411,6 +2594,13 @@ button {
   border-radius: 12px;
 }
 
+.my-building-content .building-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 18px;
+}
+
 .building-label {
   font-size: 11px;
   font-weight: 700;
@@ -2421,11 +2611,19 @@ button {
   margin-bottom: 4px;
 }
 
+.my-building-content .building-label {
+  font-size: 10px;
+}
+
 .building-name {
   font-size: 24px;
   font-weight: 800;
   margin: 0;
   margin-bottom: 4px;
+}
+
+.my-building-content .building-name {
+  font-size: 20px;
 }
 
 .building-address {
@@ -2438,6 +2636,10 @@ button {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
+}
+
+.my-building-content .building-card-details {
+  gap: 10px 16px;
 }
 
 .detail-row {
@@ -2454,9 +2656,18 @@ button {
   opacity: 0.85;
 }
 
+.my-building-content .detail-label {
+  font-size: 10px;
+}
+
 .detail-value {
   font-size: 14px;
   font-weight: 600;
+}
+
+.my-building-content .detail-value {
+  font-size: 13px;
+  line-height: 1.2;
 }
 
 .status-cards-grid {
@@ -2570,6 +2781,251 @@ button {
   flex-shrink: 0;
 }
 
+.fsm-reports-page {
+  display: flex;
+  justify-content: center;
+  height: calc(100vh - 156px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fsm-reports-panel {
+  width: min(100%, 520px);
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+}
+
+.fsm-report-action-list {
+  display: grid;
+  gap: 8px;
+}
+
+.fsm-report-action-card {
+  --report-tone: #047857;
+  --report-tone-bg: #ecfdf5;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.fsm-report-action-card:hover {
+  border-color: var(--report-tone);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.fsm-report-action-card--green {
+  --report-tone: #059669;
+  --report-tone-bg: #ecfdf5;
+}
+
+.fsm-report-action-card--blue {
+  --report-tone: #2563eb;
+  --report-tone-bg: #eff6ff;
+}
+
+.fsm-report-action-card--orange {
+  --report-tone: #ea580c;
+  --report-tone-bg: #fff7ed;
+}
+
+.fsm-report-action-card--purple {
+  --report-tone: #7c3aed;
+  --report-tone-bg: #f5f3ff;
+}
+
+.fsm-report-action-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--report-tone-bg);
+  color: var(--report-tone);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.fsm-report-action-body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.fsm-report-action-body strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.fsm-report-action-body span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.fsm-report-action-body em {
+  margin-top: 3px;
+  color: var(--report-tone);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.fsm-latest-report-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.fsm-latest-report-card .card-header-row {
+  margin-bottom: 4px;
+}
+
+.fsm-latest-report-list {
+  display: grid;
+}
+
+.fsm-latest-report-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.fsm-latest-report-row:last-child {
+  border-bottom: none;
+}
+
+.fsm-latest-report-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.fsm-latest-report-copy strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fsm-latest-report-copy span {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.fsm-report-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fsm-report-status-pill--approved {
+  color: #047857;
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.fsm-report-status-pill--follow-up {
+  color: #ea580c;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.my-building-reports {
+  display: grid;
+  min-height: 0;
+  gap: 8px;
+}
+
+.my-building-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.my-building-section-subtitle {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.my-building-report-layout {
+  min-height: 0;
+}
+
+.my-building-report-layout .fsm-report-action-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.my-building-report-layout .fsm-report-action-card {
+  min-height: 112px;
+  padding: 20px;
+  gap: 16px;
+  align-items: start;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.my-building-report-layout .fsm-report-action-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.my-building-report-layout .fsm-report-action-body {
+  gap: 5px;
+}
+
+.my-building-report-layout .fsm-report-action-body strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.my-building-report-layout .fsm-report-action-body span {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.my-building-report-layout .fsm-report-action-body em {
+  font-size: 15px;
+}
+
+@media (max-width: 520px) {
+  .fsm-report-action-card {
+    padding: 11px 12px;
+  }
+
+  .fsm-report-action-icon {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 .comments-card {
   background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   color: #ffffff;
@@ -2602,6 +3058,7 @@ button {
 
 .loading-state,
 .error-state,
+.success-state,
 .empty-state {
   padding: 32px;
   border-radius: 18px;
@@ -2609,6 +3066,12 @@ button {
   border: 1px solid #e5e7eb;
   color: #64748b;
   text-align: center;
+}
+
+.success-state {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #047857;
 }
 
 @media (max-width: 1200px) {
@@ -2669,6 +3132,13 @@ button {
   .dashboard-grid {
     gap: 22px;
   }
+
+  .my-building-page,
+  .my-building-content {
+    height: auto;
+    overflow: visible;
+  }
+
 }
 
 @media (max-width: 640px) {
@@ -2693,6 +3163,10 @@ button {
   }
 
   .building-card-details {
+    grid-template-columns: 1fr;
+  }
+
+  .my-building-report-layout .fsm-report-action-list {
     grid-template-columns: 1fr;
   }
 

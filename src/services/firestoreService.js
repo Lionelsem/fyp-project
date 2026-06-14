@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, setDoc, getDoc, getDocs, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, addDoc, setDoc, getDoc, getDocs, query, where, limit, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { ROLES } from "../constants/roles";
@@ -187,6 +187,14 @@ const buildInspectionResultPayload = (data) => ({
       : getInspectionPassFail(data.condition),
   remark: data.remark || "",
   photoUrl: data.photoUrl || "",
+  defectPhotoUrl: data.defectPhotoUrl || data.photoUrl || "",
+  defectPhotoStoragePath: data.defectPhotoStoragePath || "",
+  defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
+  defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
+  issueDescription: data.issueDescription || "",
+  rectification: data.rectification || "",
+  priority: data.priority || "",
+  issueStatus: data.issueStatus || "",
   manualVerificationRequired: !!data.manualVerificationRequired,
   checkedAt: data.checkedAt || serverTimestamp(),
   checkedBy: data.checkedBy || null,
@@ -206,6 +214,9 @@ const buildIssuePayload = (data) => ({
   buildingId: data.buildingId,
   floorId: data.floorId,
   floorName: data.floorName || "",
+  categoryCode: data.categoryCode || "",
+  itemCode: data.itemCode || "",
+  itemLabel: data.itemLabel || "",
   location: data.location || "",
   equipmentId: data.equipmentId || null,
   reportedBy: data.reportedBy,
@@ -215,6 +226,14 @@ const buildIssuePayload = (data) => ({
   priority: data.priority || PRIORITY.MEDIUM,
   status: data.status || ISSUE_STATUS.OPEN,
   issuePhotoUrl: data.issuePhotoUrl || "",
+  defectPhotoUrl: data.defectPhotoUrl || data.issuePhotoUrl || "",
+  defectPhotoStoragePath: data.defectPhotoStoragePath || "",
+  defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
+  defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
+  fixPhotoUrl: data.fixPhotoUrl || "",
+  fixPhotoStoragePath: data.fixPhotoStoragePath || "",
+  fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
+  fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
   aiRecommendation: data.aiRecommendation || ""
 });
 
@@ -258,6 +277,44 @@ export const upsertInspection = async (data) => {
   );
 };
 
+export const getInspectionByAssignmentPeriodStatus = async ({
+  buildingId,
+  floorId,
+  fsmId,
+  periodKey,
+  status
+}) => {
+  const inspectionQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTIONS),
+    where("buildingId", "==", buildingId),
+    where("floorId", "==", floorId),
+    where("fsmId", "==", fsmId),
+    where("periodKey", "==", periodKey),
+    where("status", "==", status),
+    limit(1)
+  );
+
+  return await getDocs(inspectionQuery);
+};
+
+export const getInspectionByAssignmentPeriod = async ({
+  buildingId,
+  floorId,
+  fsmId,
+  periodKey
+}) => {
+  const inspectionQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTIONS),
+    where("buildingId", "==", buildingId),
+    where("floorId", "==", floorId),
+    where("fsmId", "==", fsmId),
+    where("periodKey", "==", periodKey),
+    limit(1)
+  );
+
+  return await getDocs(inspectionQuery);
+};
+
 // Inspection result (per checklist item)
 export const addInspectionResult = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.INSPECTION_RESULTS), {
@@ -278,6 +335,24 @@ export const upsertInspectionResult = async (data) => {
   );
 };
 
+export const getInspectionResultsByInspectionId = async (inspectionId) => {
+  const resultsQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTION_RESULTS),
+    where("inspectionId", "==", inspectionId)
+  );
+
+  return await getDocs(resultsQuery);
+};
+
+export const getInspectionResultsByInspectionKey = async (inspectionKey) => {
+  const resultsQuery = query(
+    collection(db, COLLECTION_NAMES.INSPECTION_RESULTS),
+    where("inspectionKey", "==", inspectionKey)
+  );
+
+  return await getDocs(resultsQuery);
+};
+
 // Equipment history
 export const addEquipmentHistory = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.EQUIPMENT_HISTORY), {
@@ -295,6 +370,17 @@ export const addEquipmentHistory = async (data) => {
 
 // Issues (linked to inspection results)
 export const addIssue = async (data) => {
+  if (data.issueKey) {
+    return await upsertByDocumentId(
+      COLLECTION_NAMES.ISSUES,
+      data.issueKey,
+      buildIssuePayload({
+        ...data,
+        issueId: data.issueId || data.issueKey
+      })
+    );
+  }
+
   return await addDoc(collection(db, COLLECTION_NAMES.ISSUES), {
     ...buildIssuePayload(data),
     createdAt: serverTimestamp(),
@@ -323,7 +409,24 @@ export const getIssue = async (id) => {
 };
 
 export const getIssueById = async (id) => {
-  return await getIssue(id);
+  const directIssue = await getIssue(id);
+  if (directIssue.exists()) return directIssue;
+
+  const issueKeyQuery = query(
+    collection(db, COLLECTION_NAMES.ISSUES),
+    where("issueKey", "==", id),
+    limit(1)
+  );
+  const issueKeySnapshot = await getDocs(issueKeyQuery);
+  if (!issueKeySnapshot.empty) return issueKeySnapshot.docs[0];
+
+  const issueIdQuery = query(
+    collection(db, COLLECTION_NAMES.ISSUES),
+    where("issueId", "==", id),
+    limit(1)
+  );
+  const issueIdSnapshot = await getDocs(issueIdQuery);
+  return issueIdSnapshot.docs[0] || directIssue;
 };
 
 export const updateIssue = async (id, data) => {
@@ -355,6 +458,14 @@ export const addClosureVerification = async (data) => {
     verifiedBy: data.verifiedBy,
     beforePhotoUrl: data.beforePhotoUrl || "",
     afterPhotoUrl: data.afterPhotoUrl || "",
+    defectPhotoUrl: data.defectPhotoUrl || data.beforePhotoUrl || "",
+    defectPhotoStoragePath: data.defectPhotoStoragePath || "",
+    defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
+    defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
+    fixPhotoUrl: data.fixPhotoUrl || data.afterPhotoUrl || "",
+    fixPhotoStoragePath: data.fixPhotoStoragePath || "",
+    fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
+    fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
     verificationComments: data.verificationComments || "",
     approvalStatus: data.approvalStatus || APPROVAL_STATUS.PENDING,
     verifiedAt: serverTimestamp(),

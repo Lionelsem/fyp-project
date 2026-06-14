@@ -7,13 +7,18 @@ import CustomerSidebar from "../components/customer/CustomerSidebar";
 const CustomerLayout = ({ children }) => {
   const location = useLocation();
   const { user } = useAuthContext();
+
   const section = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
   const pageTitleMap = {
-    dashboard: "Dashboard",
-    "my-reports": "My Reports",
-    "submit-report": "Submit Report"
+    dashboard: "Customer Dashboard",
+    issue: "Issue Progress",
+    inspections: "Inspection Reports",
+    firedrill: "Fire Drill Reports",
+    annual: "Annual Report",
+    feedbacks: "Comments/Feedbacks",
+    building: "My Buildings",
   };
-  const pageTitle = pageTitleMap[section] || "Customer";
+  const pageTitle = pageTitleMap[section] || "Customer Dashboard";
 
   const displayName =
     user?.fullName || user?.displayName || user?.email?.split("@")[0] || "Customer";

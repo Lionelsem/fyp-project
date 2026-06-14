@@ -1,7 +1,16 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { COLLECTION_NAMES } from "../../constants/collectionNames";
-import { upsertInspection, upsertInspectionResult } from "../../services/inspectionService";
-import { upsertIssue } from "../../services/issueService";
+import {
+  getInspectionByAssignmentPeriod,
+  getInspectionByAssignmentPeriodStatus,
+  getInspectionResultsByInspectionId,
+  getInspectionResultsByInspectionKey,
+  upsertInspection,
+  upsertInspectionResult
+} from "../../services/inspectionService";
+import { addClosureVerification, getIssueById, upsertIssue } from "../../services/issueService";
+import { APPROVAL_STATUS, ISSUE_STATUS } from "../../constants/status";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { uploadFile } from "../../services/storageService";
@@ -229,6 +238,78 @@ const conditionOptions = [
   { value: "N.A.", label: "N.A." }
 ];
 
+const validConditionValues = new Set(conditionOptions.map((option) => option.value));
+
+const normalizeChecklistCondition = (condition) =>
+  validConditionValues.has(condition) ? condition : "";
+
+const sampleReportPrefillByItemCode = {
+  "4.1": {
+    condition: "Good",
+    remark: "Dry B & C Powder / Various places / Sept 2025"
+  },
+  "4.2": {
+    condition: "Good",
+    remark: "OK"
+  },
+  "5.2": {
+    condition: "Faulty",
+    remark: "Refer to APPENDIX A",
+    issue: {
+      description: "Obstruction to escape way, hose reel tag shown expired inspection date, and loose call point cover at corridor outside unit 01-15.",
+      rectification: "Relocate the bicycle, check and re-tag the hose reel, and reinstate or replace the loose cover.",
+      priority: "High"
+    }
+  },
+  "5.6": {
+    condition: "N.A.",
+    remark: "N.A."
+  },
+  "6.2": {
+    condition: "Faulty",
+    remark: "Refer to APPENDIX A",
+    issue: {
+      description: "FCC / Guardhouse message control button labelling missing, no Plan B for message equipment failure, and some speakers not functioning when fire alarm triggered.",
+      rectification: "Label message buttons, place a hard copy message script at the PA panel, and conduct a PA system and speaker audit.",
+      priority: "High"
+    }
+  },
+  "7.1.2": {
+    condition: "Faulty",
+    remark: "Refer to APPENDIX A",
+    issue: {
+      description: "Sprinkler control valve room straps and locks are faulty.",
+      rectification: "Replace straps and locks with proper labelling.",
+      priority: "High"
+    }
+  },
+  "7.1.8": {
+    condition: "Faulty",
+    remark: "Refer to APPENDIX A",
+    issue: {
+      description: "CV1 and CV2 labelling missing in sprinkler control valve room.",
+      rectification: "Reinstate the missing labelling.",
+      priority: "Medium"
+    }
+  },
+  "8.10": {
+    condition: "Faulty",
+    remark: "Refer to APPENDIX A",
+    issue: {
+      description: "Obstruction to escape way noted in Appendix A.",
+      rectification: "Remove obstruction and maintain clear access.",
+      priority: "High"
+    }
+  }
+};
+
+const getSampleReportPrefill = (item) => ({
+  condition: "Good",
+  remark: "",
+  issue: {},
+  ...(sampleReportPrefillByItemCode[item.code] || {})
+});
+
 const normalizeFieldName = (fieldName) =>
   String(fieldName || "")
     .replace(/[\s_-]+/g, "")
@@ -328,22 +409,26 @@ const buildLevelsForBuilding = (building) => {
 const createEmptyChecklist = () =>
   initialChecklist.map((category) => ({
     ...category,
-    items: category.items.map((item) => ({
-      ...item,
-      condition: "",
-      remark: "",
-      photo: "",
-      photoPreview: "",
-      photoFile: null,
-      issue: {
-        description: "",
-        rectification: "",
-        priority: item.issue?.priority || "Medium",
-        status: "Open",
-        photo: ""
-      },
-      expanded: false
-    }))
+    items: category.items.map((item) => {
+      const prefill = getSampleReportPrefill(item);
+
+      return {
+        ...item,
+        condition: prefill.condition,
+        remark: prefill.remark,
+        photo: "",
+        photoPreview: "",
+        photoFile: null,
+        issue: {
+          description: prefill.issue?.description || "",
+          rectification: prefill.issue?.rectification || "",
+          priority: prefill.issue?.priority || item.issue?.priority || "Medium",
+          status: "Open",
+          photo: ""
+        },
+        expanded: false
+      };
+    })
   }));
 
 const getFsmLookupIds = (user) => [
@@ -395,6 +480,184 @@ const getPeriodKey = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 };
 
+const getPreviousMonthPeriodKey = (periodKey) => {
+  const match = String(periodKey || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "";
+
+  const year = Number.parseInt(match[1], 10);
+  const monthIndex = Number.parseInt(match[2], 10) - 1;
+  const previousMonth = new Date(year, monthIndex - 1, 1);
+
+  return `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const buildChecklistResultKey = (categoryCode, itemCode) =>
+  `${String(categoryCode || "").trim()}::${String(itemCode || "").trim()}`;
+
+const getResultFallbackItemId = (result) => {
+  const directId = result?.itemId || result?.checklistItemId;
+  if (directId) return directId;
+
+  const resultKey = result?.resultKey || result?.resultId || result?.id || "";
+  const parts = String(resultKey).split("__");
+  return parts.length > 0 ? parts[parts.length - 1] : "";
+};
+
+const buildPreviousResultsMap = (previousResults = []) => {
+  const resultMap = new Map();
+
+  previousResults.forEach((result) => {
+    const categoryCode = result.categoryCode || result.categoryId;
+    const itemCode = result.itemCode || result.itemId || result.checklistItemId;
+    const fallbackItemId = getResultFallbackItemId(result);
+
+    if (categoryCode && itemCode) {
+      resultMap.set(buildChecklistResultKey(categoryCode, itemCode), result);
+    }
+
+    if (categoryCode && fallbackItemId) {
+      resultMap.set(buildChecklistResultKey(categoryCode, fallbackItemId), result);
+    }
+  });
+
+  return resultMap;
+};
+
+const hydrateChecklistFromPreviousMonth = (templateChecklist, previousResults = []) => {
+  const previousResultMap = buildPreviousResultsMap(previousResults);
+
+  return templateChecklist.map((category) => ({
+    ...category,
+    items: category.items.map((item) => {
+      const previousResult =
+        previousResultMap.get(buildChecklistResultKey(category.id, item.code)) ||
+        previousResultMap.get(buildChecklistResultKey(category.id, item.id));
+
+      return {
+        ...item,
+        condition: previousResult
+          ? normalizeChecklistCondition(previousResult.condition) || item.condition
+          : item.condition,
+        remark: previousResult ? previousResult.remark || "" : item.remark || "",
+        photo: "",
+        photoPreview: "",
+        photoFile: null,
+        issue: {
+          ...item.issue,
+          description: previousResult?.issueDescription || previousResult?.issue?.description || item.issue?.description || "",
+          rectification: previousResult?.rectification || previousResult?.issue?.rectification || item.issue?.rectification || "",
+          priority: previousResult?.priority || previousResult?.issue?.priority || item.issue?.priority || "Medium",
+          status: "Open",
+          photo: ""
+        },
+        expanded: false
+      };
+    })
+  }));
+};
+
+const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) => {
+  const savedResultMap = buildPreviousResultsMap(savedResults);
+
+  return templateChecklist.map((category) => ({
+    ...category,
+    items: category.items.map((item) => {
+      const savedResult =
+        savedResultMap.get(buildChecklistResultKey(category.id, item.code)) ||
+        savedResultMap.get(buildChecklistResultKey(category.id, item.id));
+
+      if (!savedResult) return item;
+
+      const condition = normalizeChecklistCondition(savedResult.condition) || item.condition;
+      const defectPhotoUrl = savedResult.defectPhotoUrl || savedResult.photoUrl || "";
+
+      return {
+        ...item,
+        condition,
+        remark: savedResult.remark || "",
+        photo: defectPhotoUrl,
+        defectPhotoStoragePath: savedResult.defectPhotoStoragePath || "",
+        defectPhotoUploadedAt: savedResult.defectPhotoUploadedAt || null,
+        defectPhotoUploadedBy: savedResult.defectPhotoUploadedBy || "",
+        photoPreview: "",
+        photoFile: null,
+        issue: {
+          ...item.issue,
+          description: savedResult.issueDescription || savedResult.issue?.description || "",
+          rectification: savedResult.rectification || savedResult.issue?.rectification || "",
+          priority: savedResult.priority || savedResult.issue?.priority || item.issue?.priority || "Medium",
+          status: savedResult.issueStatus || savedResult.issue?.status || "Open",
+          photo: ""
+        },
+        expanded: condition === "Faulty"
+      };
+    })
+  }));
+};
+
+const getIssueTargetCategoryCode = (issue) => {
+  if (issue?.categoryCode) return issue.categoryCode;
+
+  const parts = String(issue?.resultKey || issue?.resultId || issue?.issueKey || issue?.issueId || "").split("__");
+  return parts.length >= 2 ? parts[parts.length - 2] : "";
+};
+
+const getIssueTargetItemCode = (issue) => {
+  if (issue?.itemCode) return issue.itemCode;
+
+  const parts = String(issue?.resultKey || issue?.resultId || issue?.issueKey || issue?.issueId || "").split("__");
+  return parts.length >= 1 ? parts[parts.length - 1] : "";
+};
+
+const getIssueRowDomId = (categoryId, itemId) =>
+  `inspection-row-${sanitizeKeyPart(categoryId)}-${sanitizeKeyPart(itemId)}`;
+
+const getDefectPhotoUrl = (source) =>
+  source?.defectPhotoUrl || source?.issuePhotoUrl || source?.photoUrl || "";
+
+const getFixPhotoUrl = (source) =>
+  source?.fixPhotoUrl || source?.afterPhotoUrl || "";
+
+const isIssueTargetRow = (issue, category, item) => {
+  const categoryCode = getIssueTargetCategoryCode(issue);
+  const itemCode = getIssueTargetItemCode(issue);
+
+  return Boolean(
+    issue &&
+    categoryCode &&
+    itemCode &&
+    category.id === categoryCode &&
+    (item.code === itemCode || item.id === itemCode)
+  );
+};
+
+const applyIssueFocusToChecklist = (sourceChecklist, issue) => {
+  if (!issue) return sourceChecklist;
+
+  return sourceChecklist.map((category) => {
+    const hasTargetItem = category.items.some((item) => isIssueTargetRow(issue, category, item));
+
+    return {
+      ...category,
+      expanded: category.expanded || hasTargetItem,
+      items: category.items.map((item) =>
+        isIssueTargetRow(issue, category, item)
+          ? { ...item, expanded: true }
+          : item
+      )
+    };
+  });
+};
+
+const findFirstUnansweredChecklistItem = (checklist) => {
+  for (const category of checklist) {
+    const item = category.items.find((checklistItem) => !validConditionValues.has(checklistItem.condition));
+    if (item) return { category, item };
+  }
+
+  return null;
+};
+
 const sanitizeKeyPart = (value) =>
   String(value || "")
     .trim()
@@ -416,7 +679,9 @@ const InspectionOverview = ({
   selectedLevel,
   setSelectedLevel,
   canSave,
-  onSaveDraft,
+  isSubmitting,
+  submitLabel,
+  submittingLabel,
   onSubmit
 }) => (
   <section className="inspection-card overview-card">
@@ -427,8 +692,9 @@ const InspectionOverview = ({
           <h3>Monthly Inspection Report</h3>
         </div>
         <div className="overview-actions">
-          <button type="button" className="secondary-button" onClick={onSaveDraft} disabled={!canSave}>Save Draft</button>
-          <button type="button" className="primary-button" onClick={onSubmit} disabled={!canSave}>Submit Inspection</button>
+          <button type="button" className="primary-button" onClick={onSubmit} disabled={!canSave || isSubmitting}>
+            {isSubmitting ? submittingLabel : submitLabel}
+          </button>
         </div>
       </div>
       <div className="overview-grid">
@@ -661,14 +927,17 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
   );
 };
 
-const FaultProofChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto }) => {
+const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto }) => {
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
   const photoPreview = item.photoPreview || item.photo;
 
   return (
-    <div className={`checklist-row ${rowOpen ? "expanded" : ""}`}>
+    <div
+      id={getIssueRowDomId(categoryId, item.id)}
+      className={`checklist-row ${rowOpen ? "expanded" : ""} ${isHighlighted ? "verify-highlight" : ""}`}
+    >
       <div className="row-main">
         <div className="row-code">{item.code}</div>
         <div className="row-title">
@@ -817,6 +1086,12 @@ const AppendixTable = ({ entries }) => (
 
 const Inspections = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const isVerifyMode = location.pathname.includes("/verify");
+  const issueIdFromQuery = useMemo(
+    () => new URLSearchParams(location.search).get("issueId") || "",
+    [location.search]
+  );
   const {
     loading: assignmentLoading,
     error: assignmentError,
@@ -825,8 +1100,22 @@ const Inspections = () => {
   const [selectedLevel, setSelectedLevel] = useState("");
   const [levelChecklists, setLevelChecklists] = useState({});
   const [levelRemarks, setLevelRemarks] = useState({});
+  const [prefilledInspectionKeys, setPrefilledInspectionKeys] = useState({});
+  const [verificationIssue, setVerificationIssue] = useState(location.state?.issue || null);
+  const [verificationIssueError, setVerificationIssueError] = useState("");
+  const [focusedVerificationKey, setFocusedVerificationKey] = useState("");
+  const [inspectionSubmitError, setInspectionSubmitError] = useState("");
+  const [inspectionSubmitSuccess, setInspectionSubmitSuccess] = useState("");
+  const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
+  const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
+  const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
 
-  const assignedBuilding = buildings[0] || null;
+  const assignedBuilding =
+    (isVerifyMode && verificationIssue?.buildingId
+      ? buildings.find((building) => building.id === verificationIssue.buildingId)
+      : null) ||
+    buildings[0] ||
+    null;
   const selectedBuilding = assignedBuilding?.id || "";
   const buildingName = assignedBuilding ? getBuildingName(assignedBuilding) : "No assigned building found";
   const levels = useMemo(() => buildLevelsForBuilding(assignedBuilding), [assignedBuilding]);
@@ -855,15 +1144,61 @@ const Inspections = () => {
   );
 
   useEffect(() => {
+    if (!isVerifyMode) {
+      setVerificationIssue(null);
+      setVerificationIssueError("");
+      setFixProofPhotoFile(null);
+      setFixProofPhotoPreview("");
+      return undefined;
+    }
+
+    if (location.state?.issue) {
+      setVerificationIssue(location.state.issue);
+      setVerificationIssueError("");
+      return undefined;
+    }
+
+    if (!issueIdFromQuery) return undefined;
+
+    let isCancelled = false;
+
+    const loadIssue = async () => {
+      try {
+        const issue = await getIssueById(issueIdFromQuery);
+        if (isCancelled) return;
+        setVerificationIssue(issue);
+        setVerificationIssueError(issue ? "" : "Could not find the selected issue.");
+      } catch (err) {
+        if (isCancelled) return;
+        setVerificationIssueError(err.message || "Could not load the selected issue.");
+      }
+    };
+
+    loadIssue();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isVerifyMode, issueIdFromQuery, location.state]);
+
+  useEffect(() => {
     setSelectedLevel((current) => {
       if (levels.length === 0) return "";
+      if (
+        isVerifyMode &&
+        verificationIssue?.floorId &&
+        levels.some((level) => level.id === verificationIssue.floorId)
+      ) {
+        return verificationIssue.floorId;
+      }
       return levels.some((level) => level.id === current) ? current : levels[0].id;
     });
-  }, [levels]);
+  }, [isVerifyMode, levels, verificationIssue?.floorId]);
 
   useEffect(() => {
     setLevelChecklists({});
     setLevelRemarks({});
+    setPrefilledInspectionKeys({});
   }, [selectedBuilding]);
 
   useEffect(() => {
@@ -889,6 +1224,165 @@ const Inspections = () => {
       };
     });
   }, [selectedLevel]);
+
+  useEffect(() => {
+    if (!canSaveInspection || prefilledInspectionKeys[inspectionKey]) return undefined;
+
+    let isCancelled = false;
+
+    const fetchInspectionResults = async (inspection) => {
+      let results = await getInspectionResultsByInspectionId(
+        inspection.inspectionId || inspection.id
+      );
+
+      if (results.length === 0 && inspection.inspectionKey) {
+        results = await getInspectionResultsByInspectionKey(inspection.inspectionKey);
+      }
+
+      return results;
+    };
+
+    const loadChecklistForCurrentPeriod = async () => {
+      const templateChecklist = createEmptyChecklist();
+
+      try {
+        const currentInspection = await getInspectionByAssignmentPeriod({
+          buildingId: selectedBuilding,
+          floorId: selectedLevel,
+          fsmId,
+          periodKey
+        });
+
+        if (isCancelled) return;
+
+        if (currentInspection) {
+          const currentResults = await fetchInspectionResults(currentInspection);
+          if (isCancelled) return;
+
+          setLevelChecklists((current) => ({
+            ...current,
+            [selectedLevel]: applyIssueFocusToChecklist(
+              hydrateChecklistFromSavedResults(templateChecklist, currentResults),
+              isVerifyMode ? verificationIssue : null
+            )
+          }));
+
+          setLevelRemarks((current) => ({
+            ...current,
+            [selectedLevel]: currentInspection.generalRemarks || ""
+          }));
+
+          setPrefilledInspectionKeys((current) => ({ ...current, [inspectionKey]: true }));
+          return;
+        }
+
+        const previousPeriodKey = getPreviousMonthPeriodKey(periodKey);
+        let previousInspection = null;
+        let previousResults = [];
+
+        if (previousPeriodKey) {
+          previousInspection = await getInspectionByAssignmentPeriodStatus({
+            buildingId: selectedBuilding,
+            floorId: selectedLevel,
+            fsmId,
+            periodKey: previousPeriodKey,
+            status: "Submitted"
+          });
+
+          if (isCancelled) return;
+
+          if (previousInspection) {
+            previousResults = await fetchInspectionResults(previousInspection);
+          }
+        }
+
+        if (isCancelled) return;
+
+        setLevelChecklists((current) => ({
+          ...current,
+          [selectedLevel]: applyIssueFocusToChecklist(
+            hydrateChecklistFromPreviousMonth(templateChecklist, previousResults),
+            isVerifyMode ? verificationIssue : null
+          )
+        }));
+
+        setLevelRemarks((current) => ({
+          ...current,
+          [selectedLevel]: previousInspection?.generalRemarks || ""
+        }));
+
+        setPrefilledInspectionKeys((current) => ({ ...current, [inspectionKey]: true }));
+      } catch (err) {
+        if (isCancelled) return;
+
+        setLevelChecklists((current) => ({
+          ...current,
+          [selectedLevel]: applyIssueFocusToChecklist(
+            current[selectedLevel] || templateChecklist,
+            isVerifyMode ? verificationIssue : null
+          )
+        }));
+        setLevelRemarks((current) => ({
+          ...current,
+          [selectedLevel]: current[selectedLevel] || ""
+        }));
+        setPrefilledInspectionKeys((current) => ({ ...current, [inspectionKey]: true }));
+
+        // eslint-disable-next-line no-console
+        console.error("Inspection checklist hydration failed", err);
+      }
+    };
+
+    loadChecklistForCurrentPeriod();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    canSaveInspection,
+    fsmId,
+    inspectionKey,
+    isVerifyMode,
+    periodKey,
+    prefilledInspectionKeys,
+    selectedBuilding,
+    selectedLevel,
+    verificationIssue
+  ]);
+
+  useEffect(() => {
+    if (!isVerifyMode || !verificationIssue || !selectedLevel) return;
+
+    const verificationKey = buildRecordKey(
+      verificationIssue.issueKey || verificationIssue.issueId || verificationIssue.id,
+      selectedLevel
+    );
+    if (focusedVerificationKey === verificationKey) return;
+
+    const categoryCode = getIssueTargetCategoryCode(verificationIssue);
+    const itemCode = getIssueTargetItemCode(verificationIssue);
+    const matchedCategory = checklist.find((category) => category.id === categoryCode);
+    const matchedItem = matchedCategory?.items.find((item) => item.code === itemCode || item.id === itemCode);
+
+    if (!matchedCategory || !matchedItem) return;
+
+    setLevelChecklists((current) => {
+      const currentChecklist = current[selectedLevel];
+      if (!currentChecklist) return current;
+
+      return {
+        ...current,
+        [selectedLevel]: applyIssueFocusToChecklist(currentChecklist, verificationIssue)
+      };
+    });
+
+    window.setTimeout(() => {
+      document
+        .getElementById(getIssueRowDomId(matchedCategory.id, matchedItem.id))
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+    setFocusedVerificationKey(verificationKey);
+  }, [checklist, focusedVerificationKey, isVerifyMode, selectedLevel, verificationIssue]);
 
   const setChecklistForSelectedLevel = (updater) => {
     if (!selectedLevel) return;
@@ -953,6 +1447,10 @@ const Inspections = () => {
   }, [checklist]);
 
   const updateChecklistItem = (categoryId, itemId, changes) => {
+    if (Object.prototype.hasOwnProperty.call(changes, "condition")) {
+      setInspectionSubmitError("");
+    }
+
     setChecklistForSelectedLevel((current) =>
       current.map((category) => {
         if (category.id !== categoryId) return category;
@@ -974,6 +1472,10 @@ const Inspections = () => {
             });
             if (changes.condition === "Faulty") {
               updated.expanded = true;
+              updated.issue = {
+                ...updated.issue,
+                status: "Open"
+              };
             }
             return updated;
           })
@@ -1019,6 +1521,18 @@ const Inspections = () => {
     updateChecklistItem(categoryId, itemId, { photoPreview: "", photoFile: null, photo: "" });
   };
 
+  const handleFixProofPhotoChange = (files) => {
+    const file = files && files[0];
+    if (!file) {
+      setFixProofPhotoFile(null);
+      setFixProofPhotoPreview("");
+      return;
+    }
+
+    setFixProofPhotoFile(file);
+    setFixProofPhotoPreview(URL.createObjectURL(file));
+  };
+
   const handleIssueUpdate = (categoryId, itemId, changes) => {
     setChecklistForSelectedLevel((current) =>
       current.map((category) => {
@@ -1041,9 +1555,56 @@ const Inspections = () => {
   };
 
   const persistInspection = async (status) => {
-    if (!canSaveInspection) return;
+    if (!canSaveInspection || inspectionSubmitting) return;
+
+    setInspectionSubmitSuccess("");
+    const unansweredItem = findFirstUnansweredChecklistItem(checklist);
+    if (status === "Submitted" && unansweredItem) {
+      setInspectionSubmitError("Please answer every checklist row with Good, Faulty, or N.A. before submitting.");
+      setChecklistForSelectedLevel((current) =>
+        current.map((category) => ({
+          ...category,
+          expanded: category.id === unansweredItem.category.id ? true : category.expanded,
+          items: category.items.map((item) =>
+            item.id === unansweredItem.item.id ? { ...item, expanded: true } : item
+          )
+        }))
+      );
+
+      window.setTimeout(() => {
+        document
+          .getElementById(getIssueRowDomId(unansweredItem.category.id, unansweredItem.item.id))
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      return;
+    }
+
+    if (status === "Submitted" && isVerifyMode && verificationIssue) {
+      const targetCategoryCode = getIssueTargetCategoryCode(verificationIssue);
+      const targetItemCode = getIssueTargetItemCode(verificationIssue);
+      const targetCategory = checklist.find((category) => category.id === targetCategoryCode);
+      const targetItem = targetCategory?.items.find((item) => item.code === targetItemCode || item.id === targetItemCode);
+
+      if (targetItem && targetItem.condition !== "Faulty" && !fixProofPhotoFile && !getFixPhotoUrl(verificationIssue)) {
+        setInspectionSubmitError("Please upload a fix-proof photo before closing this issue.");
+        return;
+      }
+    }
+
+    if (status === "Submitted") {
+      const confirmationMessage =
+        isVerifyMode && verificationIssue
+          ? "Close this issue? Please confirm the defect has been fixed and the uploaded proof photo is correct."
+          : "Submit this inspection checklist? This will save the inspection results and defect evidence.";
+
+      if (!window.confirm(confirmationMessage)) {
+        return;
+      }
+    }
 
     try {
+      setInspectionSubmitting(true);
+      setInspectionSubmitError("");
       const created = await upsertInspection({
         inspectionKey,
         inspectionId: inspectionKey,
@@ -1067,6 +1628,9 @@ const Inspections = () => {
         for (const item of category.items) {
           const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
           let photoUrl = item.photo || "";
+          let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
+          let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
+          let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
 
           if (item.photoFile) {
             const uploaded = await uploadFile(
@@ -1074,7 +1638,12 @@ const Inspections = () => {
               `${COLLECTION_NAMES.INSPECTIONS}/${inspectionKey}`
             );
             photoUrl = uploaded?.url || photoUrl;
+            defectPhotoStoragePath = uploaded?.path || "";
+            defectPhotoUploadedAt = new Date();
+            defectPhotoUploadedBy = fsmId;
           }
+
+          const defectPhotoUrl = photoUrl;
 
           const result = await upsertInspectionResult({
             resultKey,
@@ -1097,6 +1666,14 @@ const Inspections = () => {
             passFail: getPassFail(item.condition),
             remark: item.remark || "",
             photoUrl,
+            defectPhotoUrl,
+            defectPhotoStoragePath,
+            defectPhotoUploadedAt,
+            defectPhotoUploadedBy,
+            issueDescription: item.issue?.description || "",
+            rectification: item.issue?.rectification || "",
+            priority: item.issue?.priority || "",
+            issueStatus: item.issue?.status || "",
             manualVerificationRequired: !!item.isManualVerification,
             checkedAt: new Date(),
             checkedBy: fsmId,
@@ -1104,6 +1681,16 @@ const Inspections = () => {
             qrCodeValue: "",
             historyLoaded: false,
             aiChecklistSuggestion: ""
+          });
+
+          // eslint-disable-next-line no-console
+          console.log("Saved inspection result doc", {
+            inspectionDocId: created.id,
+            inspectionKey,
+            resultDocId: result.id,
+            resultKey,
+            defectPhotoUrl,
+            defectPhotoStoragePath
           });
 
           if (status === "Submitted" && item.condition === "Faulty") {
@@ -1119,6 +1706,9 @@ const Inspections = () => {
               buildingId: selectedBuilding,
               floorId: selectedLevel,
               floorName: selectedLevelName,
+              categoryCode: category.id,
+              itemCode: item.code,
+              itemLabel: item.label,
               location: selectedLevelName,
               equipmentId: null,
               reportedBy: fsmId,
@@ -1128,21 +1718,118 @@ const Inspections = () => {
               priority: item.issue?.priority || "High",
               status: item.issue?.status || "Open",
               issuePhotoUrl: photoUrl,
+              defectPhotoUrl,
+              defectPhotoStoragePath,
+              defectPhotoUploadedAt,
+              defectPhotoUploadedBy,
+              fixPhotoUrl: verificationIssue?.fixPhotoUrl || "",
+              fixPhotoStoragePath: verificationIssue?.fixPhotoStoragePath || "",
+              fixPhotoUploadedAt: verificationIssue?.fixPhotoUploadedAt || null,
+              fixPhotoUploadedBy: verificationIssue?.fixPhotoUploadedBy || "",
               aiRecommendation: ""
             });
           }
         }
       }
 
+      if (status === "Submitted" && isVerifyMode && verificationIssue) {
+        const targetCategoryCode = getIssueTargetCategoryCode(verificationIssue);
+        const targetItemCode = getIssueTargetItemCode(verificationIssue);
+        const targetCategory = checklist.find((category) => category.id === targetCategoryCode);
+        const targetItem = targetCategory?.items.find((item) => item.code === targetItemCode || item.id === targetItemCode);
+
+        if (targetItem && targetItem.condition !== "Faulty") {
+          const issueKey = verificationIssue.issueKey || verificationIssue.id || verificationIssue.issueId;
+          let fixPhotoUrl = getFixPhotoUrl(verificationIssue);
+          let fixPhotoStoragePath = verificationIssue.fixPhotoStoragePath || "";
+          let fixPhotoUploadedAt = verificationIssue.fixPhotoUploadedAt || null;
+          let fixPhotoUploadedBy = verificationIssue.fixPhotoUploadedBy || "";
+
+          if (fixProofPhotoFile) {
+            const uploaded = await uploadFile(
+              fixProofPhotoFile,
+              `closure-verifications/${issueKey}`
+            );
+            fixPhotoUrl = uploaded?.url || fixPhotoUrl;
+            fixPhotoStoragePath = uploaded?.path || "";
+            fixPhotoUploadedAt = new Date();
+            fixPhotoUploadedBy = fsmId;
+          }
+
+          await addClosureVerification({
+            verificationId: `closure-${issueKey}-${Date.now()}`,
+            issueId: issueKey,
+            resultId: verificationIssue.resultId || buildRecordKey(inspectionKey, targetCategory.id, targetItem.id),
+            verifiedBy: fixPhotoUploadedBy || fsmId,
+            beforePhotoUrl: getDefectPhotoUrl(verificationIssue),
+            afterPhotoUrl: fixPhotoUrl,
+            defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+            defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
+            defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
+            defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
+            fixPhotoUrl,
+            fixPhotoStoragePath,
+            fixPhotoUploadedAt,
+            fixPhotoUploadedBy,
+            verificationComments: targetItem.remark || verificationIssue.rectification || "",
+            approvalStatus: APPROVAL_STATUS.APPROVED
+          });
+
+          await upsertIssue({
+            ...verificationIssue,
+            issueKey,
+            issueId: verificationIssue.issueId || issueKey,
+            inspectionKey,
+            inspectionId: created.id,
+            buildingId: selectedBuilding,
+            floorId: selectedLevel,
+            floorName: selectedLevelName,
+            categoryCode: targetCategory.id,
+            itemCode: targetItem.code,
+            itemLabel: targetItem.label,
+            resultKey: buildRecordKey(inspectionKey, targetCategory.id, targetItem.id),
+            reportedBy: verificationIssue.reportedBy || fsmId,
+            issueTitle: verificationIssue.issueTitle || targetItem.label,
+            issueDescription: verificationIssue.issueDescription || targetItem.issue?.description || targetItem.remark || "",
+            rectification: verificationIssue.rectification || targetItem.issue?.rectification || "",
+            priority: verificationIssue.priority || targetItem.issue?.priority || "Medium",
+            status: ISSUE_STATUS.CLOSED,
+            defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+            defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
+            defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
+            defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
+            fixPhotoUrl,
+            fixPhotoStoragePath,
+            fixPhotoUploadedAt,
+            fixPhotoUploadedBy
+          });
+
+          setVerificationIssue((current) => ({
+            ...current,
+            status: ISSUE_STATUS.CLOSED,
+            fixPhotoUrl,
+            fixPhotoStoragePath,
+            fixPhotoUploadedAt,
+            fixPhotoUploadedBy
+          }));
+        }
+      }
+
       // eslint-disable-next-line no-console
       console.log(`Inspection ${status.toLowerCase()}`, created.id);
+      setInspectionSubmitSuccess(
+        isVerifyMode && verificationIssue
+          ? "Issue closed successfully."
+          : "Inspection checklist submitted successfully."
+      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`${status} inspection failed`, err);
+      setInspectionSubmitError(err.message || `Could not ${status.toLowerCase()} inspection.`);
+    } finally {
+      setInspectionSubmitting(false);
     }
   };
-
-  const handleSaveDraft = async () => persistInspection("Draft");
 
   const handleSubmit = async () => persistInspection("Submitted");
 
@@ -1150,16 +1837,69 @@ const Inspections = () => {
     <main className="inspection-page">
       <section className="page-header">
         <div>
-          <p className="eyebrow">Inspections</p>
-          <h1>Monthly inspection report</h1>
+          <p className="eyebrow">{isVerifyMode ? "Verify Closure" : "Inspections"}</p>
+          <h1>{isVerifyMode ? "Verify Issue Closure" : "Monthly inspection report"}</h1>
           <p className="page-subtitle">
-            Complete monthly fire safety checks by category, save drafts, or submit once finished.
+            {isVerifyMode
+              ? "Review the linked checklist row, update the current condition, and submit the verification."
+              : "Complete monthly fire safety checks by category and submit once finished."}
           </p>
         </div>
       </section>
 
       <div className="inspection-grid inspection-grid--single">
         <div className="inspection-main inspection-main--wide">
+          {isVerifyMode && (
+            <section className="inspection-card verification-banner">
+              <div>
+                <p className="overline">Issue Verification</p>
+                <h3>{verificationIssue?.issueTitle || verificationIssue?.itemLabel || "Selected issue"}</h3>
+                <p className="hint-text">{verificationIssue?.issueDescription || verificationIssueError || "Loading linked issue details..."}</p>
+              </div>
+              <div className="verification-banner-grid">
+                <span>Issue ID <strong>{verificationIssue?.issueId || verificationIssue?.issueKey || verificationIssue?.id || "-"}</strong></span>
+                <span>Building <strong>{buildingName}</strong></span>
+                <span>Level <strong>{verificationIssue?.floorName || selectedLevelName || "-"}</strong></span>
+                <span>Rectification <strong>{verificationIssue?.rectification || "-"}</strong></span>
+              </div>
+              {(getDefectPhotoUrl(verificationIssue) || fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)) && (
+                <div className="verification-photo-grid">
+                  {getDefectPhotoUrl(verificationIssue) && (
+                    <figure className="verification-photo">
+                      <figcaption>Before</figcaption>
+                      <img src={getDefectPhotoUrl(verificationIssue)} alt="Original defect evidence" />
+                    </figure>
+                  )}
+                  {(fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)) && (
+                    <figure className="verification-photo">
+                      <figcaption>After</figcaption>
+                      <img src={fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)} alt="Closure evidence" />
+                    </figure>
+                  )}
+                </div>
+              )}
+              {isVerifyMode && verificationIssue && (
+                <label className="verification-fix-photo-upload">
+                  <span>Fix-proof photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => handleFixProofPhotoChange(event.target.files)}
+                  />
+                </label>
+              )}
+            </section>
+          )}
+          {inspectionSubmitError && (
+            <div className="error-state" style={{ marginBottom: "18px" }}>
+              {inspectionSubmitError}
+            </div>
+          )}
+          {inspectionSubmitSuccess && (
+            <div className="success-state" style={{ marginBottom: "18px" }}>
+              {inspectionSubmitSuccess}
+            </div>
+          )}
           <InspectionOverview
             completedCount={completedCount}
             totalRows={totalRows}
@@ -1172,7 +1912,9 @@ const Inspections = () => {
             selectedLevel={selectedLevel}
             setSelectedLevel={setSelectedLevel}
             canSave={canSaveInspection}
-            onSaveDraft={handleSaveDraft}
+            isSubmitting={inspectionSubmitting}
+            submitLabel={isVerifyMode ? "Close Issue" : "Submit Inspection"}
+            submittingLabel={isVerifyMode ? "Closing..." : "Submitting..."}
             onSubmit={handleSubmit}
           />
           <IssueSummary
@@ -1219,12 +1961,27 @@ const Inspections = () => {
                           {category.items.map((item) => (
                             <div
                               className="encroachment-row"
+                              id={getIssueRowDomId(category.id, item.id)}
                               key={item.id}
                             >
                               <span>{item.storey === "All" ? selectedLevelName || "All" : item.storey}</span>
-                              <span>{item.condition || "Pending"}</span>
+                              <select
+                                className={getConditionClass(item.condition)}
+                                value={item.condition}
+                                onChange={(e) => updateChecklistItem(category.id, item.id, { condition: e.target.value })}
+                              >
+                                <option value="">Select condition</option>
+                                {conditionOptions.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
                               <span>{item.location}</span>
-                              <span>{item.remark}</span>
+                              <input
+                                type="text"
+                                value={item.remark}
+                                placeholder="Remark"
+                                onChange={(e) => updateChecklistItem(category.id, item.id, { remark: e.target.value })}
+                              />
                             </div>
                           ))}
                         </div>
@@ -1234,6 +1991,7 @@ const Inspections = () => {
                             key={item.id}
                             item={item}
                             categoryId={category.id}
+                            isHighlighted={isVerifyMode && isIssueTargetRow(verificationIssue, category, item)}
                             onUpdate={updateChecklistItem}
                             onPhotoChange={handlePhotoChange}
                             onIssueUpdate={handleIssueUpdate}
@@ -1264,8 +2022,8 @@ const Inspections = () => {
                 <strong>{summaryTotals.faulty}</strong>
               </div>
               <div className="summary-stat remaining">
-                <span>Remaining</span>
-                <strong>{totalRows - completedCount}</strong>
+                <span>N.A.</span>
+                <strong>{summaryTotals.na}</strong>
               </div>
             </div>
           </section>

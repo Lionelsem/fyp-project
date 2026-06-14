@@ -18,8 +18,7 @@ const menuItems = [
     label: "My Building",
     icon: "🏢",
     submenu: [
-      { path: "/fsm/fire-drill", label: "Fire Drill" },
-      { path: "/fsm/reports", label: "Reports" }
+      { path: "/fsm/fire-drill", label: "Fire Drill" }
     ]
   }
 ];
