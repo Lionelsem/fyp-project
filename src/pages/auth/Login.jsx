@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { login, logout } from "../../services/authService";
+import { login } from "../../services/authService";
 import { useAuth } from "../../hooks/useAuth";
 import { Link } from "react-router-dom";
 
@@ -7,7 +7,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   const handleLogin = async () => {
     setError("");
@@ -45,7 +45,7 @@ const Login = () => {
       />
       <br />
 
-      <button onClick={handleLogin}>Login</button>
+      <button onClick={handleLogin}>Log In</button>
       <Link to="/register" style={{ marginLeft: "8px" }}>
         <button>Sign Up</button>
       </Link>

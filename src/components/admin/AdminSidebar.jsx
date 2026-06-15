@@ -71,7 +71,7 @@ const AdminSidebar = ({ profile }) => {
       </nav>
 
       <div className="sidebar-footer">
-        <button type="button" className="sidebar-btn profile-btn">
+        <button type="button" className="sidebar-btn profile-btn" onClick={() => navigate("/profile")}>
           👤 Profile
         </button>
         <button

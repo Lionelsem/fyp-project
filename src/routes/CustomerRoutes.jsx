@@ -5,6 +5,7 @@ import CustomerDashboard from "../pages/customer/CustomerDashboard";
 import MyReports from "../pages/customer/MyReports";
 import SubmitReport from "../pages/customer/SubmitReport";
 import Feedbacks from "../pages/customer/Feedbacks";
+import Profile from "../pages/Profile";
 import ProtectedRoute from "./ProtectedRoute";
 import { ROLES } from "../constants/roles";
 
@@ -23,6 +24,7 @@ const CustomerRoutes = () => {
           <Route path="building" element={<CustomerDashboard />} />
           <Route path="my-reports" element={<MyReports />} />
           <Route path="submit-report" element={<SubmitReport />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </CustomerLayout>

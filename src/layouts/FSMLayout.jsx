@@ -16,7 +16,8 @@ const FSMLayout = ({ children }) => {
     issues: "Issues / Defects",
     "fire-drill": "Fire Drill",
     reports: "Reports",
-    building: "My Building"
+    building: "My Building",
+    profile: "Profile"
   };
   const pageTitle = pageTitleMap[section] || "FSM Dashboard";
 

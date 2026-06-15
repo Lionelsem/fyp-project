@@ -6,6 +6,7 @@ import Inspections from "../pages/fsm/Inspections";
 import Issues from "../pages/fsm/Issues";
 import FireDrill from "../pages/fsm/FireDrill";
 import MyBuilding from "../pages/fsm/MyBuilding";
+import Profile from "../pages/Profile";
 import ProtectedRoute from "./ProtectedRoute";
 import { ROLES } from "../constants/roles";
 
@@ -22,6 +23,7 @@ const FSMRoutes = () => {
           <Route path="/fsm/fire-drill" element={<FireDrill />} />
           <Route path="/fsm/reports" element={<Navigate to="/fsm/building" replace />} />
           <Route path="/fsm/building" element={<MyBuilding />} />
+          <Route path="/fsm/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/fsm/dashboard" replace />} />
         </Routes>
       </FSMLayout>

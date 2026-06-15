@@ -12,6 +12,7 @@ import FsmAssignment from "../pages/admin/FsmAssignment";
 import AdminIssues from "../pages/admin/AdminIssues";
 import EditUser from "../pages/admin/EditUser";
 import Reports from "../pages/admin/Reports";
+import Profile from "../pages/Profile";
 import ProtectedRoute from "./ProtectedRoute";
 import { ROLES } from "../constants/roles";
 
@@ -32,6 +33,7 @@ const AdminRoutes = () => {
           <Route path="issues-defects" element={<AdminIssues />} />
           <Route path="fire-drill" element={<AdminFireDrill />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AdminLayout>

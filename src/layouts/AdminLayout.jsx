@@ -16,7 +16,8 @@ const AdminLayout = ({ children }) => {
     "fsm-assignment": "FSM Assignment",
     "issues-defects": "Issues / Defects",
     "fire-drill": "Fire Drill",
-    reports: "Reports"
+    reports: "Reports",
+    profile: "Profile"
   };
   const pageTitle = pageTitleMap[section] || "Admin Dashboard";
 

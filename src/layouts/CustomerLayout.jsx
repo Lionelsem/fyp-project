@@ -17,6 +17,7 @@ const CustomerLayout = ({ children }) => {
     annual: "Annual Report",
     feedbacks: "Comments/Feedbacks",
     building: "My Buildings",
+    profile: "Profile"
   };
   const pageTitle = pageTitleMap[section] || "Customer Dashboard";
 
