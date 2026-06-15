@@ -295,8 +295,8 @@ const quickActions = [
   },
   {
     icon: "\u2713",
-    label: "Verify Closure",
-    path: "/fsm/inspections/verify"
+    label: "Verify Issues",
+    path: "/fsm/issues"
   },
   {
     icon: "\uD83D\uDD0D",

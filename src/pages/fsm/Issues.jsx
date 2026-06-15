@@ -345,7 +345,7 @@ const VerifyClosePanel = ({
 }) => (
   <section className="dashboard-card issue-ticket-form-card">
     <div className="card-header-row">
-      <h2 className="section-title">Verify & Close Issue</h2>
+      <h2 className="section-title">Verify & Resolve Issue</h2>
       <button type="button" className="view-all-link" onClick={onCancel}>Close</button>
     </div>
     <form onSubmit={onSubmit} className="issue-ticket-form">
@@ -353,12 +353,6 @@ const VerifyClosePanel = ({
         <span>Issue</span>
         <strong>{issue.issueTitle}</strong>
       </div>
-      {getDefectPhotoUrl(issue) && (
-        <div className="issue-ticket-original-photo">
-          <span>Original Defect Photo</span>
-          <img className="issue-ticket-detail-photo" src={getDefectPhotoUrl(issue)} alt="Original defect evidence" />
-        </div>
-      )}
       {(getDefectPhotoUrl(issue) || form.afterPhotoPreview || getFixPhotoUrl(issue)) && (
         <div className="issue-ticket-evidence-grid">
           {getDefectPhotoUrl(issue) && (
@@ -396,14 +390,14 @@ const VerifyClosePanel = ({
       <div className="issue-ticket-actions">
         <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
         <button type="submit" className="primary-button" disabled={saving}>
-          {saving ? "Closing..." : "Verify & Close"}
+          {saving ? "Resolving..." : "Mark Resolved"}
         </button>
       </div>
     </form>
   </section>
 );
 
-const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) => (
+const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onCloseIssue, saving }) => (
   <aside className="dashboard-card issue-ticket-detail">
     <div className="card-header-row">
       <div>
@@ -470,9 +464,14 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) =
       <button type="button" className="secondary-button" onClick={() => onEdit(issue)}>
         Edit
       </button>
-      <button type="button" className="primary-button" onClick={() => onVerifyClose(issue)} disabled={issue.status === ISSUE_STATUS.CLOSED}>
+      <button type="button" className="primary-button" onClick={() => onVerifyClose(issue)} disabled={normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED)}>
         Verify Issue
       </button>
+      {normalizeText(issue.status) === normalizeText(ISSUE_STATUS.RESOLVED) && (
+        <button type="button" className="primary-button" onClick={() => onCloseIssue(issue)} disabled={saving || !getFixPhotoUrl(issue)}>
+          {saving ? "Closing..." : "Close Issue"}
+        </button>
+      )}
       <button type="button" className="danger-button" onClick={() => onDelete(issue)}>
         Delete
       </button>
@@ -669,29 +668,36 @@ const Issues = () => {
     setFormError("");
     setFormSuccess("");
 
-    if (!verificationForm.afterPhotoFile || !verificationForm.verificationComments.trim()) {
+    if ((!verificationForm.afterPhotoFile && !getFixPhotoUrl(activeIssue)) || !verificationForm.verificationComments.trim()) {
       setFormError("After photo and verification comments are required.");
       return;
     }
 
-    if (!window.confirm("Close this issue? Please confirm the defect has been fixed and the uploaded proof photo is correct.")) {
+    if (!window.confirm("Mark this issue as resolved? Please confirm the defect has been fixed and the uploaded resolution photo is correct.")) {
       return;
     }
 
     try {
       setSaving(true);
       const issueKey = getIssueKey(activeIssue);
-      const uploaded = await uploadFile(verificationForm.afterPhotoFile, `closure-verifications/${issueKey}`);
-      const fixPhotoUrl = uploaded.url;
-      const fixPhotoStoragePath = uploaded.path;
-      const fixPhotoUploadedAt = new Date();
-      const fixPhotoUploadedBy = getPrimaryFsmId(user);
+      let fixPhotoUrl = getFixPhotoUrl(activeIssue);
+      let fixPhotoStoragePath = activeIssue.fixPhotoStoragePath || "";
+      let fixPhotoUploadedAt = activeIssue.fixPhotoUploadedAt || null;
+      let fixPhotoUploadedBy = activeIssue.fixPhotoUploadedBy || "";
+
+      if (verificationForm.afterPhotoFile) {
+        const uploaded = await uploadFile(verificationForm.afterPhotoFile, `closure-verifications/${issueKey}`);
+        fixPhotoUrl = uploaded.url;
+        fixPhotoStoragePath = uploaded.path;
+        fixPhotoUploadedAt = new Date();
+        fixPhotoUploadedBy = getPrimaryFsmId(user);
+      }
 
       await addClosureVerification({
         verificationId: `closure-${issueKey}-${Date.now()}`,
         issueId: issueKey,
         resultId: activeIssue.resultId || "",
-        verifiedBy: fixPhotoUploadedBy,
+        verifiedBy: fixPhotoUploadedBy || getPrimaryFsmId(user),
         beforePhotoUrl: getDefectPhotoUrl(activeIssue),
         afterPhotoUrl: fixPhotoUrl,
         defectPhotoUrl: getDefectPhotoUrl(activeIssue),
@@ -709,7 +715,7 @@ const Issues = () => {
       await upsertIssue({
         ...createFormFromIssue(activeIssue),
         reportedBy: activeIssue.reportedBy || getPrimaryFsmId(user),
-        status: ISSUE_STATUS.CLOSED,
+        status: ISSUE_STATUS.RESOLVED,
         location: activeIssue.location || "",
         defectPhotoUrl: getDefectPhotoUrl(activeIssue),
         defectPhotoStoragePath: activeIssue.defectPhotoStoragePath || "",
@@ -722,9 +728,53 @@ const Issues = () => {
       });
 
       closePanels({ keepSuccess: true });
-      setFormSuccess("Issue closed successfully.");
+      setFormSuccess("Issue marked as resolved successfully.");
     } catch (verifyError) {
-      setFormError(verifyError.message || "Could not verify and close issue.");
+      setFormError(verifyError.message || "Could not verify and resolve issue.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCloseReviewedIssue = async (issue) => {
+    if (!issue || saving) return;
+    setFormError("");
+    setFormSuccess("");
+
+    if (!getFixPhotoUrl(issue)) {
+      setFormError("Fix/resolution photo is required before closing this issue.");
+      return;
+    }
+
+    if (!window.confirm("Close this issue? Please confirm the resolved work has been reviewed and accepted.")) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const issueKey = getIssueKey(issue);
+      await upsertIssue({
+        ...createFormFromIssue(issue),
+        issueKey,
+        issueId: issue.issueId || issueKey,
+        reportedBy: issue.reportedBy || getPrimaryFsmId(user),
+        status: ISSUE_STATUS.CLOSED,
+        location: issue.location || "",
+        defectPhotoUrl: getDefectPhotoUrl(issue),
+        defectPhotoStoragePath: issue.defectPhotoStoragePath || "",
+        defectPhotoUploadedAt: issue.defectPhotoUploadedAt || null,
+        defectPhotoUploadedBy: issue.defectPhotoUploadedBy || "",
+        fixPhotoUrl: getFixPhotoUrl(issue),
+        fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
+        fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
+        fixPhotoUploadedBy: issue.fixPhotoUploadedBy || ""
+      });
+
+      setActiveIssueId(issueKey);
+      closePanels({ keepSuccess: true });
+      setFormSuccess("Issue closed successfully.");
+    } catch (closeError) {
+      setFormError(closeError.message || "Could not close issue.");
     } finally {
       setSaving(false);
     }
@@ -774,6 +824,8 @@ const Issues = () => {
             onEdit={openEditForm}
             onDelete={setDeleteTarget}
             onVerifyClose={openVerifyClose}
+            onCloseIssue={handleCloseReviewedIssue}
+            saving={saving}
           />
         ) : (
           <aside className="dashboard-card issue-ticket-detail issue-ticket-detail--empty">

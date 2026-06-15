@@ -623,6 +623,11 @@ export const useFsmDashboardData = (fsmLookupValue) => {
         ),
         (snapshot) => {
           if (!active) return;
+          // eslint-disable-next-line no-console
+          console.log("FSM dashboard issues listener snapshot", {
+            buildingIds: ids,
+            issueCount: snapshot.size
+          });
           chunkResults[index] = mapSnapshot(snapshot);
           chunkLoaded[index] = true;
           updateIssues();

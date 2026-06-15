@@ -16,8 +16,36 @@ export const uploadFile = async (file, folder = "uploads") => {
   const safeName = sanitizePathPart(file.name);
   const storagePath = `${safeFolder}/${Date.now()}-${safeName}`;
   const fileRef = ref(storage, storagePath);
-  const snapshot = await uploadBytes(fileRef, file);
-  const url = await getDownloadURL(snapshot.ref);
+
+  console.log("Uploading file to Firebase Storage", {
+    storagePath,
+    projectId: storage.app.options.projectId,
+    storageBucket: storage.app.options.storageBucket,
+    fileName: file.name,
+    size: file.size,
+    type: file.type
+  });
+
+  let snapshot;
+  let url;
+  try {
+    snapshot = await uploadBytes(fileRef, file);
+    url = await getDownloadURL(snapshot.ref);
+  } catch (error) {
+    console.error("Firebase Storage upload failed", {
+      storagePath,
+      projectId: storage.app.options.projectId,
+      storageBucket: storage.app.options.storageBucket,
+      code: error.code,
+      message: error.message
+    });
+    throw error;
+  }
+
+  console.log("Uploaded file to Firebase Storage", {
+    storagePath,
+    url
+  });
 
   return {
     name: file.name,

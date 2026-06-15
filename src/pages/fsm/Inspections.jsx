@@ -893,17 +893,12 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
                     value={item.issue.status}
                     onChange={(e) => onIssueUpdate(categoryId, item.id, { status: e.target.value })}
                   >
-                    <option value="Open">Open</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Resolved">Resolved</option>
+                    <option value={ISSUE_STATUS.OPEN}>{ISSUE_STATUS.OPEN}</option>
+                    <option value={ISSUE_STATUS.IN_PROGRESS}>{ISSUE_STATUS.IN_PROGRESS}</option>
                   </select>
                 </label>
               </div>
-              <label className="issue-photo-upload">
-                <span>Issue Photo (optional)</span>
-                <input type="file" accept="image/*" onChange={(e) => onIssueUpdate(categoryId, item.id, { photo: e.target.files && e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : "" })} />
-              </label>
-              {item.issue.photo && (
+              {item.issue.showChecklistIssuePhoto && item.issue.photo && (
                 <div className="issue-photo-wrapper">
                   <img className="issue-photo-preview" src={item.issue.photo} alt="" />
                   <button
@@ -916,9 +911,6 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
                   </button>
                 </div>
               )}
-              <button type="button" className="issue-close-btn" onClick={() => onUpdate(categoryId, item.id, { condition: "Good", "issue.status": "Resolved" })}>
-                Close Issue
-              </button>
             </div>
           )}
         </div>
@@ -927,7 +919,7 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
   );
 };
 
-const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto }) => {
+const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto }) => {
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
@@ -1014,38 +1006,32 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, onUpdate, onP
                   value={item.issue.status}
                   onChange={(e) => onIssueUpdate(categoryId, item.id, { status: e.target.value })}
                 >
-                  <option value="Open">Open</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Resolved">Resolved</option>
+                  <option value={ISSUE_STATUS.OPEN}>{ISSUE_STATUS.OPEN}</option>
+                  <option value={ISSUE_STATUS.IN_PROGRESS}>{ISSUE_STATUS.IN_PROGRESS}</option>
                 </select>
               </label>
             </div>
-            <div className="fault-proof-row">
-              <label className="issue-photo-upload">
-                <span>Fault proof photo</span>
-                <input type="file" accept="image/*" onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)} />
-              </label>
-              {photoPreview && (
-                <div className="issue-photo-wrapper">
-                  <img className="issue-photo-preview" src={photoPreview} alt="" />
-                  <button
-                    type="button"
-                    className="photo-remove-btn issue-remove-btn"
-                    onClick={() => onRemovePhoto(categoryId, item.id)}
-                    aria-label="Remove proof photo"
-                  >
-                    &times;
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="issue-close-btn"
-              onClick={() => onUpdate(categoryId, item.id, { condition: "Good", photoPreview: "", photoFile: null, photo: "", "issue.status": "Resolved" })}
-            >
-              Close Issue
-            </button>
+            {!isVerifyMode && (
+              <div className="fault-proof-row">
+                <label className="issue-photo-upload">
+                  <span>Defect photo</span>
+                  <input type="file" accept="image/*" onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)} />
+                </label>
+                {photoPreview && (
+                  <div className="issue-photo-wrapper">
+                    <img className="issue-photo-preview" src={photoPreview} alt="Original defect evidence" />
+                    <button
+                      type="button"
+                      className="photo-remove-btn issue-remove-btn"
+                      onClick={() => onRemovePhoto(categoryId, item.id)}
+                      aria-label="Remove defect photo"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1554,6 +1540,91 @@ const Inspections = () => {
     );
   };
 
+  const resolveVerificationIssue = async () => {
+    if (!verificationIssue || inspectionSubmitting) return;
+
+    const issueKey = verificationIssue.issueKey || verificationIssue.id || verificationIssue.issueId;
+    if (!fixProofPhotoFile && !getFixPhotoUrl(verificationIssue)) {
+      setInspectionSubmitError("Please upload a fix/resolution photo before marking this issue as resolved.");
+      return;
+    }
+
+    if (!window.confirm("Mark this issue as resolved? Please confirm the defect has been fixed and the uploaded resolution photo is correct.")) {
+      return;
+    }
+
+    try {
+      setInspectionSubmitting(true);
+      setInspectionSubmitError("");
+      setInspectionSubmitSuccess("");
+
+      let fixPhotoUrl = getFixPhotoUrl(verificationIssue);
+      let fixPhotoStoragePath = verificationIssue.fixPhotoStoragePath || "";
+      let fixPhotoUploadedAt = verificationIssue.fixPhotoUploadedAt || null;
+      let fixPhotoUploadedBy = verificationIssue.fixPhotoUploadedBy || "";
+
+      if (fixProofPhotoFile) {
+        const uploaded = await uploadFile(fixProofPhotoFile, `closure-verifications/${issueKey}`);
+        fixPhotoUrl = uploaded?.url || fixPhotoUrl;
+        fixPhotoStoragePath = uploaded?.path || "";
+        fixPhotoUploadedAt = new Date();
+        fixPhotoUploadedBy = fsmId;
+      }
+
+      await addClosureVerification({
+        verificationId: `closure-${issueKey}-${Date.now()}`,
+        issueId: issueKey,
+        resultId: verificationIssue.resultId || verificationIssue.resultKey || "",
+        verifiedBy: fixPhotoUploadedBy || fsmId,
+        beforePhotoUrl: getDefectPhotoUrl(verificationIssue),
+        afterPhotoUrl: fixPhotoUrl,
+        defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+        defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
+        defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
+        defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
+        fixPhotoUrl,
+        fixPhotoStoragePath,
+        fixPhotoUploadedAt,
+        fixPhotoUploadedBy,
+        verificationComments: verificationIssue.rectification || "",
+        approvalStatus: APPROVAL_STATUS.APPROVED
+      });
+
+      await upsertIssue({
+        ...verificationIssue,
+        issueKey,
+        issueId: verificationIssue.issueId || issueKey,
+        reportedBy: verificationIssue.reportedBy || fsmId,
+        status: ISSUE_STATUS.RESOLVED,
+        defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+        defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
+        defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
+        defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
+        fixPhotoUrl,
+        fixPhotoStoragePath,
+        fixPhotoUploadedAt,
+        fixPhotoUploadedBy
+      });
+
+      setVerificationIssue((current) => ({
+        ...current,
+        status: ISSUE_STATUS.RESOLVED,
+        fixPhotoUrl,
+        fixPhotoStoragePath,
+        fixPhotoUploadedAt,
+        fixPhotoUploadedBy
+      }));
+      setFixProofPhotoFile(null);
+      setFixProofPhotoPreview("");
+      setInspectionSubmitSuccess("Issue marked as resolved successfully.");
+    } catch (err) {
+      console.error("Issue resolution failed", err);
+      setInspectionSubmitError(err.message || "Could not mark issue as resolved.");
+    } finally {
+      setInspectionSubmitting(false);
+    }
+  };
+
   const persistInspection = async (status) => {
     if (!canSaveInspection || inspectionSubmitting) return;
 
@@ -1579,25 +1650,8 @@ const Inspections = () => {
       return;
     }
 
-    if (status === "Submitted" && isVerifyMode && verificationIssue) {
-      const targetCategoryCode = getIssueTargetCategoryCode(verificationIssue);
-      const targetItemCode = getIssueTargetItemCode(verificationIssue);
-      const targetCategory = checklist.find((category) => category.id === targetCategoryCode);
-      const targetItem = targetCategory?.items.find((item) => item.code === targetItemCode || item.id === targetItemCode);
-
-      if (targetItem && targetItem.condition !== "Faulty" && !fixProofPhotoFile && !getFixPhotoUrl(verificationIssue)) {
-        setInspectionSubmitError("Please upload a fix-proof photo before closing this issue.");
-        return;
-      }
-    }
-
     if (status === "Submitted") {
-      const confirmationMessage =
-        isVerifyMode && verificationIssue
-          ? "Close this issue? Please confirm the defect has been fixed and the uploaded proof photo is correct."
-          : "Submit this inspection checklist? This will save the inspection results and defect evidence.";
-
-      if (!window.confirm(confirmationMessage)) {
+      if (!window.confirm("Submit this inspection checklist? This will save the inspection results and defect evidence.")) {
         return;
       }
     }
@@ -1627,20 +1681,28 @@ const Inspections = () => {
       for (const category of checklist) {
         for (const item of category.items) {
           const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
+          const isFaultyItem = item.condition === "Faulty";
+          const issueKey = isFaultyItem ? buildRecordKey(inspectionKey, category.id, item.id) : "";
           let photoUrl = item.photo || "";
           let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
           let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
           let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
 
-          if (item.photoFile) {
+          if (item.photoFile && isFaultyItem) {
             const uploaded = await uploadFile(
               item.photoFile,
-              `${COLLECTION_NAMES.INSPECTIONS}/${inspectionKey}`
+              `${COLLECTION_NAMES.ISSUES}/${issueKey}`
             );
             photoUrl = uploaded?.url || photoUrl;
             defectPhotoStoragePath = uploaded?.path || "";
             defectPhotoUploadedAt = new Date();
             defectPhotoUploadedBy = fsmId;
+          } else if (item.photoFile) {
+            console.warn("Skipped non-faulty checklist photo upload", {
+              resultKey,
+              itemCode: item.code,
+              condition: item.condition
+            });
           }
 
           const defectPhotoUrl = photoUrl;
@@ -1693,9 +1755,7 @@ const Inspections = () => {
             defectPhotoStoragePath
           });
 
-          if (status === "Submitted" && item.condition === "Faulty") {
-            const issueKey = buildRecordKey(inspectionKey, category.id, item.id);
-
+          if (status === "Submitted" && isFaultyItem) {
             await upsertIssue({
               issueKey,
               issueId: issueKey,
@@ -1716,7 +1776,7 @@ const Inspections = () => {
               issueDescription: item.issue?.description || item.remark || "",
               rectification: item.issue?.rectification || "",
               priority: item.issue?.priority || "High",
-              status: item.issue?.status || "Open",
+              status: item.issue?.status || ISSUE_STATUS.OPEN,
               issuePhotoUrl: photoUrl,
               defectPhotoUrl,
               defectPhotoStoragePath,
@@ -1732,96 +1792,9 @@ const Inspections = () => {
         }
       }
 
-      if (status === "Submitted" && isVerifyMode && verificationIssue) {
-        const targetCategoryCode = getIssueTargetCategoryCode(verificationIssue);
-        const targetItemCode = getIssueTargetItemCode(verificationIssue);
-        const targetCategory = checklist.find((category) => category.id === targetCategoryCode);
-        const targetItem = targetCategory?.items.find((item) => item.code === targetItemCode || item.id === targetItemCode);
-
-        if (targetItem && targetItem.condition !== "Faulty") {
-          const issueKey = verificationIssue.issueKey || verificationIssue.id || verificationIssue.issueId;
-          let fixPhotoUrl = getFixPhotoUrl(verificationIssue);
-          let fixPhotoStoragePath = verificationIssue.fixPhotoStoragePath || "";
-          let fixPhotoUploadedAt = verificationIssue.fixPhotoUploadedAt || null;
-          let fixPhotoUploadedBy = verificationIssue.fixPhotoUploadedBy || "";
-
-          if (fixProofPhotoFile) {
-            const uploaded = await uploadFile(
-              fixProofPhotoFile,
-              `closure-verifications/${issueKey}`
-            );
-            fixPhotoUrl = uploaded?.url || fixPhotoUrl;
-            fixPhotoStoragePath = uploaded?.path || "";
-            fixPhotoUploadedAt = new Date();
-            fixPhotoUploadedBy = fsmId;
-          }
-
-          await addClosureVerification({
-            verificationId: `closure-${issueKey}-${Date.now()}`,
-            issueId: issueKey,
-            resultId: verificationIssue.resultId || buildRecordKey(inspectionKey, targetCategory.id, targetItem.id),
-            verifiedBy: fixPhotoUploadedBy || fsmId,
-            beforePhotoUrl: getDefectPhotoUrl(verificationIssue),
-            afterPhotoUrl: fixPhotoUrl,
-            defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
-            defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
-            defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
-            defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
-            fixPhotoUrl,
-            fixPhotoStoragePath,
-            fixPhotoUploadedAt,
-            fixPhotoUploadedBy,
-            verificationComments: targetItem.remark || verificationIssue.rectification || "",
-            approvalStatus: APPROVAL_STATUS.APPROVED
-          });
-
-          await upsertIssue({
-            ...verificationIssue,
-            issueKey,
-            issueId: verificationIssue.issueId || issueKey,
-            inspectionKey,
-            inspectionId: created.id,
-            buildingId: selectedBuilding,
-            floorId: selectedLevel,
-            floorName: selectedLevelName,
-            categoryCode: targetCategory.id,
-            itemCode: targetItem.code,
-            itemLabel: targetItem.label,
-            resultKey: buildRecordKey(inspectionKey, targetCategory.id, targetItem.id),
-            reportedBy: verificationIssue.reportedBy || fsmId,
-            issueTitle: verificationIssue.issueTitle || targetItem.label,
-            issueDescription: verificationIssue.issueDescription || targetItem.issue?.description || targetItem.remark || "",
-            rectification: verificationIssue.rectification || targetItem.issue?.rectification || "",
-            priority: verificationIssue.priority || targetItem.issue?.priority || "Medium",
-            status: ISSUE_STATUS.CLOSED,
-            defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
-            defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
-            defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
-            defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
-            fixPhotoUrl,
-            fixPhotoStoragePath,
-            fixPhotoUploadedAt,
-            fixPhotoUploadedBy
-          });
-
-          setVerificationIssue((current) => ({
-            ...current,
-            status: ISSUE_STATUS.CLOSED,
-            fixPhotoUrl,
-            fixPhotoStoragePath,
-            fixPhotoUploadedAt,
-            fixPhotoUploadedBy
-          }));
-        }
-      }
-
       // eslint-disable-next-line no-console
       console.log(`Inspection ${status.toLowerCase()}`, created.id);
-      setInspectionSubmitSuccess(
-        isVerifyMode && verificationIssue
-          ? "Issue closed successfully."
-          : "Inspection checklist submitted successfully."
-      );
+      setInspectionSubmitSuccess("Inspection checklist submitted successfully.");
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`${status} inspection failed`, err);
@@ -1831,14 +1804,21 @@ const Inspections = () => {
     }
   };
 
-  const handleSubmit = async () => persistInspection("Submitted");
+  const handleSubmit = async () => {
+    if (isVerifyMode && verificationIssue) {
+      await resolveVerificationIssue();
+      return;
+    }
+
+    await persistInspection("Submitted");
+  };
 
   return (
     <main className="inspection-page">
       <section className="page-header">
         <div>
-          <p className="eyebrow">{isVerifyMode ? "Verify Closure" : "Inspections"}</p>
-          <h1>{isVerifyMode ? "Verify Issue Closure" : "Monthly inspection report"}</h1>
+          <p className="eyebrow">{isVerifyMode ? "Verify Resolution" : "Inspections"}</p>
+          <h1>{isVerifyMode ? "Verify Issue Resolution" : "Monthly inspection report"}</h1>
           <p className="page-subtitle">
             {isVerifyMode
               ? "Review the linked checklist row, update the current condition, and submit the verification."
@@ -1880,7 +1860,7 @@ const Inspections = () => {
               )}
               {isVerifyMode && verificationIssue && (
                 <label className="verification-fix-photo-upload">
-                  <span>Fix-proof photo</span>
+                  <span>Fix/resolution photo</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -1911,10 +1891,10 @@ const Inspections = () => {
             levels={levels}
             selectedLevel={selectedLevel}
             setSelectedLevel={setSelectedLevel}
-            canSave={canSaveInspection}
+            canSave={isVerifyMode ? Boolean(verificationIssue && fsmId) : canSaveInspection}
             isSubmitting={inspectionSubmitting}
-            submitLabel={isVerifyMode ? "Close Issue" : "Submit Inspection"}
-            submittingLabel={isVerifyMode ? "Closing..." : "Submitting..."}
+            submitLabel={isVerifyMode ? "Mark Resolved" : "Submit Inspection"}
+            submittingLabel={isVerifyMode ? "Resolving..." : "Submitting..."}
             onSubmit={handleSubmit}
           />
           <IssueSummary
@@ -1992,6 +1972,7 @@ const Inspections = () => {
                             item={item}
                             categoryId={category.id}
                             isHighlighted={isVerifyMode && isIssueTargetRow(verificationIssue, category, item)}
+                            isVerifyMode={isVerifyMode}
                             onUpdate={updateChecklistItem}
                             onPhotoChange={handlePhotoChange}
                             onIssueUpdate={handleIssueUpdate}
