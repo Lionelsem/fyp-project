@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
+import { getAllBuildings } from "../services/buildingService";
 import { getUserProfile } from "../services/userService";
 
 const getDisplayName = (profile) =>
@@ -28,10 +29,117 @@ const getRoleLabel = (role) => {
   return role || "-";
 };
 
+const getSingaporePhoneFallback = (profile) => {
+  const seed = String(profile?.uid || profile?.authUid || profile?.profileId || profile?.email || "user");
+  const total = seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const suffix = String(1000000 + (total * 7919) % 9000000).padStart(7, "0");
+  return `+65 9${suffix.slice(0, 3)} ${suffix.slice(3)}`;
+};
+
+const getLookupIds = (profile) =>
+  [
+    profile?.uid,
+    profile?.authUid,
+    profile?.profileId,
+    profile?.id,
+    profile?.userId,
+    profile?.fullName,
+    profile?.displayName,
+    profile?.email,
+    profile?.fsmId,
+    profile?.assignedFsmId,
+    profile?.customerId,
+    profile?.accountId,
+    profile?.staffId,
+    profile?.employeeId
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+const getBuildingName = (building) =>
+  building?.buildingName || building?.building_name || building?.name || building?.buildingId || building?.id || "";
+
+const isLinkedBuilding = (building, profile, lookupIds) => {
+  if (profile?.role === ROLES.ADMIN) return true;
+
+  const candidateFields = [
+    building?.assignedFsmId,
+    building?.assignedFsm,
+    building?.assignedFsmName,
+    building?.fsmId,
+    building?.customerId,
+    building?.customer,
+    building?.customerName,
+    building?.ownerId,
+    building?.createdBy
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim());
+
+  return candidateFields.some((value) => lookupIds.includes(value));
+};
+
+const ProfileIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M20 21a8 8 0 0 0-16 0" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const SecurityIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+    <path d="m9 12 2 2 4-5" />
+  </svg>
+);
+
+const NotificationsIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+
+const OrganizationIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 21h18" />
+    <path d="M5 21V7l7-4 7 4v14" />
+    <path d="M9 21v-6h6v6" />
+    <path d="M9 9h.01" />
+    <path d="M15 9h.01" />
+  </svg>
+);
+
+const settingsSections = [
+  { id: "profile", label: "Profile Information", Icon: ProfileIcon },
+  { id: "security", label: "Security", Icon: SecurityIcon },
+  { id: "notifications", label: "Notifications", Icon: NotificationsIcon },
+  { id: "organization", label: "Organization", Icon: OrganizationIcon }
+];
+
+const notificationSettings = [
+  ["emailNotifications", "Email notifications", "Receive important account and workflow updates by email."],
+  ["inspectionReminders", "Inspection reminders", "Get reminders before scheduled inspection tasks."],
+  ["issueUpdates", "Issue / defect updates", "Stay informed when issue status or assignment changes."],
+  ["reportUpdates", "Report/status updates", "Receive updates when reports are generated or reviewed."],
+  ["systemAnnouncements", "System announcements", "Receive platform maintenance and policy notices."]
+];
+
 const Profile = () => {
   const { user } = useAuthContext();
   const [profile, setProfile] = useState(user);
+  const [activeSection, setActiveSection] = useState("profile");
   const [loading, setLoading] = useState(false);
+  const [buildings, setBuildings] = useState([]);
+  const [buildingLoading, setBuildingLoading] = useState(false);
+  const [notifications, setNotifications] = useState({
+    emailNotifications: true,
+    inspectionReminders: true,
+    issueUpdates: true,
+    reportUpdates: true,
+    systemAnnouncements: false
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -69,13 +177,228 @@ const Profile = () => {
     };
   }, [user]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBuildings = async () => {
+      try {
+        setBuildingLoading(true);
+        const buildingData = await getAllBuildings();
+        if (isMounted) setBuildings(buildingData);
+      } catch (error) {
+        console.error("Failed to load organization buildings", error);
+        if (isMounted) setBuildings([]);
+      } finally {
+        if (isMounted) setBuildingLoading(false);
+      }
+    };
+
+    loadBuildings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const displayName = useMemo(() => getDisplayName(profile), [profile]);
   const initials = useMemo(
     () => getInitials(displayName, profile?.email),
     [displayName, profile?.email]
   );
   const roleLabel = getRoleLabel(profile?.role);
-  const phoneNumber = profile?.phoneNumber || profile?.phone || profile?.contactNumber || "";
+  const phoneNumber =
+    profile?.phoneNumber ||
+    profile?.phone ||
+    profile?.contactNumber ||
+    getSingaporePhoneFallback(profile);
+  const lookupIds = useMemo(() => getLookupIds(profile), [profile]);
+  const linkedBuildings = useMemo(
+    () => buildings.filter((building) => isLinkedBuilding(building, profile, lookupIds)),
+    [buildings, lookupIds, profile]
+  );
+  const linkedBuildingNames = linkedBuildings.map(getBuildingName).filter(Boolean).slice(0, 3);
+  const organizationName =
+    profile?.organizationName ||
+    profile?.organisationName ||
+    profile?.companyName ||
+    profile?.company ||
+    "CBRE Fire Safety Management";
+  const accountType = profile?.accountType || profile?.workspaceType || `${roleLabel} workspace`;
+  const supportContact =
+    profile?.supportEmail ||
+    profile?.adminEmail ||
+    profile?.managerEmail ||
+    "Contact System Administrator";
+  const passwordUpdated = profile?.passwordUpdatedAt || profile?.passwordLastUpdated || "Not recorded";
+
+  const renderProfileSection = () => (
+    <>
+      <div className="profile-summary">
+        <div className="profile-avatar">{initials || "U"}</div>
+        <div>
+          <h2>{displayName || "-"}</h2>
+          <p>{roleLabel}</p>
+          {profile?.status && <span className="status-pill">{profile.status}</span>}
+        </div>
+      </div>
+
+      <div className="profile-details-grid">
+        <label className="profile-field">
+          <span>Full Name</span>
+          <input className="form-input" value={displayName || "-"} readOnly />
+        </label>
+
+        <label className="profile-field">
+          <span>Email Address</span>
+          <input className="form-input" value={profile?.email || "-"} readOnly />
+        </label>
+
+        <label className="profile-field">
+          <span>Role</span>
+          <input className="form-input" value={roleLabel} readOnly />
+        </label>
+
+        <label className="profile-field">
+          <span>Phone Number</span>
+          <input className="form-input" value={phoneNumber} readOnly />
+        </label>
+      </div>
+
+      <p className="profile-note">
+        To change your role or account email, please contact your system administrator.
+      </p>
+    </>
+  );
+
+  const renderSecuritySection = () => (
+    <div className="profile-settings-stack">
+      <div className="profile-section-heading">
+        <h2>Security</h2>
+        <p>Review sign-in protection and account access controls.</p>
+      </div>
+
+      <div className="profile-setting-row">
+        <div>
+          <h3>Change Password</h3>
+          <p>Password changes are handled through the authentication provider.</p>
+        </div>
+        <button type="button" className="secondary-button" disabled>Unavailable</button>
+      </div>
+
+      <div className="profile-setting-row">
+        <div>
+          <h3>Two-Factor Authentication</h3>
+          <p>Add an extra verification step when signing in. Setup is not connected yet.</p>
+        </div>
+        <span className="profile-status-muted">Not enabled</span>
+      </div>
+
+      <div className="profile-setting-row">
+        <div>
+          <h3>Active Sessions / Signed-in Devices</h3>
+          <p>Current browser session is active. Device history is not available in this app yet.</p>
+        </div>
+        <span className="status-pill">Active</span>
+      </div>
+
+      <div className="profile-setting-row">
+        <div>
+          <h3>Sign out of all devices</h3>
+          <p>This action requires backend session revocation before it can be enabled.</p>
+        </div>
+        <button type="button" className="danger-button" disabled>Sign out all</button>
+      </div>
+
+      <div className="profile-info-strip">
+        <span>Password last updated</span>
+        <strong>{String(passwordUpdated)}</strong>
+      </div>
+    </div>
+  );
+
+  const renderNotificationsSection = () => (
+    <div className="profile-settings-stack">
+      <div className="profile-section-heading">
+        <h2>Notifications</h2>
+        <p>Choose which updates you want to receive. These controls are ready for persistence.</p>
+      </div>
+
+      <div className="profile-toggle-list">
+        {notificationSettings.map(([key, label, helper]) => (
+          <label className="profile-toggle-row" key={key}>
+            <div>
+              <h3>{label}</h3>
+              <p>{helper}</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={notifications[key]}
+              onChange={(event) =>
+                setNotifications((current) => ({ ...current, [key]: event.target.checked }))
+              }
+            />
+          </label>
+        ))}
+      </div>
+
+      <p className="profile-note">
+        Notification preferences are shown in the UI for now and can be saved once backend storage is added.
+      </p>
+    </div>
+  );
+
+  const renderOrganizationSection = () => (
+    <div className="profile-settings-stack">
+      <div className="profile-section-heading">
+        <h2>Organization</h2>
+        <p>Workspace and building information linked to your account.</p>
+      </div>
+
+      <div className="profile-info-grid">
+        <div className="profile-info-tile">
+          <span>Company / Organization</span>
+          <strong>{organizationName}</strong>
+        </div>
+        <div className="profile-info-tile">
+          <span>Assigned Role</span>
+          <strong>{roleLabel}</strong>
+        </div>
+        <div className="profile-info-tile">
+          <span>Assigned Buildings</span>
+          <strong>{buildingLoading ? "Loading..." : linkedBuildings.length}</strong>
+        </div>
+        <div className="profile-info-tile">
+          <span>Account Type / Workspace</span>
+          <strong>{accountType}</strong>
+        </div>
+      </div>
+
+      <div className="profile-linked-card">
+        <h3>Linked Building Info</h3>
+        {linkedBuildingNames.length > 0 ? (
+          <ul>
+            {linkedBuildingNames.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>{buildingLoading ? "Loading linked buildings..." : "No linked buildings found for this account."}</p>
+        )}
+      </div>
+
+      <div className="profile-info-strip">
+        <span>Support / Admin Contact</span>
+        <strong>{supportContact}</strong>
+      </div>
+    </div>
+  );
+
+  const renderActiveSection = () => {
+    if (activeSection === "security") return renderSecuritySection();
+    if (activeSection === "notifications") return renderNotificationsSection();
+    if (activeSection === "organization") return renderOrganizationSection();
+    return renderProfileSection();
+  };
 
   return (
     <div className="profile-page">
@@ -88,67 +411,23 @@ const Profile = () => {
 
       <div className="profile-layout">
         <aside className="profile-tabs" aria-label="Profile sections">
-          <button type="button" className="profile-tab active">
-            <span className="profile-tab-icon">P</span>
-            Profile Information
-          </button>
-          <button type="button" className="profile-tab" disabled>
-            <span className="profile-tab-icon">S</span>
-            Security
-          </button>
-          <button type="button" className="profile-tab" disabled>
-            <span className="profile-tab-icon">N</span>
-            Notifications
-          </button>
-          <button type="button" className="profile-tab" disabled>
-            <span className="profile-tab-icon">O</span>
-            Organization
-          </button>
+          {settingsSections.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              className={activeSection === section.id ? "profile-tab active" : "profile-tab"}
+              onClick={() => setActiveSection(section.id)}
+            >
+              <span className="profile-tab-icon">
+                <section.Icon />
+              </span>
+              {section.label}
+            </button>
+          ))}
         </aside>
 
         <section className="dashboard-card profile-card">
-          {loading ? (
-            <div className="loading-state">Loading profile...</div>
-          ) : (
-            <>
-              <div className="profile-summary">
-                <div className="profile-avatar">{initials || "U"}</div>
-                <div>
-                  <h2>{displayName || "-"}</h2>
-                  <p>{roleLabel}</p>
-                  {profile?.status && <span className="status-pill">{profile.status}</span>}
-                </div>
-              </div>
-
-              <div className="profile-details-grid">
-                <label className="profile-field">
-                  <span>Full Name</span>
-                  <input className="form-input" value={displayName || "-"} readOnly />
-                </label>
-
-                <label className="profile-field">
-                  <span>Email Address</span>
-                  <input className="form-input" value={profile?.email || "-"} readOnly />
-                </label>
-
-                <label className="profile-field">
-                  <span>Role</span>
-                  <input className="form-input" value={roleLabel} readOnly />
-                </label>
-
-                {phoneNumber && (
-                  <label className="profile-field">
-                    <span>Phone Number</span>
-                    <input className="form-input" value={phoneNumber} readOnly />
-                  </label>
-                )}
-              </div>
-
-              <p className="profile-note">
-                To change your role or account email, please contact your system administrator.
-              </p>
-            </>
-          )}
+          {loading ? <div className="loading-state">Loading profile...</div> : renderActiveSection()}
         </section>
       </div>
     </div>

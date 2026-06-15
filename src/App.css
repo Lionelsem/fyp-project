@@ -2054,12 +2054,21 @@ button {
 .profile-tab-icon {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   border: 1px solid currentColor;
-  font-size: 11px;
-  line-height: 1;
+}
+
+.profile-tab-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .profile-card {
@@ -2132,6 +2141,183 @@ button {
   border-top: 1px solid #e5e7eb;
   color: #64748b;
   font-size: 13px;
+}
+
+.profile-section-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-section-heading h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 22px;
+}
+
+.profile-section-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.profile-settings-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-setting-row,
+.profile-toggle-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.profile-setting-row h3,
+.profile-toggle-row h3,
+.profile-linked-card h3 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.profile-setting-row p,
+.profile-toggle-row p,
+.profile-linked-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.profile-status-muted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 94px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.profile-info-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.profile-info-strip span,
+.profile-info-tile span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-info-strip strong,
+.profile-info-tile strong {
+  color: #0f172a;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.profile-toggle-list {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-toggle-row {
+  cursor: pointer;
+}
+
+.profile-toggle-row input {
+  appearance: none;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #e2e8f0;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.profile-toggle-row input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+  transition: transform 0.2s ease;
+}
+
+.profile-toggle-row input:checked {
+  border-color: #047857;
+  background: #047857;
+}
+
+.profile-toggle-row input:checked::after {
+  transform: translateX(20px);
+}
+
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-info-tile {
+  display: grid;
+  gap: 8px;
+  min-height: 92px;
+  align-content: center;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.profile-linked-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.profile-linked-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: #334155;
+  font-size: 14px;
+}
+
+.profile-card .secondary-button:disabled,
+.profile-card .danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
 }
 
 .view-all-link {
@@ -3495,6 +3681,21 @@ button {
 
   .profile-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-setting-row,
+  .profile-toggle-row,
+  .profile-info-strip {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .profile-info-strip {
+    display: grid;
+  }
+
+  .profile-info-grid {
+    grid-template-columns: 1fr;
   }
 
   .my-building-page,
