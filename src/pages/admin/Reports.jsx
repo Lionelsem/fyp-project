@@ -2,11 +2,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getAllBuildings } from "../../services/buildingService";
 import { getAllFireDrills } from "../../services/fireDrillService";
 import { getIssues } from "../../services/issueService";
-import { createReport, getAllInspections, getAllReports } from "../../services/reportService";
+import {
+  createReport,
+  getAllInspectionResults,
+  getAllInspections,
+  getAllReports
+} from "../../services/reportService";
 import {
   generateAnnualReport,
   generateCustomReport,
-  generateMonthlyReport
+  generateMonthlyReport,
+  generateMonthlyReportPdf
 } from "../../services/reportGeneratorService";
 import { getAllUsers } from "../../services/userService";
 import { useAuth } from "../../hooks/useAuth";
@@ -22,6 +28,7 @@ const YEARS = Array.from({ length: CURRENT_YEAR - 2019 }, (_, i) => CURRENT_YEAR
 const MONTHLY_SECTIONS = {
   summary:      { label: "Executive Summary",      default: true },
   inspections:  { label: "Inspection Records",     default: true },
+  checklistResults: { label: "Inspection Checklist Results", default: true },
   drills:       { label: "Fire Drill Records",     default: true },
   issues:       { label: "Issues & Defects",       default: true },
   observations: { label: "General Observations",   default: true },
@@ -147,6 +154,7 @@ const AdminReports = () => {
   // Shared generating state
   const [generating,     setGenerating]     = useState(false);
   const [generateError,  setGenerateError]  = useState(null);
+  const [selectedReportRecord, setSelectedReportRecord] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -205,7 +213,12 @@ const AdminReports = () => {
   const generatedByName = () => user?.fullName || user?.email || "Admin";
 
   const fetchOperationalData = () =>
-    Promise.all([getAllFireDrills(), getAllInspections(), getIssues()]);
+    Promise.all([
+      getAllFireDrills(),
+      getAllInspections(),
+      getIssues(),
+      getAllInspectionResults()
+    ]);
 
   // ── Monthly generate ──
   const openMonthlyModal = () => {
@@ -216,19 +229,20 @@ const AdminReports = () => {
     setShowMonthlyModal(true);
   };
 
-  const doGenerateMonthly = async () => {
+  const doGenerateMonthly = async (format = "docx") => {
     setGenerating(true);
     setGenerateError(null);
     try {
-      const [firedrills, inspections, issueList] = await fetchOperationalData();
+      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
       const buildingsToUse = selectedBuilding === "all"
         ? buildings
         : buildings.filter((b) => b.id === selectedBuilding);
 
-      await generateMonthlyReport({
+      const generator = format === "pdf" ? generateMonthlyReportPdf : generateMonthlyReport;
+      await generator({
         month: selectedMonth, year: selectedYear,
         buildings: buildingsToUse, fireDrills: firedrills,
-        inspections, issues: issueList, generatedBy: generatedByName()
+        inspections, inspectionResults, issues: issueList, generatedBy: generatedByName()
       });
 
       const monthLabel = MONTHS[selectedMonth - 1];
@@ -263,10 +277,10 @@ const AdminReports = () => {
     setGenerating(true);
     setGenerateError(null);
     try {
-      const [firedrills, inspections, issueList] = await fetchOperationalData();
+      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
       await generateAnnualReport({
         year: annualYear, buildings,
-        fireDrills: firedrills, inspections,
+        fireDrills: firedrills, inspections, inspectionResults,
         issues: issueList, generatedBy: generatedByName()
       });
       await createReport({
@@ -322,7 +336,7 @@ const AdminReports = () => {
     setGenerating(true);
     setGenerateError(null);
     try {
-      const [firedrills, inspections, issueList] = await fetchOperationalData();
+      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
       const buildingsToUse = customBuilding === "all"
         ? buildings
         : buildings.filter((b) => b.id === customBuilding);
@@ -341,6 +355,7 @@ const AdminReports = () => {
         buildings:      buildingsToUse,
         fireDrills:     firedrills,
         inspections,
+        inspectionResults,
         issues:         issueList,
         generatedBy:    generatedByName()
       });
@@ -491,9 +506,21 @@ const AdminReports = () => {
                         </span>
                       </td>
                       <td>
-                        <span style={{ color: "#047857", fontSize: "14px", fontWeight: "500" }}>
-                          View ↗
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedReportRecord(report)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#047857",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            padding: 0
+                          }}
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -505,6 +532,55 @@ const AdminReports = () => {
       </div>
 
       {/* ── Monthly Modal ── */}
+      {selectedReportRecord && (
+        <div className="issue-ticket-modal-backdrop" onClick={() => setSelectedReportRecord(null)}>
+          <div className="issue-ticket-modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+            <ModalHeader
+              title={selectedReportRecord.reportTitle || selectedReportRecord.reportId || "Report Details"}
+              onClose={() => setSelectedReportRecord(null)}
+              generating={false}
+            />
+            <div style={{ display: "grid", gap: "12px" }}>
+              {[
+                ["Report ID", selectedReportRecord.reportId || selectedReportRecord.id],
+                ["Type", selectedReportRecord.reportType || "-"],
+                [
+                  "Building",
+                  selectedReportRecord.buildingId
+                    ? buildingMap.get(selectedReportRecord.buildingId) || selectedReportRecord.buildingId
+                    : "All Buildings"
+                ],
+                ["Period", selectedReportRecord.period || "-"],
+                ["Generated Date", formatDate(selectedReportRecord.generatedDate || selectedReportRecord.createdAt)],
+                ["Generated By", userMap.get(selectedReportRecord.generatedBy) || selectedReportRecord.generatedBy || "-"],
+                ["Status", selectedReportRecord.status || "Generated"],
+                ["Priority", selectedReportRecord.priority || "Normal"]
+              ].map(([label, value]) => (
+                <div key={label} className="detail-row">
+                  <span className="detail-label">{label}</span>
+                  <span className="detail-value">{value || "-"}</span>
+                </div>
+              ))}
+            </div>
+            {selectedReportRecord.reportFileUrl ? (
+              <a
+                className="primary-btn"
+                href={selectedReportRecord.reportFileUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: "inline-flex", marginTop: "18px", textDecoration: "none" }}
+              >
+                Open File
+              </a>
+            ) : (
+              <p style={{ color: "#6b7280", fontSize: "13px", marginTop: "18px" }}>
+                No stored file URL is attached to this report record. Generate the report again to download a new Word or PDF file.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {showMonthlyModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowMonthlyModal(false)}>
           <div className="issue-ticket-modal" style={{ width: "min(520px, 100%)" }} onClick={(e) => e.stopPropagation()}>
@@ -536,7 +612,17 @@ const AdminReports = () => {
               </select>
             </div>
             {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
-            <ModalActions onCancel={() => setShowMonthlyModal(false)} onSubmit={doGenerateMonthly} generating={generating} />
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px", flexWrap: "wrap" }}>
+              <button type="button" className="secondary-btn" onClick={() => setShowMonthlyModal(false)} disabled={generating}>
+                Cancel
+              </button>
+              <button type="button" className="secondary-btn" onClick={() => doGenerateMonthly("pdf")} disabled={generating}>
+                {generating ? "Generating..." : "Download PDF"}
+              </button>
+              <button type="button" className="primary-btn" onClick={() => doGenerateMonthly("docx")} disabled={generating}>
+                {generating ? "Generating..." : "Download Word"}
+              </button>
+            </div>
           </div>
         </div>
       )}

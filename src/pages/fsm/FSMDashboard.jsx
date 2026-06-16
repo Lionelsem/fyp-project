@@ -620,7 +620,7 @@ const FSMDashboard = () => {
             <div className="dashboard-card fsm-recent-reports-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Reports</h2>
-              <button type="button" className="view-all-link">
+              <button type="button" className="view-all-link" onClick={() => navigate("/fsm/building")}>
                 View All &gt;
               </button>
             </div>
@@ -671,7 +671,7 @@ const FSMDashboard = () => {
           <div className="dashboard-card fsm-upcoming-card">
             <div className="card-header-row">
               <h2 className="section-title">Upcoming Schedule</h2>
-              <button type="button" className="view-all-link">
+              <button type="button" className="view-all-link" onClick={() => navigate("/fsm/fire-drill")}>
                 View All &gt;
               </button>
             </div>

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 
@@ -49,6 +49,7 @@ const mockBuildings = [
 
 const reportActions = [
   {
+    type: "Monthly",
     title: "Monthly Fire Safety Inspection",
     description: "Track monthly inspection reports for this building",
     action: "View reports",
@@ -56,6 +57,7 @@ const reportActions = [
     tone: "green"
   },
   {
+    type: "Annual",
     title: "Annual Fire Safety Report",
     description: "Review yearly compliance reporting",
     action: "View reports",
@@ -63,6 +65,7 @@ const reportActions = [
     tone: "blue"
   },
   {
+    type: "FireDrill",
     title: "Fire Drill Report",
     description: "Check fire drill logs and results",
     action: "View reports",
@@ -70,6 +73,7 @@ const reportActions = [
     tone: "orange"
   },
   {
+    type: "Manual",
     title: "Upload Manual Report",
     description: "Attach external contractor assessments",
     action: "Upload new",
@@ -188,6 +192,17 @@ const sortByLatestDate = (items, fieldNames) =>
     return (secondDate?.getTime() || 0) - (firstDate?.getTime() || 0);
   });
 
+const isReportType = (report, type) => {
+  const haystack = normalizeText(`${report.reportType || ""} ${report.reportTitle || ""}`);
+
+  if (type === "Monthly") return haystack.includes("monthly");
+  if (type === "Annual") return haystack.includes("annual");
+  if (type === "FireDrill") return haystack.includes("fire drill") || haystack.includes("firedrill") || haystack.includes("drill");
+  if (type === "Manual") return haystack.includes("manual") || haystack.includes("upload");
+
+  return true;
+};
+
 const buildBuildingCard = ({ building, reports, inspections, issues }) => {
   const relatedReports = reports.filter((report) => isForBuilding(report, building));
   const relatedInspections = inspections.filter((inspection) => isForBuilding(inspection, building));
@@ -248,6 +263,7 @@ const DetailItem = ({ label, value }) => (
 
 const MyBuilding = () => {
   const { user } = useAuthContext();
+  const [selectedReportType, setSelectedReportType] = useState(reportActions[0].type);
   const {
     loading,
     error,
@@ -271,6 +287,17 @@ const MyBuilding = () => {
   }, [inspections, issues, liveBuildings, loading, reports]);
 
   const selectedBuilding = buildingCards[0];
+  const selectedReportAction =
+    reportActions.find((report) => report.type === selectedReportType) || reportActions[0];
+  const selectedBuildingReports = useMemo(() => {
+    if (!selectedBuilding) return [];
+
+    const relatedReports = reports.filter((report) =>
+      isForBuilding(report, selectedBuilding) && isReportType(report, selectedReportType)
+    );
+
+    return sortByLatestDate(relatedReports, ["generatedDate", "createdAt", "date"]);
+  }, [reports, selectedBuilding, selectedReportType]);
 
   return (
     <div className="dashboard-container my-building-page">
@@ -334,6 +361,8 @@ const MyBuilding = () => {
                   <button
                     key={report.title}
                     type="button"
+                    onClick={() => setSelectedReportType(report.type)}
+                    aria-pressed={selectedReportType === report.type}
                     className={`fsm-report-action-card fsm-report-action-card--${report.tone}`}
                   >
                     <span className="fsm-report-action-icon" aria-hidden="true">
@@ -346,6 +375,54 @@ const MyBuilding = () => {
                     </span>
                   </button>
                 ))}
+              </section>
+
+              <section className="dashboard-card fsm-latest-report-card">
+                <div className="card-header-row">
+                  <h2 className="section-title">{selectedReportAction.title}</h2>
+                </div>
+
+                <div className="fsm-latest-report-list">
+                  {selectedBuildingReports.length === 0 ? (
+                    <div className="empty-state" style={{ padding: "18px 0" }}>
+                      No {selectedReportAction.title.toLowerCase()} records found for this building.
+                    </div>
+                  ) : (
+                    selectedBuildingReports.map((report) => {
+                      const statusStyle = getStatusStyle(report.status || report.reportStatus || "Generated");
+                      return (
+                        <div key={report.id || report.reportId} className="fsm-latest-report-row">
+                          <div className="fsm-latest-report-copy">
+                            <strong>{report.reportTitle || report.reportId || "Report"}</strong>
+                            <span>
+                              Generated on {formatDate(report.generatedDate || report.createdAt || report.date)}
+                            </span>
+                          </div>
+                          <span
+                            className="fsm-report-status-pill"
+                            style={{
+                              backgroundColor: statusStyle.statusBg,
+                              color: statusStyle.statusColor
+                            }}
+                          >
+                            {report.status || report.reportStatus || "Generated"}
+                          </span>
+                          {report.reportFileUrl && (
+                            <a
+                              href={report.reportFileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="view-all-link"
+                              style={{ marginLeft: "12px" }}
+                            >
+                              Open
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </section>
             </div>
           </section>

@@ -8,6 +8,11 @@ export const createReport = async (data) => {
   return { id: docRef.id, ...data };
 };
 
+export const upsertReport = async (documentId, data) => {
+  const docRef = await fs.upsertReport(documentId, data);
+  return { id: docRef.id, ...data };
+};
+
 export const getAllReports = async () => {
   const snapshot = await getDocs(
     query(collection(db, COLLECTION_NAMES.REPORTS), orderBy("createdAt", "desc"))
@@ -17,5 +22,10 @@ export const getAllReports = async () => {
 
 export const getAllInspections = async () => {
   const snapshot = await getDocs(collection(db, COLLECTION_NAMES.INSPECTIONS));
+  return snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+};
+
+export const getAllInspectionResults = async () => {
+  const snapshot = await getDocs(collection(db, COLLECTION_NAMES.INSPECTION_RESULTS));
   return snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
 };

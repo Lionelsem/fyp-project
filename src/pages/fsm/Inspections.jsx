@@ -10,10 +10,11 @@ import {
   upsertInspectionResult
 } from "../../services/inspectionService";
 import { addClosureVerification, getIssueById, upsertIssue } from "../../services/issueService";
-import { APPROVAL_STATUS, ISSUE_STATUS } from "../../constants/status";
+import { APPROVAL_STATUS, ISSUE_STATUS, REPORT_STATUS } from "../../constants/status";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { uploadFile } from "../../services/storageService";
+import { upsertReport } from "../../services/reportService";
 
 const initialChecklist = [
   {
@@ -1792,9 +1793,32 @@ const Inspections = () => {
         }
       }
 
+      if (status === "Submitted") {
+        const reportDocumentId = buildRecordKey("report", inspectionKey);
+        const reportId = `REP-${periodKey}-${selectedLevelName}`.replace(/\s+/g, "-");
+        const hasDefects = issueCounts.open + issueCounts.inProgress + issueCounts.resolved > 0;
+
+        await upsertReport(reportDocumentId, {
+          reportId,
+          reportType: "Monthly",
+          inspectionId: created.id,
+          buildingId: selectedBuilding,
+          generatedBy: fsmId,
+          generatedDate: new Date(),
+          reportTitle: `Monthly Report - ${currentInspectionInfo.month} - ${buildingName} - ${selectedLevelName}`,
+          period: currentInspectionInfo.month,
+          priority: hasDefects ? "High" : "Normal",
+          status: REPORT_STATUS.SUBMITTED
+        });
+      }
+
       // eslint-disable-next-line no-console
       console.log(`Inspection ${status.toLowerCase()}`, created.id);
-      setInspectionSubmitSuccess("Inspection checklist submitted successfully.");
+      setInspectionSubmitSuccess(
+        status === "Submitted"
+          ? "Inspection checklist submitted and monthly report record created successfully."
+          : "Inspection checklist saved successfully."
+      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`${status} inspection failed`, err);

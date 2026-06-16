@@ -110,6 +110,318 @@ const filterByDateRange = (items, dateField, from, to) => {
 const isIssueResolved = (i) =>
   ["resolved", "closed"].includes(String(i.status || "").toLowerCase());
 
+const normalizeId = (value) => String(value || "").trim();
+
+const getBuildingIds = (buildings = []) =>
+  new Set(
+    buildings
+      .flatMap((building) => [building.id, building.buildingId])
+      .map(normalizeId)
+      .filter(Boolean)
+  );
+
+const filterByBuildings = (items = [], buildingIds) => {
+  if (!buildingIds || buildingIds.size === 0) return items;
+  return items.filter((item) => buildingIds.has(normalizeId(item.buildingId)));
+};
+
+const getBuildingName = (buildingMap, buildingId) => {
+  const building = buildingMap.get(buildingId);
+  if (!building) return buildingId || "-";
+  return building.buildingName || building.building_name || building.buildingId || building.id || "-";
+};
+
+const getInspectionKeys = (inspection) =>
+  new Set(
+    [inspection?.id, inspection?.inspectionId, inspection?.inspectionKey]
+      .map(normalizeId)
+      .filter(Boolean)
+  );
+
+const getInspectionResultKeys = (result) =>
+  [result?.inspectionId, result?.inspectionKey]
+    .map(normalizeId)
+    .filter(Boolean);
+
+const getInlineInspectionResults = (inspection) => {
+  const resultSources = [
+    inspection?.inspectionResults,
+    inspection?.results,
+    inspection?.checklistResults
+  ];
+  return resultSources.find(Array.isArray) || [];
+};
+
+const getResultDedupeKey = (result) =>
+  normalizeId(result.id || result.resultId || result.resultKey) ||
+  [
+    result.inspectionId,
+    result.inspectionKey,
+    result.categoryCode,
+    result.itemCode,
+    result.itemLabel
+  ].map(normalizeId).join("|");
+
+const compareChecklistCodes = (a, b) =>
+  normalizeId(a).localeCompare(normalizeId(b), undefined, {
+    numeric: true,
+    sensitivity: "base"
+  });
+
+const sortChecklistResults = (results) =>
+  [...results].sort((a, b) => {
+    const categoryCompare = compareChecklistCodes(a.categoryCode, b.categoryCode);
+    if (categoryCompare !== 0) return categoryCompare;
+    return compareChecklistCodes(a.itemCode || a.itemLabel, b.itemCode || b.itemLabel);
+  });
+
+const getResultsForInspection = (inspection, inspectionResults = []) => {
+  const inspectionKeys = getInspectionKeys(inspection);
+  const matchedResults = inspectionResults.filter((result) =>
+    getInspectionResultKeys(result).some((key) => inspectionKeys.has(key))
+  );
+
+  const deduped = new Map();
+  [...getInlineInspectionResults(inspection), ...matchedResults].forEach((result) => {
+    deduped.set(getResultDedupeKey(result), result);
+  });
+
+  return sortChecklistResults([...deduped.values()]);
+};
+
+const getResultsForInspections = (inspections = [], inspectionResults = []) =>
+  inspections.flatMap((inspection) => getResultsForInspection(inspection, inspectionResults));
+
+const getPassFailFromCondition = (condition) => {
+  if (condition === "Good") return "Pass";
+  if (condition === "Faulty") return "Fail";
+  if (condition === "N.A.") return "N.A.";
+  return "";
+};
+
+const getResultAnswer = (result) => result.condition || result.passFail || "-";
+
+const getResultOutcome = (result) =>
+  result.passFail || getPassFailFromCondition(result.condition) || "-";
+
+const getChecklistSummary = (results = []) =>
+  results.reduce(
+    (summary, result) => {
+      const condition = String(result.condition || "").toLowerCase();
+      const passFail = String(result.passFail || "").toLowerCase();
+      const hasAnswer = condition || passFail;
+
+      if (hasAnswer) summary.answered += 1;
+      if (condition === "good" || passFail === "pass") summary.passed += 1;
+      if (condition === "faulty" || passFail === "fail") summary.failed += 1;
+      if (
+        condition === "n.a." ||
+        condition === "n/a" ||
+        condition === "na" ||
+        passFail === "n.a." ||
+        passFail === "n/a" ||
+        passFail === "na"
+      ) {
+        summary.notApplicable += 1;
+      }
+
+      return summary;
+    },
+    { answered: 0, passed: 0, failed: 0, notApplicable: 0 }
+  );
+
+const groupResultsByCategory = (results = []) => {
+  const groups = new Map();
+
+  results.forEach((result) => {
+    const categoryCode = normalizeId(result.categoryCode) || "Uncategorised";
+    const categoryName = result.categoryName || "Uncategorised";
+    const key = `${categoryCode}|${categoryName}`;
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        categoryCode,
+        categoryName,
+        items: []
+      });
+    }
+
+    groups.get(key).items.push(result);
+  });
+
+  return [...groups.values()].sort((a, b) => compareChecklistCodes(a.categoryCode, b.categoryCode));
+};
+
+const formatResultNotes = (result) => {
+  const notes = [
+    result.remark && `Remark: ${result.remark}`,
+    result.issueDescription && `Issue: ${result.issueDescription}`,
+    result.rectification && `Rectification: ${result.rectification}`
+  ].filter(Boolean);
+
+  return notes.join("; ") || "-";
+};
+
+const buildChecklistResultChildren = ({
+  inspections = [],
+  inspectionResults = [],
+  buildingMap,
+  h2,
+  para,
+  txt,
+  makeTable,
+  spacer
+}) => {
+  if (inspections.length === 0) {
+    return [para("No inspection checklist results were recorded during this period.")];
+  }
+
+  return inspections.flatMap((inspection, inspectionIndex) => {
+    const results = getResultsForInspection(inspection, inspectionResults);
+    const buildingName = getBuildingName(buildingMap, inspection.buildingId);
+    const floorName = inspection.floorName || inspection.floorId || "-";
+    const inspectionTitle = `Inspection ${inspectionIndex + 1}: ${buildingName}`;
+    const children = [
+      h2(inspectionTitle),
+      para([
+        txt("Location: ", { bold: true }),
+        txt(`${floorName}  |  `),
+        txt("Date: ", { bold: true }),
+        txt(`${fmtDate(inspection.inspectionDate)}  |  `),
+        txt("Status: ", { bold: true }),
+        txt(inspection.status || "-")
+      ])
+    ];
+
+    if (results.length === 0) {
+      return [
+        ...children,
+        para("No checklist answer rows were found for this inspection."),
+        spacer()
+      ];
+    }
+
+    groupResultsByCategory(results).forEach((group) => {
+      const categoryLabel =
+        group.categoryCode && group.categoryName && group.categoryName !== group.categoryCode
+          ? `${group.categoryCode} - ${group.categoryName}`
+          : group.categoryName || group.categoryCode;
+
+      children.push(
+        para([txt(categoryLabel, { bold: true })]),
+        makeTable(
+          ["Code", "Checklist Item", "Answer", "Result", "Remarks / Rectification"],
+          group.items.map((result) => [
+            result.itemCode || "-",
+            result.itemLabel || "-",
+            getResultAnswer(result),
+            getResultOutcome(result),
+            formatResultNotes(result)
+          ]),
+          [700, 2700, 1000, 900, 4060]
+        ),
+        spacer()
+      );
+    });
+
+    return children;
+  });
+};
+
+const escapeHtml = (value) =>
+  String(value ?? "-")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const renderHtmlTable = (headers, rows) => `
+  <table>
+    <thead>
+      <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+    </thead>
+    <tbody>
+      ${rows.map((row) => `
+        <tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>
+      `).join("")}
+    </tbody>
+  </table>
+`;
+
+const renderChecklistResultHtml = ({ inspections = [], inspectionResults = [], buildingMap }) => {
+  if (inspections.length === 0) {
+    return "<p>No inspection checklist results were recorded during this period.</p>";
+  }
+
+  return inspections.map((inspection, inspectionIndex) => {
+    const results = getResultsForInspection(inspection, inspectionResults);
+    const buildingName = getBuildingName(buildingMap, inspection.buildingId);
+    const floorName = inspection.floorName || inspection.floorId || "-";
+    const summary = `
+      <h3>Inspection ${inspectionIndex + 1}: ${escapeHtml(buildingName)}</h3>
+      <p class="muted">
+        <strong>Location:</strong> ${escapeHtml(floorName)}
+        <span>|</span>
+        <strong>Date:</strong> ${escapeHtml(fmtDate(inspection.inspectionDate))}
+        <span>|</span>
+        <strong>Status:</strong> ${escapeHtml(inspection.status || "-")}
+      </p>
+    `;
+
+    if (results.length === 0) {
+      return `${summary}<p>No checklist answer rows were found for this inspection.</p>`;
+    }
+
+    const categoryTables = groupResultsByCategory(results).map((group) => {
+      const categoryLabel =
+        group.categoryCode && group.categoryName && group.categoryName !== group.categoryCode
+          ? `${group.categoryCode} - ${group.categoryName}`
+          : group.categoryName || group.categoryCode;
+
+      return `
+        <h4>${escapeHtml(categoryLabel)}</h4>
+        ${renderHtmlTable(
+          ["Code", "Checklist Item", "Answer", "Result", "Remarks / Rectification"],
+          group.items.map((result) => [
+            result.itemCode || "-",
+            result.itemLabel || "-",
+            getResultAnswer(result),
+            getResultOutcome(result),
+            formatResultNotes(result)
+          ])
+        )}
+      `;
+    }).join("");
+
+    return `${summary}${categoryTables}`;
+  }).join("");
+};
+
+const printHtmlReport = (html, title) => {
+  const iframe = document.createElement("iframe");
+  iframe.title = title;
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const printWindow = iframe.contentWindow;
+  const printDocument = printWindow.document;
+  printDocument.open();
+  printDocument.write(html);
+  printDocument.close();
+
+  window.setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+    window.setTimeout(() => iframe.remove(), 1000);
+  }, 250);
+};
+
 // ─── docx builder helpers (receive live docx namespace) ──────────────────────
 
 const buildHelpers = (docxNS) => {
@@ -220,21 +532,28 @@ export const generateMonthlyReport = async ({
   buildings,
   fireDrills,
   inspections,
+  inspectionResults = [],
   issues,
   generatedBy
 }) => {
   const docxNS = await loadDocx();
   const { Document, Packer, Paragraph } = docxNS;
-  const { txt, para, centered, spacer, h1, makeTable, infoTable } = buildHelpers(docxNS);
+  const { txt, para, centered, spacer, h1, h2, makeTable, infoTable } = buildHelpers(docxNS);
 
   const monthLabel = MONTHS[month - 1];
   const buildingMap = new Map(
     buildings.map((b) => [b.id, b])
   );
 
-  const drills = filterDrillsByMonth(fireDrills, month, year);
-  const monthInspections = filterByMonth(inspections, "inspectionDate", month, year);
-  const monthIssues = filterByMonth(issues, "createdAt", month, year);
+  const selectedBuildingIds = getBuildingIds(buildings);
+  const drills = filterByBuildings(filterDrillsByMonth(fireDrills, month, year), selectedBuildingIds);
+  const monthInspections = filterByBuildings(
+    filterByMonth(inspections, "inspectionDate", month, year),
+    selectedBuildingIds
+  );
+  const monthIssues = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
+  const monthInspectionResults = getResultsForInspections(monthInspections, inspectionResults);
+  const checklistSummary = getChecklistSummary(monthInspectionResults);
 
   const openIssues = monthIssues.filter(
     (i) => ["open", "in progress"].includes(String(i.status || "").toLowerCase())
@@ -275,6 +594,10 @@ export const generateMonthlyReport = async ({
       ["Metric", "Value"],
       [
         ["Inspections Conducted", String(monthInspections.length)],
+        ["Checklist Items Answered", String(checklistSummary.answered)],
+        ["Checklist Items Passed", String(checklistSummary.passed)],
+        ["Checklist Defects Found", String(checklistSummary.failed)],
+        ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
         ["Fire Drills Conducted", String(drills.length)],
         ["Issues Raised", String(monthIssues.length)],
         ["Open / Unresolved Issues", String(openIssues.length)]
@@ -313,7 +636,22 @@ export const generateMonthlyReport = async ({
     spacer(),
 
     // ── Section 3: Fire Drill Records ──
-    h1("SECTION 3: FIRE DRILL RECORDS"),
+    h1("SECTION 3: INSPECTION CHECKLIST RESULTS"),
+    spacer(),
+    ...buildChecklistResultChildren({
+      inspections: monthInspections,
+      inspectionResults,
+      buildingMap,
+      h2,
+      para,
+      txt,
+      makeTable,
+      spacer
+    }),
+    spacer(),
+    spacer(),
+
+    h1("SECTION 4: FIRE DRILL RECORDS"),
     spacer(),
     ...(drills.length === 0
       ? [para("No fire drills were conducted during this period.")]
@@ -360,7 +698,7 @@ export const generateMonthlyReport = async ({
     spacer(),
 
     // ── Section 4: Issues / Findings ──
-    h1("SECTION 4: ISSUES / DEFECTS IDENTIFIED"),
+    h1("SECTION 5: ISSUES / DEFECTS IDENTIFIED"),
     spacer(),
     ...(monthIssues.length === 0
       ? [para("No issues were recorded during this period.")]
@@ -389,9 +727,9 @@ export const generateMonthlyReport = async ({
     spacer(),
 
     // ── Section 5: General Observations ──
-    h1("SECTION 5: GENERAL OBSERVATIONS / REMARKS"),
+    h1("SECTION 6: GENERAL OBSERVATIONS / REMARKS"),
     spacer(),
-    para("All fire safety systems were inspected and found to be in general working order. Any defects identified have been recorded in Section 4 above and communicated to the building owner / management for rectification."),
+    para("All fire safety systems were inspected and found to be in general working order. Any defects identified have been recorded in Section 5 above and communicated to the building owner / management for rectification."),
     spacer(),
     ...(monthIssues.length > 0
       ? [para(`${openIssues.length} outstanding issue(s) remain open as at the date of this report. Follow-up inspections will be conducted to verify rectification.`)]
@@ -447,6 +785,203 @@ export const generateMonthlyReport = async ({
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `FSM_Monthly_Report_${monthLabel}_${year}.docx`);
+};
+
+export const generateMonthlyReportPdf = async ({
+  month,
+  year,
+  buildings = [],
+  fireDrills = [],
+  inspections = [],
+  inspectionResults = [],
+  issues = [],
+  generatedBy = "Admin"
+}) => {
+  const monthLabel = MONTHS[month - 1];
+  const buildingMap = new Map(buildings.map((b) => [b.id, b]));
+  const selectedBuildingIds = getBuildingIds(buildings);
+  const drills = filterByBuildings(filterDrillsByMonth(fireDrills, month, year), selectedBuildingIds);
+  const monthInspections = filterByBuildings(
+    filterByMonth(inspections, "inspectionDate", month, year),
+    selectedBuildingIds
+  );
+  const monthIssues = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
+  const monthInspectionResults = getResultsForInspections(monthInspections, inspectionResults);
+  const checklistSummary = getChecklistSummary(monthInspectionResults);
+  const openIssues = monthIssues.filter(
+    (i) => ["open", "in progress"].includes(String(i.status || "").toLowerCase())
+  );
+
+  const primaryBuilding = buildings.length === 1 ? buildings[0] : null;
+  const buildingName = primaryBuilding
+    ? (primaryBuilding.buildingName || primaryBuilding.building_name || primaryBuilding.id)
+    : buildings.map((b) => b.buildingName || b.building_name || b.id).join(", ") || "All Buildings";
+  const buildingAddress = primaryBuilding?.address || "-";
+  const title = `FSM_Monthly_Report_${monthLabel}_${year}`;
+
+  const inspectionRows = monthInspections.map((insp, idx) => [
+    String(idx + 1),
+    getBuildingName(buildingMap, insp.buildingId),
+    insp.inspectionType || "-",
+    fmtDate(insp.inspectionDate),
+    insp.status || "-",
+    insp.generalRemarks || "-"
+  ]);
+
+  const drillRows = drills.map((drill, idx) => [
+    String(idx + 1),
+    getBuildingName(buildingMap, drill.buildingId) || drill.buildingName || "-",
+    drill.drillType || "Standard Fire Drill",
+    drill.actualDate || drill.drillDate || "-",
+    drill.participants || "-",
+    drill.totalEvacuationTime || drill.evacuationTime || "-",
+    drill.performanceStatus || drill.status || "-"
+  ]);
+
+  const issueRows = monthIssues.map((issue, idx) => [
+    String(idx + 1),
+    getBuildingName(buildingMap, issue.buildingId),
+    issue.location || issue.floorName || "-",
+    issue.issueTitle || issue.issueDescription || "-",
+    issue.priority || "Medium",
+    issue.status || "Open",
+    issue.rectification || "Pending rectification"
+  ]);
+
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <title>${escapeHtml(title)}</title>
+        <style>
+          @page { size: A4; margin: 16mm; }
+          * { box-sizing: border-box; }
+          body {
+            font-family: Arial, sans-serif;
+            color: #111827;
+            margin: 0;
+            line-height: 1.45;
+          }
+          h1, h2, h3, h4 { margin: 0 0 10px; color: #0f172a; }
+          h1 { text-align: center; font-size: 20px; letter-spacing: 0; }
+          h2 {
+            border-bottom: 2px solid #0f766e;
+            font-size: 16px;
+            margin-top: 24px;
+            padding-bottom: 6px;
+          }
+          h3 { font-size: 14px; margin-top: 18px; }
+          h4 { font-size: 13px; margin-top: 14px; }
+          p { margin: 6px 0 12px; }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0 16px;
+            page-break-inside: avoid;
+          }
+          th, td {
+            border: 1px solid #d1d5db;
+            font-size: 11px;
+            padding: 6px 7px;
+            text-align: left;
+            vertical-align: top;
+          }
+          th {
+            background: #1f4e79;
+            color: #ffffff;
+            font-weight: 700;
+          }
+          .cover { text-align: center; margin-bottom: 18px; }
+          .cover .company { font-size: 22px; font-weight: 700; }
+          .meta {
+            display: grid;
+            grid-template-columns: 190px 1fr;
+            border: 1px solid #d1d5db;
+            margin-bottom: 18px;
+          }
+          .meta div { padding: 7px 9px; border-bottom: 1px solid #d1d5db; }
+          .meta div:nth-child(odd) { background: #ebf5fb; font-weight: 700; }
+          .meta div:nth-last-child(-n+2) { border-bottom: 0; }
+          .muted { color: #4b5563; font-size: 12px; }
+          .end { text-align: center; color: #6b7280; font-style: italic; margin-top: 24px; }
+        </style>
+      </head>
+      <body>
+        <section class="cover">
+          <div class="company">CBRE PTE LTD</div>
+          <h1>FIRE SAFETY MANAGER<br />MONTHLY INSPECTION REPORT</h1>
+        </section>
+
+        <section class="meta">
+          <div>To</div><div>Building Owner / Management</div>
+          <div>From</div><div>${escapeHtml(generatedBy)}</div>
+          <div>Name & Address of Estate</div><div>${escapeHtml(`${buildingName} ${buildingAddress}`)}</div>
+          <div>Date of Report</div><div>${escapeHtml(fmtDate(new Date()))}</div>
+          <div>For the month of</div><div>${escapeHtml(`${monthLabel} ${year}`)}</div>
+          <div>Buildings Covered</div><div>${escapeHtml(buildingName)}</div>
+        </section>
+
+        <h2>Monthly Summary</h2>
+        ${renderHtmlTable(
+          ["Metric", "Value"],
+          [
+            ["Inspections Conducted", String(monthInspections.length)],
+            ["Checklist Items Answered", String(checklistSummary.answered)],
+            ["Checklist Items Passed", String(checklistSummary.passed)],
+            ["Checklist Defects Found", String(checklistSummary.failed)],
+            ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
+            ["Fire Drills Conducted", String(drills.length)],
+            ["Issues Raised", String(monthIssues.length)],
+            ["Open / Unresolved Issues", String(openIssues.length)]
+          ]
+        )}
+
+        <h2>Inspection Summary</h2>
+        ${
+          inspectionRows.length
+            ? renderHtmlTable(["S/No", "Building", "Inspection Type", "Date", "Status", "Remarks"], inspectionRows)
+            : "<p>No inspections were conducted during this period.</p>"
+        }
+
+        <h2>Inspection Checklist Results</h2>
+        ${renderChecklistResultHtml({ inspections: monthInspections, inspectionResults, buildingMap })}
+
+        <h2>Fire Drill Records</h2>
+        ${
+          drillRows.length
+            ? renderHtmlTable(["S/No", "Building", "Type", "Date", "Participants", "Evacuation Time", "Result"], drillRows)
+            : "<p>No fire drills were conducted during this period.</p>"
+        }
+
+        <h2>Issues / Defects Identified</h2>
+        ${
+          issueRows.length
+            ? renderHtmlTable(["S/No", "Building", "Location", "Finding", "Priority", "Status", "Rectification"], issueRows)
+            : "<p>No issues were recorded during this period.</p>"
+        }
+
+        <h2>General Observations / Remarks</h2>
+        <p>
+          All fire safety systems were inspected and found to be in general working order.
+          Any defects identified have been recorded above and communicated for rectification.
+        </p>
+        <p>${escapeHtml(
+          monthIssues.length > 0
+            ? `${openIssues.length} outstanding issue(s) remain open as at the date of this report.`
+            : "No outstanding issues as at the date of this report."
+        )}</p>
+
+        <h2>Certification</h2>
+        <p>I hereby certify that the above information is accurate and the fire safety inspection has been carried out in accordance with the applicable fire safety requirements.</p>
+        <p><strong>Name of Fire Safety Manager:</strong> ${escapeHtml(generatedBy)}</p>
+        <p><strong>Signature:</strong> _______________________________</p>
+        <p><strong>Date:</strong> ${escapeHtml(fmtDate(new Date()))}</p>
+        <p class="end">End of Monthly Inspection Report</p>
+      </body>
+    </html>
+  `;
+
+  printHtmlReport(html, title);
 };
 
 // ─── Annual Report ────────────────────────────────────────────────────────────
@@ -731,6 +1266,7 @@ export const generateCustomReport = async ({
   buildings = [],
   fireDrills = [],
   inspections = [],
+  inspectionResults = [],
   issues = [],
   generatedBy = "Admin"
 }) => {
@@ -744,25 +1280,29 @@ export const generateCustomReport = async ({
 
   // ── Resolve period & filter data ──
   let drills, insp, iss, periodLabel;
+  const selectedBuildingIds = getBuildingIds(buildings);
 
   if (reportType === "DateRange") {
-    drills = filterDrillsByDateRange(fireDrills, dateFrom, dateTo);
-    insp   = filterByDateRange(inspections, "inspectionDate", dateFrom, dateTo);
-    iss    = filterByDateRange(issues, "createdAt", dateFrom, dateTo);
+    drills = filterByBuildings(filterDrillsByDateRange(fireDrills, dateFrom, dateTo), selectedBuildingIds);
+    insp   = filterByBuildings(filterByDateRange(inspections, "inspectionDate", dateFrom, dateTo), selectedBuildingIds);
+    iss    = filterByBuildings(filterByDateRange(issues, "createdAt", dateFrom, dateTo), selectedBuildingIds);
     const df = dateFrom ? parseDate(dateFrom) : null;
     const dt = dateTo   ? parseDate(dateTo)   : null;
     periodLabel = [df && fmtDate(df), dt && fmtDate(dt)].filter(Boolean).join(" – ") || "Custom Period";
   } else if (reportType === "Annual") {
-    drills = filterDrillsByYear(fireDrills, year);
-    insp   = filterByYear(inspections, "inspectionDate", year);
-    iss    = filterByYear(issues, "createdAt", year);
+    drills = filterByBuildings(filterDrillsByYear(fireDrills, year), selectedBuildingIds);
+    insp   = filterByBuildings(filterByYear(inspections, "inspectionDate", year), selectedBuildingIds);
+    iss    = filterByBuildings(filterByYear(issues, "createdAt", year), selectedBuildingIds);
     periodLabel = String(year);
   } else {
-    drills = filterDrillsByMonth(fireDrills, month, year);
-    insp   = filterByMonth(inspections, "inspectionDate", month, year);
-    iss    = filterByMonth(issues, "createdAt", month, year);
+    drills = filterByBuildings(filterDrillsByMonth(fireDrills, month, year), selectedBuildingIds);
+    insp   = filterByBuildings(filterByMonth(inspections, "inspectionDate", month, year), selectedBuildingIds);
+    iss    = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
     periodLabel = `${MONTHS[month - 1]} ${year}`;
   }
+
+  const filteredInspectionResults = getResultsForInspections(insp, inspectionResults);
+  const checklistSummary = getChecklistSummary(filteredInspectionResults);
 
   const primaryBuilding = buildings.length === 1 ? buildings[0] : null;
   const buildingName = primaryBuilding
@@ -805,6 +1345,10 @@ export const generateCustomReport = async ({
           ["Metric", "Value"],
           [
             ["Inspections Conducted", String(insp.length)],
+            ["Checklist Items Answered", String(checklistSummary.answered)],
+            ["Checklist Items Passed", String(checklistSummary.passed)],
+            ["Checklist Defects Found", String(checklistSummary.failed)],
+            ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
             ["Fire Drills Conducted", String(drills.length)],
             ["Issues Raised",         String(iss.length)],
             ["Open / Unresolved Issues", String(openIssues.length)]
@@ -839,6 +1383,24 @@ export const generateCustomReport = async ({
         );
       }
       children.push(spacer(), spacer());
+    }
+
+    if (sec.checklistResults !== false) {
+      children.push(
+        h1("INSPECTION CHECKLIST RESULTS"),
+        spacer(),
+        ...buildChecklistResultChildren({
+          inspections: insp,
+          inspectionResults,
+          buildingMap,
+          h2,
+          para,
+          txt,
+          makeTable,
+          spacer
+        }),
+        spacer()
+      );
     }
 
     if (sec.drills !== false) {

@@ -492,22 +492,34 @@ export const addNotification = async (data) => {
   });
 };
 
+const buildReportPayload = (data) => ({
+  reportId: data.reportId ?? null,
+  inspectionId: data.inspectionId ?? null,
+  buildingId: data.buildingId ?? null,
+  generatedBy: data.generatedBy ?? null,
+  generatedDate: data.generatedDate || serverTimestamp(),
+  reportType: data.reportType || "Inspection",
+  reportFileUrl: data.reportFileUrl || "",
+  reportTitle: data.reportTitle || "",
+  period: data.period || "",
+  priority: data.priority || "Normal",
+  aiSummaryIncluded: !!data.aiSummaryIncluded,
+  status: data.status || REPORT_STATUS.DRAFT
+});
+
 export const addReport = async (data) => {
   return await addDoc(collection(db, COLLECTION_NAMES.REPORTS), {
-    reportId: data.reportId ?? null,
-    inspectionId: data.inspectionId ?? null,
-    buildingId: data.buildingId ?? null,
-    generatedBy: data.generatedBy ?? null,
-    generatedDate: data.generatedDate || serverTimestamp(),
-    reportType: data.reportType || "Inspection",
-    reportFileUrl: data.reportFileUrl || "",
-    reportTitle: data.reportTitle || "",
-    period: data.period || "",
-    priority: data.priority || "Normal",
-    aiSummaryIncluded: !!data.aiSummaryIncluded,
-    status: data.status || REPORT_STATUS.DRAFT,
+    ...buildReportPayload(data),
     createdAt: serverTimestamp()
   });
+};
+
+export const upsertReport = async (documentId, data) => {
+  return await upsertByDocumentId(
+    COLLECTION_NAMES.REPORTS,
+    documentId,
+    buildReportPayload(data)
+  );
 };
 
 export const addAiAuditLog = async (data) => {
