@@ -235,6 +235,43 @@ button {
   font-weight: 800;
 }
 
+.login-support-button {
+  font-size: 12px;
+}
+
+.admin-contact-card {
+  gap: 24px;
+}
+
+.admin-contact-details {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.admin-contact-details div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-contact-details span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.admin-contact-details a,
+.admin-contact-details strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .app-shell {
   min-height: 100vh;
   display: flex;

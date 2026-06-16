@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ROLES } from "../../constants/roles";
 import { getAllBuildings, updateBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
@@ -12,7 +11,6 @@ const FsmAssignment = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     let active = true;

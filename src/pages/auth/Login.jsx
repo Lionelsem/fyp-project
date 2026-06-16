@@ -1,19 +1,34 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { login } from "../../services/authService";
 import { useAuth } from "../../hooks/useAuth";
+import { ROUTES } from "../../constants/routes";
+import {
+  clearRememberedEmail,
+  getRememberedEmail,
+  saveRememberedEmail
+} from "../../services/rememberedLoginService";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => getRememberedEmail());
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => Boolean(getRememberedEmail()));
   const { loading } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogin = async (event) => {
     event.preventDefault();
     setError("");
     try {
-      await login(email, password);
+      const user = await login(email, password);
+      const loginEmail = user?.email || email;
+
+      if (rememberMe) {
+        saveRememberedEmail(loginEmail);
+      } else {
+        clearRememberedEmail();
+      }
     } catch (err) {
       console.error(err);
       setError(err.message || "Login failed");
@@ -67,7 +82,11 @@ const Login = () => {
           <label className="login-field">
             <span className="login-label-row">
               Password
-              <button type="button" className="login-link-button">
+              <button
+                type="button"
+                className="login-link-button"
+                onClick={() => navigate(ROUTES.ADMIN_CONTACT)}
+              >
                 Forgot password?
               </button>
             </span>
@@ -95,7 +114,14 @@ const Login = () => {
           </button>
 
           <div className="login-support">
-            Need access? <span>Contact System Administrator</span>
+            Need access?{" "}
+            <button
+              type="button"
+              className="login-link-button login-support-button"
+              onClick={() => navigate(ROUTES.ADMIN_CONTACT)}
+            >
+              Contact System Administrator
+            </button>
           </div>
         </form>
       </section>

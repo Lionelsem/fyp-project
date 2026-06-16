@@ -1,9 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import './App.css';
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from './context/AuthContext';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import AdminContact from './pages/auth/AdminContact';
 import { ROUTES } from './constants/routes';
 import { useLocation } from 'react-router-dom';
 import AdminRoutes from './routes/AdminRoutes';
@@ -17,6 +18,10 @@ function AppContent() {
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '20px' }}>Loading authentication...</div>;
+  }
+
+  if (location.pathname === ROUTES.ADMIN_CONTACT) {
+    return <AdminContact />;
   }
 
   // If not logged in, show login or register based on URL

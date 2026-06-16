@@ -107,16 +107,13 @@ const filterByDateRange = (items, dateField, from, to) => {
   });
 };
 
-const isDrillPassed = (d) =>
-  ["completed", "passed"].includes(String(d.status || d.performanceStatus || "").toLowerCase());
-
 const isIssueResolved = (i) =>
   ["resolved", "closed"].includes(String(i.status || "").toLowerCase());
 
 // ─── docx builder helpers (receive live docx namespace) ──────────────────────
 
 const buildHelpers = (docxNS) => {
-  const { Paragraph, Table, TableCell, TableRow, TextRun, WidthType } = docxNS;
+  const { Paragraph, Table, TableCell, TableRow, TextRun } = docxNS;
 
   const txt = (text, opts = {}) => new TextRun({ text: String(text ?? ""), ...opts });
 
@@ -227,8 +224,8 @@ export const generateMonthlyReport = async ({
   generatedBy
 }) => {
   const docxNS = await loadDocx();
-  const { Document, Packer, Paragraph, TextRun } = docxNS;
-  const { txt, para, boldPara, centered, spacer, h1, h2, makeTable, infoTable } = buildHelpers(docxNS);
+  const { Document, Packer, Paragraph } = docxNS;
+  const { txt, para, centered, spacer, h1, makeTable, infoTable } = buildHelpers(docxNS);
 
   const monthLabel = MONTHS[month - 1];
   const buildingMap = new Map(
@@ -463,22 +460,13 @@ export const generateAnnualReport = async ({
   generatedBy
 }) => {
   const docxNS = await loadDocx();
-  const { Document, Packer, Paragraph, TextRun } = docxNS;
-  const { txt, para, boldPara, centered, spacer, h1, h2, makeTable, infoTable } = buildHelpers(docxNS);
+  const { Document, Packer } = docxNS;
+  const { txt, para, centered, spacer, h1, h2, makeTable, infoTable } = buildHelpers(docxNS);
 
   const buildingMap = new Map(buildings.map((b) => [b.id, b]));
 
   const yearDrills = filterDrillsByYear(fireDrills, year);
-  const yearInspections = filterByYear(inspections, "inspectionDate", year);
   const yearIssues = filterByYear(issues, "createdAt", year);
-
-  const passedDrills = yearDrills.filter(isDrillPassed);
-  const resolvedIssues = yearIssues.filter(isIssueResolved);
-
-  const drillPassRate =
-    yearDrills.length > 0
-      ? `${Math.round((passedDrills.length / yearDrills.length) * 100)}%`
-      : "N/A";
 
   // One report per building group, or combined if multiple
   const primaryBuilding = buildings.length === 1 ? buildings[0] : null;

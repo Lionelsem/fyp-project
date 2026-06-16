@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllBuildings, deleteBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
@@ -38,12 +38,12 @@ const ManageBuildings = () => {
     [users]
   );
 
-  const getAssignedFsmName = (assignedFsmId) => {
+  const getAssignedFsmName = useCallback((assignedFsmId) => {
     if (!assignedFsmId) {
       return "Unassigned";
     }
     return userMap.get(assignedFsmId) || assignedFsmId;
-  };
+  }, [userMap]);
 
   const filteredBuildings = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -63,7 +63,7 @@ const ManageBuildings = () => {
         .filter(Boolean)
         .some((value) => value.toString().toLowerCase().includes(query));
     });
-  }, [buildings, search, userMap]);
+  }, [buildings, getAssignedFsmName, search]);
 
   return (
     <div className="dashboard-container">
