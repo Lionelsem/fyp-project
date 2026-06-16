@@ -25,12 +25,27 @@ export const getInspectionDefectPhotoFolder = ({
     .filter(Boolean)
     .join("/");
 
-export const uploadFile = async (file, folder = "uploads") => {
-  const safeFolder = String(folder || "uploads")
+const normalizeUploadFolder = (folder) => {
+  const folderParts = String(folder || "uploads")
     .split("/")
     .map((part) => sanitizePathPart(part).replace(/^-|-$/g, ""))
-    .filter(Boolean)
-    .join("/") || "uploads";
+    .filter(Boolean);
+
+  // Older issue-photo callers used issues/{issueKey}; keep those uploads inside
+  // the inspection defect photo area so Storage rules only need one prefix.
+  if (folderParts[0] === "issues") {
+    return [
+      STORAGE_FOLDERS.INSPECTION_DEFECT_PHOTOS,
+      "legacy-issues",
+      ...folderParts.slice(1)
+    ].join("/");
+  }
+
+  return folderParts.join("/") || "uploads";
+};
+
+export const uploadFile = async (file, folder = "uploads") => {
+  const safeFolder = normalizeUploadFolder(folder);
   const safeName = sanitizePathPart(file.name);
   const storagePath = `${safeFolder}/${Date.now()}-${safeName}`;
   const fileRef = ref(storage, storagePath);

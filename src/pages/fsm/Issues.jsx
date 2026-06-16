@@ -8,7 +8,7 @@ import {
   deleteIssue,
   upsertIssue
 } from "../../services/issueService";
-import { uploadFile } from "../../services/storageService";
+import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
 
 const emptyIssueForm = {
   issueKey: "",
@@ -86,6 +86,13 @@ const getFsmLookupIds = (user) => [
 
 const getPrimaryFsmId = (user) =>
   getFsmLookupIds(user).map((value) => String(value || "").trim()).find(Boolean) || "";
+
+const getIssueDefectPhotoFolder = (issue, issueKey) =>
+  getInspectionDefectPhotoFolder({
+    inspectionKey: issue?.inspectionKey || issue?.inspectionId || issueKey,
+    categoryId: issue?.categoryCode || "manual",
+    itemId: issue?.itemCode || issue?.resultKey || issueKey
+  });
 
 const getBuildingName = (building) =>
   building?.building_name || building?.buildingName || building?.name || building?.building || "";
@@ -708,7 +715,10 @@ const Issues = ({ verifyClosureMode = false }) => {
       let defectPhotoUploadedAt = issueForm.defectPhotoUploadedAt;
       let defectPhotoUploadedBy = issueForm.defectPhotoUploadedBy;
       if (issueForm.photoFile) {
-        const uploaded = await uploadFile(issueForm.photoFile, `issues/${issueKey}`);
+        const uploaded = await uploadFile(
+          issueForm.photoFile,
+          getIssueDefectPhotoFolder(issueForm, issueKey)
+        );
         issuePhotoUrl = uploaded.url;
         defectPhotoUrl = uploaded.url;
         defectPhotoStoragePath = uploaded.path;
@@ -783,7 +793,10 @@ const Issues = ({ verifyClosureMode = false }) => {
       let fixPhotoUploadedBy = activeIssue.fixPhotoUploadedBy || "";
 
       if (verificationForm.defectPhotoFile) {
-        const uploaded = await uploadFile(verificationForm.defectPhotoFile, `issues/${issueKey}`);
+        const uploaded = await uploadFile(
+          verificationForm.defectPhotoFile,
+          getIssueDefectPhotoFolder(activeIssue, issueKey)
+        );
         issuePhotoUrl = uploaded.url;
         defectPhotoUrl = uploaded.url;
         defectPhotoStoragePath = uploaded.path;
@@ -885,7 +898,10 @@ const Issues = ({ verifyClosureMode = false }) => {
       let fixPhotoUploadedBy = activeIssue.fixPhotoUploadedBy || "";
 
       if (verificationForm.defectPhotoFile) {
-        const uploaded = await uploadFile(verificationForm.defectPhotoFile, `issues/${issueKey}`);
+        const uploaded = await uploadFile(
+          verificationForm.defectPhotoFile,
+          getIssueDefectPhotoFolder(activeIssue, issueKey)
+        );
         issuePhotoUrl = uploaded.url;
         defectPhotoUrl = uploaded.url;
         defectPhotoStoragePath = uploaded.path;
