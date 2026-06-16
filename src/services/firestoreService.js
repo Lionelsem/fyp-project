@@ -234,6 +234,7 @@ const buildIssuePayload = (data) => ({
   fixPhotoStoragePath: data.fixPhotoStoragePath || "",
   fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
   fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
+  verificationComments: data.verificationComments || "",
   aiRecommendation: data.aiRecommendation || ""
 });
 

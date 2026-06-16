@@ -18,7 +18,7 @@ const FSMRoutes = () => {
           <Route path="/fsm" element={<Navigate to="/fsm/dashboard" replace />} />
           <Route path="/fsm/dashboard" element={<FSMDashboard />} />
           <Route path="/fsm/inspections" element={<Inspections />} />
-          <Route path="/fsm/inspections/verify" element={<Inspections />} />
+          <Route path="/fsm/inspections/verify" element={<Issues verifyClosureMode />} />
           <Route path="/fsm/issues" element={<Issues />} />
           <Route path="/fsm/fire-drill" element={<FireDrill />} />
           <Route path="/fsm/reports" element={<Navigate to="/fsm/building" replace />} />

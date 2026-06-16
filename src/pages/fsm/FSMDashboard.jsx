@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
@@ -20,7 +20,7 @@ const BarChart = ({ monthlyTrend }) => {
           fontSize: "14px"
         }}
       >
-        No inspection trend data found.
+        No issue trend data found.
       </div>
     );
   }
@@ -158,7 +158,7 @@ const DonutChart = ({ statusBreakdown }) => {
               borderRadius: "2px"
             }}
           />
-          <span>Passed</span>
+          <span>Closed</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div
@@ -180,7 +180,7 @@ const DonutChart = ({ statusBreakdown }) => {
               borderRadius: "2px"
             }}
           />
-          <span>Failed</span>
+          <span>Urgent</span>
         </div>
       </div>
     </div>
@@ -334,17 +334,15 @@ const FSMDashboard = () => {
   } = useFsmDashboardData(fsmLookupIds);
 
   const [trendTab, setTrendTab] = useState("monthly");
+  const [trendFilterDraft, setTrendFilterDraft] = useState("");
+  const [trendFilter, setTrendFilter] = useState("");
+  const [trendFilterOpen, setTrendFilterOpen] = useState(false);
 
   const annualTrend = useMemo(() => {
-    const years = [2023, 2024, 2025, 2026, 2027];
     const map = {};
-    years.forEach((y) => {
-      map[y] = { year: y, passed: 0, pending: 0, failed: 0 };
-    });
 
     if (Array.isArray(monthlyTrend)) {
       monthlyTrend.forEach((item) => {
-        // Try to detect year from explicit field, month label like 'Jun 2026', or date string
         let y = null;
         if (item.year) y = Number(item.year);
         else if (item.month && typeof item.month === 'string') {
@@ -365,6 +363,22 @@ const FSMDashboard = () => {
 
     return Object.values(map).sort((a, b) => a.year - b.year);
   }, [monthlyTrend]);
+
+  const filteredMonthlyTrend = useMemo(
+    () => trendFilter ? monthlyTrend.filter((item) => item.key === trendFilter) : monthlyTrend,
+    [monthlyTrend, trendFilter]
+  );
+
+  const filteredAnnualTrend = useMemo(
+    () => trendFilter ? annualTrend.filter((item) => String(item.year) === trendFilter) : annualTrend,
+    [annualTrend, trendFilter]
+  );
+
+  useEffect(() => {
+    setTrendFilter("");
+    setTrendFilterDraft("");
+    setTrendFilterOpen(false);
+  }, [trendTab]);
 
   return (
     <div className="dashboard-container fsm-dashboard-page">
@@ -404,7 +418,7 @@ const FSMDashboard = () => {
             <div className="fsm-chart-grid">
               <section className="fsm-chart-panel">
                 <div className="card-header-row">
-                  <h2 className="section-title">Status Breakdown</h2>
+                  <h2 className="section-title">Inspection Issue Ticket Status Breakdown</h2>
                 </div>
                 <div className="fsm-chart-donut-body">
                   <DonutChart statusBreakdown={statusBreakdown} />
@@ -413,43 +427,127 @@ const FSMDashboard = () => {
 
               <section className="fsm-chart-panel">
                 <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "18px", paddingRight: "8px" }}>
-                  <h2 className="section-title">Inspection Trend</h2>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      type="button"
-                      onClick={() => setTrendTab("monthly")}
+                  <h2 className="section-title">Inspection Issue Ticket Trend</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <select
+                      aria-label="Trend period"
+                      value={trendTab}
+                      onChange={(event) => setTrendTab(event.target.value)}
                       style={{
                         padding: "6px 10px",
                         borderRadius: "8px",
-                        background: trendTab === "monthly" ? "#2563eb" : "#f3f4f6",
-                        color: trendTab === "monthly" ? "#fff" : "#111",
+                        background: "#f8fafc",
+                        color: "#111",
                         cursor: "pointer",
-                        border: "none"
+                        border: "1px solid #e5e7eb"
                       }}
                     >
-                      Monthly
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTrendTab("annual")}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: "8px",
-                        background: trendTab === "annual" ? "#2563eb" : "#f3f4f6",
-                        color: trendTab === "annual" ? "#fff" : "#111",
-                        cursor: "pointer",
-                        border: "none"
-                      }}
-                    >
-                      Annually
-                    </button>
+                      <option value="monthly">Monthly</option>
+                      <option value="annual">Annually</option>
+                    </select>
+                    <div style={{ position: "relative" }}>
+                      <button
+                        type="button"
+                        aria-label="Filter trend"
+                        onClick={() => setTrendFilterOpen((current) => !current)}
+                        style={{
+                          width: "34px",
+                          height: "34px",
+                          display: "grid",
+                          placeItems: "center",
+                          borderRadius: "8px",
+                          background: trendFilter ? "#2563eb" : "#f8fafc",
+                          color: trendFilter ? "#fff" : "#111",
+                          cursor: "pointer",
+                          border: "1px solid #e5e7eb"
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      {trendFilterOpen && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 0,
+                            top: "42px",
+                            zIndex: 10,
+                            width: "220px",
+                            display: "grid",
+                            gap: "10px",
+                            padding: "12px",
+                            borderRadius: "10px",
+                            border: "1px solid #e5e7eb",
+                            background: "#fff",
+                            boxShadow: "0 14px 30px rgba(15, 23, 42, 0.14)"
+                          }}
+                        >
+                          <label style={{ display: "grid", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#475569" }}>
+                            <span>{trendTab === "monthly" ? "Month and year" : "Year"}</span>
+                            <input
+                              type={trendTab === "monthly" ? "month" : "number"}
+                              value={trendFilterDraft}
+                              min={trendTab === "annual" ? "1900" : undefined}
+                              max={trendTab === "annual" ? "2100" : undefined}
+                              onChange={(event) => setTrendFilterDraft(event.target.value)}
+                              placeholder={trendTab === "annual" ? "2026" : undefined}
+                              style={{
+                                padding: "7px 9px",
+                                borderRadius: "8px",
+                                border: "1px solid #e5e7eb"
+                              }}
+                            />
+                          </label>
+                          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTrendFilter("");
+                                setTrendFilterDraft("");
+                                setTrendFilterOpen(false);
+                              }}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: "8px",
+                                background: "#f8fafc",
+                                color: "#111",
+                                cursor: "pointer",
+                                border: "1px solid #e5e7eb",
+                                fontWeight: 700
+                              }}
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTrendFilter(trendFilterDraft);
+                                setTrendFilterOpen(false);
+                              }}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: "8px",
+                                background: "#2563eb",
+                                color: "#fff",
+                                cursor: "pointer",
+                                border: "none",
+                                fontWeight: 700
+                              }}
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="fsm-chart-trend-body">
                   {trendTab === "monthly" ? (
-                    <BarChart monthlyTrend={monthlyTrend} />
+                    <BarChart monthlyTrend={filteredMonthlyTrend} />
                   ) : (
-                    <AnnualBarChart annualTrend={annualTrend} />
+                    <AnnualBarChart annualTrend={filteredAnnualTrend} />
                   )}
                   <div
                     style={{
@@ -468,7 +566,7 @@ const FSMDashboard = () => {
                           backgroundColor: "#10b981"
                         }}
                       />
-                      <span>Passed</span>
+                      <span>Closed</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <div
@@ -488,7 +586,7 @@ const FSMDashboard = () => {
                           backgroundColor: "#ef4444"
                         }}
                       />
-                      <span>Failed</span>
+                      <span>Urgent</span>
                     </div>
                   </div>
                 </div>

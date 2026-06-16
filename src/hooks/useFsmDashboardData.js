@@ -11,6 +11,8 @@ const EMPTY_DATA = {
   inspections: [],
   reports: [],
   fireDrills: [],
+  fsmFireDrills: [],
+  buildingFireDrills: [],
   issues: []
 };
 
@@ -19,6 +21,8 @@ const EMPTY_LOADED = {
   inspections: true,
   reports: true,
   fireDrills: true,
+  fsmFireDrills: true,
+  buildingFireDrills: true,
   issues: true
 };
 
@@ -26,7 +30,9 @@ const PENDING_LOADED = {
   buildings: false,
   inspections: false,
   reports: false,
-  fireDrills: false,
+  fireDrills: true,
+  fsmFireDrills: false,
+  buildingFireDrills: false,
   issues: false
 };
 
@@ -177,52 +183,24 @@ const hasTimeComponent = (date) =>
 const getMonthKey = (date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
-const buildLastFiveMonths = () => {
-  const months = [];
-  const now = new Date();
+const getIssueBucket = (issue) => {
+  const priority = normalizeText(issue.priority);
+  const status = normalizeText(issue.status);
 
-  for (let offset = 4; offset >= 0; offset -= 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-    months.push({
-      key: getMonthKey(date),
-      month: date.toLocaleString(undefined, { month: "short" }),
-      passed: 0,
-      pending: 0,
-      failed: 0
-    });
-  }
-
-  return months;
-};
-
-const getInspectionBucket = (inspection) => {
-  const status = normalizeText(inspection.status || "");
-  const progress = Number(inspection.progressPercent || 0);
-
-  if (["pass", "passed", "completed", "submitted", "approved"].includes(status)) return "passed";
-  if (status === "fail" || status === "failed") return "failed";
-  if (status === "pending" || status === "review" || status === "draft" || progress < 100) return "pending";
-
+  if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") return "failed";
+  if (status === normalizeText(ISSUE_STATUS.CLOSED)) return "passed";
   return "pending";
 };
 
-const getInspectionStatus = (inspection) => normalizeText(inspection.status || "draft");
-
-const isPendingInspection = (inspection) => {
-  const status = getInspectionStatus(inspection);
-  const progress = Number(inspection.progressPercent || 0);
-
-  if (["completed", "submitted", "approved", "pass", "passed", "failed"].includes(status)) {
-    return false;
-  }
-
-  return ["pending", "review", "draft", "in progress"].includes(status) || progress < 100;
-};
-
-const isCompletedInspection = (inspection) => {
-  const status = getInspectionStatus(inspection);
-  return ["completed", "submitted", "approved", "pass", "passed"].includes(status);
-};
+const getIssueDate = (issue) =>
+  toDate(
+    issue.updatedAt ||
+    issue.createdAt ||
+    issue.reportedAt ||
+    issue.inspectionDate ||
+    issue.fixPhotoUploadedAt ||
+    issue.defectPhotoUploadedAt
+  );
 
 const getStatusStyle = (status) => {
   const normalized = normalizeText(status);
@@ -319,25 +297,22 @@ const getBuildingName = (buildingMap, buildingId, fallback) => {
   );
 };
 
-const buildSummaryCards = (inspections, issues) => {
-  const pendingCount = inspections.filter(isPendingInspection).length;
-  const completedCount = inspections.filter(isCompletedInspection).length;
+const buildSummaryCards = (issues) => {
+  const inProgressCount = issues.filter(
+    (issue) => normalizeText(issue.status) === normalizeText(ISSUE_STATUS.IN_PROGRESS)
+  ).length;
+  const closedCount = issues.filter(
+    (issue) => normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED)
+  ).length;
   const urgentIssueCount = issues.filter((issue) => {
     const priority = normalizeText(issue.priority);
-    const status = normalizeText(issue.status);
-    const isUrgent =
-      priority === normalizeText(PRIORITY.HIGH) || priority === "critical";
-    const isClosed =
-      status === normalizeText(ISSUE_STATUS.RESOLVED) ||
-      status === normalizeText(ISSUE_STATUS.CLOSED);
-
-    return isUrgent && !isClosed;
+    return priority === normalizeText(PRIORITY.HIGH) || priority === "critical";
   }).length;
 
   return [
     {
-      label: "Total Inspections",
-      value: inspections.length,
+      label: "Inspection Issue Ticket",
+      value: issues.length,
       icon: "\uD83D\uDCCB",
       iconBg: "#ecfdf5",
       iconColor: "#047857",
@@ -345,19 +320,19 @@ const buildSummaryCards = (inspections, issues) => {
     },
     {
       label: "Pending",
-      value: pendingCount,
+      value: inProgressCount,
       icon: "\u23F3",
       iconBg: "#fef3c7",
       iconColor: "#b45309",
-      trend: `${pendingCount} awaiting action`
+      trend: `${inProgressCount} in progress`
     },
     {
       label: "Completed",
-      value: completedCount,
+      value: closedCount,
       icon: "\u2705",
       iconBg: "#dbeafe",
       iconColor: "#0284c7",
-      trend: "Completed inspections"
+      trend: "Closed after verification"
     },
     {
       label: "Urgent Issues",
@@ -370,10 +345,10 @@ const buildSummaryCards = (inspections, issues) => {
   ];
 };
 
-const buildStatusBreakdown = (inspections) =>
-  inspections.reduce(
-    (breakdown, inspection) => {
-      const bucket = getInspectionBucket(inspection);
+const buildStatusBreakdown = (issues) =>
+  issues.reduce(
+    (breakdown, issue) => {
+      const bucket = getIssueBucket(issue);
       return {
         ...breakdown,
         total: breakdown.total + 1,
@@ -383,21 +358,31 @@ const buildStatusBreakdown = (inspections) =>
     { total: 0, passed: 0, pending: 0, failed: 0 }
   );
 
-const buildMonthlyTrend = (inspections) => {
-  const months = buildLastFiveMonths();
-  const monthMap = new Map(months.map((month) => [month.key, month]));
+const buildMonthlyTrend = (issues) => {
+  const monthMap = new Map();
 
-  inspections.forEach((inspection) => {
-    const date = toDate(inspection.inspectionDate || inspection.createdAt);
+  issues.forEach((issue) => {
+    const date = getIssueDate(issue);
     if (!date) return;
 
-    const month = monthMap.get(getMonthKey(date));
-    if (!month) return;
+    const key = getMonthKey(date);
+    if (!monthMap.has(key)) {
+      monthMap.set(key, {
+        key,
+        month: date.toLocaleString(undefined, { month: "short", year: "numeric" }),
+        sortDate: new Date(date.getFullYear(), date.getMonth(), 1),
+        passed: 0,
+        pending: 0,
+        failed: 0
+      });
+    }
 
-    month[getInspectionBucket(inspection)] += 1;
+    monthMap.get(key)[getIssueBucket(issue)] += 1;
   });
 
-  return months;
+  return Array.from(monthMap.values())
+    .sort((first, second) => first.sortDate - second.sortDate)
+    .map(({ sortDate, ...month }) => month);
 };
 
 const buildRecentReports = (reports, buildingMap) =>
@@ -564,7 +549,7 @@ export const useFsmDashboardData = (fsmLookupValue) => {
         "generatedBy"
       ),
       ...listenByField(
-        "fireDrills",
+        "fsmFireDrills",
         COLLECTION_NAMES.FIRE_DRILLS,
         "fsmId"
       )
@@ -648,24 +633,94 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     };
   }, [buildingIdsKey, fsmLookupIdsKey, loaded.buildings]);
 
+  useEffect(() => {
+    const lookupIds = JSON.parse(fsmLookupIdsKey);
+
+    if (lookupIds.length === 0 || !loaded.buildings) return undefined;
+
+    const assignedBuildingIds = JSON.parse(buildingIdsKey);
+
+    if (assignedBuildingIds.length === 0) {
+      setData((current) => ({ ...current, buildingFireDrills: [] }));
+      setLoaded((current) => ({ ...current, buildingFireDrills: true }));
+      return undefined;
+    }
+
+    let active = true;
+    const chunks = chunkArray(assignedBuildingIds, IN_QUERY_CHUNK_SIZE);
+    const chunkResults = chunks.map(() => []);
+    const chunkLoaded = chunks.map(() => false);
+
+    setLoaded((current) => ({ ...current, buildingFireDrills: false }));
+
+    const updateFireDrills = () => {
+      if (!active) return;
+
+      setData((current) => ({
+        ...current,
+        buildingFireDrills: uniqueById(chunkResults.flat())
+      }));
+
+      if (chunkLoaded.every(Boolean)) {
+        setLoaded((current) => ({ ...current, buildingFireDrills: true }));
+      }
+    };
+
+    const unsubscribes = chunks.map((ids, index) =>
+      onSnapshot(
+        query(
+          collection(db, COLLECTION_NAMES.FIRE_DRILLS),
+          where("buildingId", "in", ids)
+        ),
+        (snapshot) => {
+          if (!active) return;
+          chunkResults[index] = mapSnapshot(snapshot);
+          chunkLoaded[index] = true;
+          updateFireDrills();
+        },
+        (listenerError) => {
+          if (!active) return;
+          console.error("FSM dashboard fire drill listener failed", listenerError);
+          setError(listenerError.message || "Could not sync dashboard fire drills.");
+          chunkLoaded[index] = true;
+          updateFireDrills();
+        }
+      )
+    );
+
+    return () => {
+      active = false;
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [buildingIdsKey, fsmLookupIdsKey, loaded.buildings]);
+
   const buildingMap = useMemo(
     () => new Map(data.buildings.map((building) => [building.id, building])),
     [data.buildings]
   );
 
+  const liveFireDrills = useMemo(
+    () => uniqueById([
+      ...data.fireDrills,
+      ...data.fsmFireDrills,
+      ...data.buildingFireDrills
+    ]),
+    [data.buildingFireDrills, data.fireDrills, data.fsmFireDrills]
+  );
+
   const summaryCards = useMemo(
-    () => buildSummaryCards(data.inspections, data.issues),
-    [data.inspections, data.issues]
+    () => buildSummaryCards(data.issues),
+    [data.issues]
   );
 
   const statusBreakdown = useMemo(
-    () => buildStatusBreakdown(data.inspections),
-    [data.inspections]
+    () => buildStatusBreakdown(data.issues),
+    [data.issues]
   );
 
   const monthlyTrend = useMemo(
-    () => buildMonthlyTrend(data.inspections),
-    [data.inspections]
+    () => buildMonthlyTrend(data.issues),
+    [data.issues]
   );
 
   const recentReports = useMemo(
@@ -674,8 +729,8 @@ export const useFsmDashboardData = (fsmLookupValue) => {
   );
 
   const upcomingSchedule = useMemo(
-    () => buildUpcomingSchedule(data.fireDrills, buildingMap),
-    [data.fireDrills, buildingMap]
+    () => buildUpcomingSchedule(liveFireDrills, buildingMap),
+    [liveFireDrills, buildingMap]
   );
 
   const loading = useMemo(
@@ -689,7 +744,7 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     buildings: data.buildings,
     inspections: data.inspections,
     reports: data.reports,
-    fireDrills: data.fireDrills,
+    fireDrills: liveFireDrills,
     issues: data.issues,
     summaryCards,
     statusBreakdown,
