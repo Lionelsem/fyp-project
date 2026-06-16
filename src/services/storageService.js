@@ -7,6 +7,24 @@ const sanitizePathPart = (value) =>
     .replace(/[^a-zA-Z0-9._-]/g, "-")
     .replace(/-+/g, "-") || "file";
 
+export const STORAGE_FOLDERS = {
+  INSPECTION_DEFECT_PHOTOS: "inspection-defect-photos"
+};
+
+export const getInspectionDefectPhotoFolder = ({
+  inspectionKey,
+  categoryId,
+  itemId
+}) =>
+  [
+    STORAGE_FOLDERS.INSPECTION_DEFECT_PHOTOS,
+    inspectionKey,
+    categoryId,
+    itemId
+  ]
+    .filter(Boolean)
+    .join("/");
+
 export const uploadFile = async (file, folder = "uploads") => {
   const safeFolder = String(folder || "uploads")
     .split("/")

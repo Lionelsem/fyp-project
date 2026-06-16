@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { COLLECTION_NAMES } from "../../constants/collectionNames";
 import {
   getInspectionByAssignmentPeriod,
   getInspectionByAssignmentPeriodStatus,
@@ -13,7 +12,7 @@ import { addClosureVerification, getIssueById, upsertIssue } from "../../service
 import { APPROVAL_STATUS, ISSUE_STATUS, REPORT_STATUS } from "../../constants/status";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
-import { uploadFile } from "../../services/storageService";
+import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
 import { upsertReport } from "../../services/reportService";
 
 const initialChecklist = [
@@ -1692,7 +1691,11 @@ const Inspections = () => {
           if (item.photoFile && isFaultyItem) {
             const uploaded = await uploadFile(
               item.photoFile,
-              `${COLLECTION_NAMES.ISSUES}/${issueKey}`
+              getInspectionDefectPhotoFolder({
+                inspectionKey,
+                categoryId: category.id,
+                itemId: item.id
+              })
             );
             photoUrl = uploaded?.url || photoUrl;
             defectPhotoStoragePath = uploaded?.path || "";
