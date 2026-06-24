@@ -4,8 +4,12 @@ import { logout } from "../../services/authService";
 
 const menuItems = [
   { path: "/dashboard", label: "Dashboard", icon: "📊" },
-  { path: "/my-reports", label: "My Reports", icon: "📋" },
-  { path: "/submit-report", label: "Submit Report", icon: "📝" }
+  { path: "/issue-progress", label: "Issue Progress", icon: "📝" },
+  { path: "/inspection-reports", label: "Inspection Reports", icon: "📋" },
+  { path: "/fire-drill-reports", label: "Fire Drill Reports", icon: "�" },
+  { path: "/annual-reports", label: "Annual Reports", icon: "�" },
+  { path: "/feedbacks", label: "Comments/Feedbacks", icon: "📝" },
+  { path: "/building", label: "My Buildings", icon: "🏢" }
 ];
 
 const CustomerSidebar = ({ profile }) => {

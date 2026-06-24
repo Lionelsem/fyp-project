@@ -2,8 +2,9 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import CustomerLayout from "../layouts/CustomerLayout";
 import CustomerDashboard from "../pages/customer/CustomerDashboard";
-import MyReports from "../pages/customer/MyReports";
-import SubmitReport from "../pages/customer/SubmitReport";
+import IssueProgress from "../pages/customer/IssueProgress";
+import InspectionReports from "../pages/customer/InspectionReports";
+import MyBuildings from "../pages/customer/MyBuildings";
 import Feedbacks from "../pages/customer/Feedbacks";
 import Profile from "../pages/Profile";
 import ProtectedRoute from "./ProtectedRoute";
@@ -16,15 +17,11 @@ const CustomerRoutes = () => {
         <Routes>
           <Route index element={<CustomerDashboard />} />
           <Route path="dashboard" element={<CustomerDashboard />} />
-          <Route path="issue-progress" element={<MyReports />} />
-          <Route path="inspections" element={<MyReports />} />
-          <Route path="firedrill" element={<MyReports />} />
-          <Route path="annual" element={<MyReports />} />
+          <Route path="issue-progress" element={<IssueProgress />} />
+          <Route path="inspection-reports" element={<InspectionReports />} />
+          <Route path="my-buildings" element={<MyBuildings />} />
           <Route path="feedbacks" element={<Feedbacks />} />
-          <Route path="building" element={<CustomerDashboard />} />
-          <Route path="my-reports" element={<MyReports />} />
-          <Route path="submit-report" element={<SubmitReport />} />
-          <Route path="profile" element={<Profile />} />
+          <Route path="building" element={<MyBuildings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </CustomerLayout>

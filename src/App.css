@@ -1310,6 +1310,11 @@ button {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.16);
 }
 
+.checklist-row.verify-highlight {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.16);
+}
+
 .row-main {
   display: grid;
   grid-template-columns: minmax(48px, 0.35fr) minmax(180px, 1.7fr) minmax(180px, 1.35fr) minmax(180px, 1.35fr) minmax(28px, 0.25fr);
@@ -3241,6 +3246,36 @@ button {
   font-weight: 600;
 }
 
+/* My Buildings Page Styles */
+.building-details-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.building-image-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.building-image {
+  width: 100%;
+  height: 200px;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+}
+
+.building-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .my-building-content .detail-value {
   font-size: 13px;
   line-height: 1.2;
@@ -3673,6 +3708,12 @@ button {
 
   .main-content {
     padding: 20px 24px 28px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .building-details-layout {
+    grid-template-columns: 1fr;
   }
 }
 
