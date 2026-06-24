@@ -86,23 +86,6 @@ const latestReports = [
 const CustomerDashboard = () => {
   return (
     <div className="dashboard-container">
-      <div className="summary-grid">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="summary-card">
-            <div className="card-top">
-              <div
-                className="card-icon"
-                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
-              >
-                {card.icon}
-              </div>
-              <div className="card-label">{card.label}</div>
-            </div>
-            <div className="card-value">{card.value}</div>
-          </div>
-        ))}
-      </div>
-
       <div className="building-card-section">
         <div className="dashboard-card building-card">
           <div className="building-card-header">
@@ -126,7 +109,22 @@ const CustomerDashboard = () => {
         </div>
       </div>
 
-      
+      <div className="summary-grid">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="summary-card">
+            <div className="card-top">
+              <div
+                className="card-icon"
+                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
+              >
+                {card.icon}
+              </div>
+              <div className="card-label">{card.label}</div>
+            </div>
+            <div className="card-value">{card.value}</div>
+          </div>
+        ))}
+      </div>
 
       <div className="dashboard-grid">
         <div className="content-left">

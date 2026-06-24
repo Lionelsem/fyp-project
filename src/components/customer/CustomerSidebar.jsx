@@ -3,11 +3,11 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 
 const menuItems = [
-  { path: "/dashboard", label: "Dashboard", icon: "📊" },
+  { path: "/dashboard", label: "Dashboard", icon: "🏠" },
   { path: "/issue-progress", label: "Issue Progress", icon: "📝" },
   { path: "/inspection-reports", label: "Inspection Reports", icon: "📋" },
-  { path: "/fire-drill-reports", label: "Fire Drill Reports", icon: "�" },
-  { path: "/annual-reports", label: "Annual Reports", icon: "�" },
+  { path: "/fire-drill-reports", label: "Fire Drill Reports", icon: "🚒" },
+  { path: "/annual-reports", label: "Annual Reports", icon: "📊" },
   { path: "/feedbacks", label: "Comments/Feedbacks", icon: "📝" },
   { path: "/building", label: "My Buildings", icon: "🏢" }
 ];

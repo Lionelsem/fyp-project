@@ -14,7 +14,7 @@ const mockBuildings = [
     assignedFsm: "John Smith",
     assignedFsmId: "USR-002",
     nextInspection: "Oct 15, 2026",
-    imageUrl: "https://via.placeholder.com/600x300?text=Tech+Park+B"
+    imageUrl: "https://thumbs.dreamstime.com/b/asia-china-beijing-cbd-central-business-district-international-city-business-complex-modern-architecture-yuanyang-guanghua-43498817.jpg"
   }
 ];
 
