@@ -179,59 +179,6 @@ const inspectionInfo = {
   lastUpdated: "22 May 2026, 09:30 AM"
 };
 
-const appendixEntries = [
-  {
-    location: "Guard house",
-    findings: "Lift Panel out-of-service resulting in lifts unable to home during emergencies",
-    remarks: "Repair in progress, waiting for parts delivery"
-  },
-  {
-    location: "Guard house",
-    findings: "No designated LAN line for emergencies at guardhouse; contact point via security HQ causes delay",
-    remarks: "Suggest designated hotline at guard house"
-  },
-  {
-    location: "Sprinkler Tank",
-    findings: "Corrosion marks visible at various parts",
-    remarks: "Maintenance needed to prevent leakage"
-  },
-  {
-    location: "Sprinkler Tank",
-    findings: "Water level indicator tube in very bad condition",
-    remarks: "Replace with new water level indicator tube"
-  },
-  {
-    location: "Sprinkler Tank",
-    findings: "Strap and lock faulty; paint work faded badly",
-    remarks: "Replace strap/lock and apply fresh paint"
-  },
-  {
-    location: "Fire Hydrant",
-    findings: "Paint faded badly",
-    remarks: "Apply fresh paint"
-  },
-  {
-    location: "Sprinkler Control Valve Room",
-    findings: "CV1/CV2 labeling missing, straps and locks faulty, corrosion, algae on floor",
-    remarks: "Reinstate labels, replace straps, repaint with anti-rust paint, clear algae"
-  },
-  {
-    location: "Breeching Inlet",
-    findings: "Paint faded badly",
-    remarks: "Apply fresh paint"
-  },
-  {
-    location: "FCC / Guardhouse",
-    findings: "No proper labeling on message control button, no Plan B when message equipment is down, some speakers not functioning",
-    remarks: "Label buttons, add hard copy PA script, conduct PA/speaker audit"
-  },
-  {
-    location: "Corridor outside unit 01-15",
-    findings: "Obstruction to escape way, hose reel expired tag, loose call point cover",
-    remarks: "Relocate bicycle, re-tag hose reel, reinstate or replace cover"
-  }
-];
-
 const conditionOptions = [
   { value: "Good", label: "Good" },
   { value: "Faulty", label: "Faulty" },
@@ -242,6 +189,31 @@ const validConditionValues = new Set(conditionOptions.map((option) => option.val
 
 const normalizeChecklistCondition = (condition) =>
   validConditionValues.has(condition) ? condition : "";
+
+const buildAppendixEntriesFromChecklist = (checklist, fallbackLocation) =>
+  checklist.flatMap((category) =>
+    category.items
+      .filter((item) => item.condition && String(item.remark || "").trim())
+      .map((item) => {
+        const linkedDetails = [
+          item.issue?.description && `Finding: ${item.issue.description}`,
+          item.issue?.rectification && `Rectification: ${item.issue.rectification}`
+        ].filter(Boolean);
+
+        return {
+          location: item.location || item.storey || fallbackLocation || "-",
+          findings: [
+            `Section: ${category.title}`,
+            `Item: ${item.code} - ${item.label}`,
+            `Condition: ${item.condition}`
+          ].join("\n"),
+          remarks: [
+            String(item.remark || "").trim(),
+            ...linkedDetails
+          ].join("\n")
+        };
+      })
+  );
 
 const sampleReportPrefillByItemCode = {
   "4.1": {
@@ -1431,6 +1403,11 @@ const Inspections = () => {
     });
     return totals;
   }, [checklist]);
+
+  const appendixEntries = useMemo(
+    () => buildAppendixEntriesFromChecklist(checklist, selectedLevelName),
+    [checklist, selectedLevelName]
+  );
 
   const updateChecklistItem = (categoryId, itemId, changes) => {
     if (Object.prototype.hasOwnProperty.call(changes, "condition")) {

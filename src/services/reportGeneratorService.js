@@ -262,6 +262,40 @@ const formatResultNotes = (result) => {
   return notes.join("; ") || "-";
 };
 
+const hasNonBlankRemark = (result) =>
+  String(result?.remark || "").trim().length > 0;
+
+const buildAppendixAEntries = (results = []) =>
+  results
+    .filter((result) => {
+      const selectedCondition = String(result.condition || result.passFail || "").trim();
+      return selectedCondition && hasNonBlankRemark(result);
+    })
+    .map((result) => {
+      const categoryLabel =
+        result.categoryCode && result.categoryName && result.categoryName !== result.categoryCode
+          ? `${result.categoryCode} - ${result.categoryName}`
+          : result.categoryName || result.categoryCode || "-";
+      const itemLabel =
+        result.itemCode && result.itemLabel
+          ? `${result.itemCode} - ${result.itemLabel}`
+          : result.itemLabel || result.itemCode || "-";
+      const linkedDetails = [
+        result.issueDescription && `Finding: ${result.issueDescription}`,
+        result.rectification && `Rectification: ${result.rectification}`
+      ].filter(Boolean);
+
+      return {
+        location: result.location || result.floorName || result.inspectionPath || "-",
+        photographs: result.photoUrl || result.defectPhotoUrl ? "(See system)" : "-",
+        findings: `Section: ${categoryLabel}\nItem: ${itemLabel}\nCondition: ${getResultAnswer(result)}`,
+        remarks: [
+          `Remark: ${String(result.remark || "").trim()}`,
+          ...linkedDetails
+        ].join("\n")
+      };
+    });
+
 const buildChecklistResultChildren = ({
   inspections = [],
   inspectionResults = [],
@@ -554,6 +588,7 @@ export const generateMonthlyReport = async ({
   const monthIssues = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
   const monthInspectionResults = getResultsForInspections(monthInspections, inspectionResults);
   const checklistSummary = getChecklistSummary(monthInspectionResults);
+  const appendixAEntries = buildAppendixAEntries(monthInspectionResults);
 
   const openIssues = monthIssues.filter(
     (i) => ["open", "in progress"].includes(String(i.status || "").toLowerCase())
@@ -762,17 +797,17 @@ export const generateMonthlyReport = async ({
     para([txt("Prepared By:  ", { bold: true }), txt(`${generatedBy}, CBRE Pte Ltd`)]),
     spacer(),
 
-    ...(monthIssues.length === 0
+    ...(appendixAEntries.length === 0
       ? [para("No findings to report for this period.")]
       : [
           makeTable(
             ["S/No", "Location", "Photographs", "Findings", "Remarks / Proposed Rectification"],
-            monthIssues.map((iss, idx) => [
+            appendixAEntries.map((entry, idx) => [
               String(idx + 1).padStart(2, "0"),
-              iss.location || iss.floorName || "-",
-              "(See system)",
-              iss.issueTitle || iss.issueDescription || "-",
-              iss.rectification || "Pending rectification by building owner"
+              entry.location,
+              entry.photographs,
+              entry.findings,
+              entry.remarks
             ]),
             [400, 1600, 1800, 2400, 3160]
           )
@@ -1303,6 +1338,7 @@ export const generateCustomReport = async ({
 
   const filteredInspectionResults = getResultsForInspections(insp, inspectionResults);
   const checklistSummary = getChecklistSummary(filteredInspectionResults);
+  const appendixAEntries = buildAppendixAEntries(filteredInspectionResults);
 
   const primaryBuilding = buildings.length === 1 ? buildings[0] : null;
   const buildingName = primaryBuilding
@@ -1477,18 +1513,18 @@ export const generateCustomReport = async ({
         para([txt("Period:  ", { bold: true }), txt(periodLabel)]),
         spacer()
       );
-      if (iss.length === 0) {
+      if (appendixAEntries.length === 0) {
         children.push(para("No findings to report for this period."));
       } else {
         children.push(
           makeTable(
             ["S/No", "Location", "Photographs", "Findings", "Remarks / Proposed Rectification"],
-            iss.map((i, idx) => [
+            appendixAEntries.map((entry, idx) => [
               String(idx + 1).padStart(2, "0"),
-              i.location || i.floorName || "-",
-              "(See system)",
-              i.issueTitle || i.issueDescription || "-",
-              i.rectification || "Pending rectification by building owner"
+              entry.location,
+              entry.photographs,
+              entry.findings,
+              entry.remarks
             ]),
             [400, 1600, 1800, 2400, 3160]
           )
