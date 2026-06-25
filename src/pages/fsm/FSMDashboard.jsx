@@ -294,14 +294,14 @@ const quickActions = [
     path: "/fsm/inspections"
   },
   {
+    icon: "\uD83D\uDD0D",
+    label: "Issue Tickets",
+    path: "/fsm/issues"
+  },
+  {
     icon: "\u2713",
     label: "Verify Closure",
     path: "/fsm/inspections/verify"
-  },
-  {
-    icon: "\uD83D\uDD0D",
-    label: "Verify Issue",
-    path: "/fsm/issues"
   }
 ];
 

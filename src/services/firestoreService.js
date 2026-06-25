@@ -188,6 +188,9 @@ const buildInspectionResultPayload = (data) => ({
   remark: data.remark || "",
   photoUrl: data.photoUrl || "",
   defectPhotoUrl: data.defectPhotoUrl || data.photoUrl || "",
+  defectPhotoUrls: Array.isArray(data.defectPhotoUrls)
+    ? data.defectPhotoUrls
+    : [data.defectPhotoUrl || data.photoUrl].filter(Boolean),
   defectPhotoStoragePath: data.defectPhotoStoragePath || "",
   defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
   defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
@@ -227,14 +230,21 @@ const buildIssuePayload = (data) => ({
   status: data.status || ISSUE_STATUS.OPEN,
   issuePhotoUrl: data.issuePhotoUrl || "",
   defectPhotoUrl: data.defectPhotoUrl || data.issuePhotoUrl || "",
+  defectPhotoUrls: Array.isArray(data.defectPhotoUrls)
+    ? data.defectPhotoUrls
+    : [data.defectPhotoUrl || data.issuePhotoUrl].filter(Boolean),
   defectPhotoStoragePath: data.defectPhotoStoragePath || "",
   defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
   defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
   fixPhotoUrl: data.fixPhotoUrl || "",
+  fixPhotoUrls: Array.isArray(data.fixPhotoUrls)
+    ? data.fixPhotoUrls
+    : [data.fixPhotoUrl].filter(Boolean),
   fixPhotoStoragePath: data.fixPhotoStoragePath || "",
   fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
   fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
   verificationComments: data.verificationComments || "",
+  ...(Array.isArray(data.history) ? { history: data.history } : {}),
   aiRecommendation: data.aiRecommendation || ""
 });
 
@@ -460,10 +470,16 @@ export const addClosureVerification = async (data) => {
     beforePhotoUrl: data.beforePhotoUrl || "",
     afterPhotoUrl: data.afterPhotoUrl || "",
     defectPhotoUrl: data.defectPhotoUrl || data.beforePhotoUrl || "",
+    defectPhotoUrls: Array.isArray(data.defectPhotoUrls)
+      ? data.defectPhotoUrls
+      : [data.defectPhotoUrl || data.beforePhotoUrl].filter(Boolean),
     defectPhotoStoragePath: data.defectPhotoStoragePath || "",
     defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
     defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
     fixPhotoUrl: data.fixPhotoUrl || data.afterPhotoUrl || "",
+    fixPhotoUrls: Array.isArray(data.fixPhotoUrls)
+      ? data.fixPhotoUrls
+      : [data.fixPhotoUrl || data.afterPhotoUrl].filter(Boolean),
     fixPhotoStoragePath: data.fixPhotoStoragePath || "",
     fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
     fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",

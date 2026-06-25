@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   getInspectionByAssignmentPeriod,
   getInspectionByAssignmentPeriodStatus,
@@ -541,18 +541,21 @@ const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) 
       if (!savedResult) return item;
 
       const condition = normalizeChecklistCondition(savedResult.condition) || item.condition;
-      const defectPhotoUrl = savedResult.defectPhotoUrl || savedResult.photoUrl || "";
+      const defectPhotoUrls = getDefectPhotoUrls(savedResult);
+      const defectPhotoUrl = defectPhotoUrls[0] || "";
 
       return {
         ...item,
         condition,
         remark: savedResult.remark || "",
         photo: defectPhotoUrl,
+        defectPhotoUrls,
         defectPhotoStoragePath: savedResult.defectPhotoStoragePath || "",
         defectPhotoUploadedAt: savedResult.defectPhotoUploadedAt || null,
         defectPhotoUploadedBy: savedResult.defectPhotoUploadedBy || "",
         photoPreview: "",
-        photoFile: null,
+        photoFiles: [],
+        photoPreviews: [],
         issue: {
           ...item.issue,
           description: savedResult.issueDescription || savedResult.issue?.description || "",
@@ -585,10 +588,43 @@ const getIssueRowDomId = (categoryId, itemId) =>
   `inspection-row-${sanitizeKeyPart(categoryId)}-${sanitizeKeyPart(itemId)}`;
 
 const getDefectPhotoUrl = (source) =>
-  source?.defectPhotoUrl || source?.issuePhotoUrl || source?.photoUrl || "";
+  getDefectPhotoUrls(source)[0] || "";
 
 const getFixPhotoUrl = (source) =>
-  source?.fixPhotoUrl || source?.afterPhotoUrl || "";
+  getFixPhotoUrls(source)[0] || "";
+
+const PHOTO_LIMIT = 3;
+
+const uniqueValues = (values) =>
+  Array.from(new Set((values || []).filter(Boolean)));
+
+const getDefectPhotoUrls = (source) =>
+  uniqueValues([
+    ...(Array.isArray(source?.defectPhotoUrls) ? source.defectPhotoUrls : []),
+    source?.defectPhotoUrl,
+    source?.issuePhotoUrl,
+    source?.photoUrl
+  ]).slice(0, PHOTO_LIMIT);
+
+const getFixPhotoUrls = (source) =>
+  uniqueValues([
+    ...(Array.isArray(source?.fixPhotoUrls) ? source.fixPhotoUrls : []),
+    source?.fixPhotoUrl,
+    source?.afterPhotoUrl
+  ]).slice(0, PHOTO_LIMIT);
+
+const createAuditEntry = ({ status, note, updatedBy, eventType }) => ({
+  status,
+  note: note || "",
+  updatedBy: updatedBy || "",
+  updatedAt: new Date(),
+  eventType: eventType || "status_update"
+});
+
+const appendHistory = (issue, entries) => [
+  ...(Array.isArray(issue?.history) ? issue.history : []),
+  ...entries.filter(Boolean)
+];
 
 const isIssueTargetRow = (issue, category, item) => {
   const categoryCode = getIssueTargetCategoryCode(issue);
@@ -614,12 +650,48 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue) => {
       expanded: category.expanded || hasTargetItem,
       items: category.items.map((item) =>
         isIssueTargetRow(issue, category, item)
-          ? { ...item, expanded: true }
+          ? {
+              ...item,
+              expanded: true,
+              issue: {
+                ...item.issue,
+                description: issue.issueDescription || item.issue?.description || "",
+                rectification: issue.rectification || item.issue?.rectification || "",
+                priority: issue.priority || item.issue?.priority || "Medium",
+                status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
+                history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
+              },
+              defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
+              fixPhotoUrls: getFixPhotoUrls(issue)
+            }
           : item
       )
     };
   });
 };
+
+const mergeIssueTicketsIntoChecklist = (sourceChecklist, issues = []) =>
+  sourceChecklist.map((category) => ({
+    ...category,
+    items: category.items.map((item) => {
+      const issue = issues.find((candidate) => isIssueTargetRow(candidate, category, item));
+      if (!issue) return item;
+
+      return {
+        ...item,
+        issue: {
+          ...item.issue,
+          description: issue.issueDescription || item.issue?.description || "",
+          rectification: issue.rectification || item.issue?.rectification || "",
+          priority: issue.priority || item.issue?.priority || "Medium",
+          status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
+          history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
+        },
+        defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
+        fixPhotoUrls: getFixPhotoUrls(issue)
+      };
+    })
+  }));
 
 const findFirstUnansweredChecklistItem = (checklist) => {
   for (const category of checklist) {
@@ -649,12 +721,7 @@ const InspectionOverview = ({
   assignmentError,
   levels,
   selectedLevel,
-  setSelectedLevel,
-  canSave,
-  isSubmitting,
-  submitLabel,
-  submittingLabel,
-  onSubmit
+  setSelectedLevel
 }) => (
   <section className="inspection-card overview-card">
     <div className="card-inner">
@@ -662,11 +729,6 @@ const InspectionOverview = ({
         <div>
           <p className="overline">Inspection Overview</p>
           <h3>Monthly Inspection Report</h3>
-        </div>
-        <div className="overview-actions">
-          <button type="button" className="primary-button" onClick={onSubmit} disabled={!canSave || isSubmitting}>
-            {isSubmitting ? submittingLabel : submitLabel}
-          </button>
         </div>
       </div>
       <div className="overview-grid">
@@ -752,6 +814,73 @@ const getConditionClass = (condition) => {
   if (condition === "Faulty") return "condition-faulty";
   if (condition === "N.A.") return "condition-na";
   return "";
+};
+
+const toDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value.toDate === "function") {
+    const date = value.toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatAuditDateTime = (value) => {
+  const date = toDate(value);
+  if (!date) return "-";
+
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
+const statusClassName = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === String(ISSUE_STATUS.CLOSED).toLowerCase()) return "issue-status issue-status--closed";
+  if (normalized === String(ISSUE_STATUS.RESOLVED).toLowerCase()) return "issue-status issue-status--resolved";
+  if (normalized === String(ISSUE_STATUS.IN_PROGRESS).toLowerCase()) return "issue-status issue-status--progress";
+  return "issue-status issue-status--open";
+};
+
+const IssueHistoryTimeline = ({ history = [] }) => {
+  const entries = [...history].sort((first, second) => {
+    const firstTime = toDate(first.updatedAt)?.getTime() || 0;
+    const secondTime = toDate(second.updatedAt)?.getTime() || 0;
+    return secondTime - firstTime;
+  });
+
+  return (
+    <div className="issue-history-panel issue-history-panel--compact">
+      <div className="card-header-row">
+        <h5>Status History</h5>
+        <span className="hint-text">{entries.length} entries</span>
+      </div>
+      {entries.length > 0 ? (
+        <ol className="issue-history-timeline">
+          {entries.map((entry, index) => (
+            <li key={`${entry.eventType || "event"}-${index}`}>
+              <span className={statusClassName(entry.status)}>{entry.status || "Update"}</span>
+              <div>
+                <strong>{String(entry.eventType || "status update").replace(/_/g, " ")}</strong>
+                <p>{entry.updatedBy || "-"} · {formatAuditDateTime(entry.updatedAt)}</p>
+                {entry.note ? <small>{entry.note}</small> : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="hint-text">No status history recorded yet.</p>
+      )}
+    </div>
+  );
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -891,11 +1020,12 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
   );
 };
 
-const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto }) => {
+const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onVerifyClosure }) => {
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
-  const photoPreview = item.photoPreview || item.photo;
+  const savedPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]);
+  const photoUrls = uniqueValues([...savedPhotoUrls, ...(item.photoPreviews || []), item.photoPreview]).slice(0, PHOTO_LIMIT);
 
   return (
     <div
@@ -972,7 +1102,7 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   <option value="Low">Low</option>
                 </select>
               </label>
-              <label>
+              <label className="issue-status-field">
                 <span>Status</span>
                 <select
                   value={item.issue.status}
@@ -980,28 +1110,55 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 >
                   <option value={ISSUE_STATUS.OPEN}>{ISSUE_STATUS.OPEN}</option>
                   <option value={ISSUE_STATUS.IN_PROGRESS}>{ISSUE_STATUS.IN_PROGRESS}</option>
+                  <option value={ISSUE_STATUS.RESOLVED}>{ISSUE_STATUS.RESOLVED}</option>
+                  <option value={ISSUE_STATUS.CLOSED}>{ISSUE_STATUS.CLOSED}</option>
                 </select>
+                {item.issue.status === ISSUE_STATUS.RESOLVED && (
+                  <button
+                    type="button"
+                    className="primary-button checklist-verify-button"
+                    onClick={() => onVerifyClosure(categoryId, item)}
+                  >
+                    Verify Closure
+                  </button>
+                )}
               </label>
             </div>
+            <IssueHistoryTimeline history={item.issue?.history || []} />
             {!isVerifyMode && (
               <div className="fault-proof-row">
                 <label className="issue-photo-upload">
-                  <span>Defect photo</span>
-                  <input type="file" accept="image/*" onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)} />
+                  <span>Defect photos (max 3)</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    disabled={photoUrls.length >= PHOTO_LIMIT}
+                    onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)}
+                  />
                 </label>
-                {photoPreview && (
-                  <div className="issue-photo-wrapper">
-                    <img className="issue-photo-preview" src={photoPreview} alt="Original defect evidence" />
-                    <button
-                      type="button"
-                      className="photo-remove-btn issue-remove-btn"
-                      onClick={() => onRemovePhoto(categoryId, item.id)}
-                      aria-label="Remove defect photo"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                )}
+                <div className="issue-photo-wrapper issue-photo-wrapper--grid">
+                  {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
+                    const photoUrl = photoUrls[index];
+                    return photoUrl ? (
+                      <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
+                        <img className="issue-photo-preview" src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
+                        {index >= savedPhotoUrls.length && (
+                          <button
+                            type="button"
+                            className="photo-remove-btn issue-remove-btn"
+                            onClick={() => onRemovePhoto(categoryId, item.id, index - savedPhotoUrls.length)}
+                            aria-label="Remove selected defect photo"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </figure>
+                    ) : (
+                      <div key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`Defect photo slot ${index + 1}`} />
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1045,6 +1202,7 @@ const AppendixTable = ({ entries }) => (
 const Inspections = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const isVerifyMode = location.pathname.includes("/verify");
   const issueIdFromQuery = useMemo(
     () => new URLSearchParams(location.search).get("issueId") || "",
@@ -1053,7 +1211,8 @@ const Inspections = () => {
   const {
     loading: assignmentLoading,
     error: assignmentError,
-    buildings
+    buildings,
+    issues
   } = useFsmDashboardData(getFsmLookupIds(user));
   const [selectedLevel, setSelectedLevel] = useState("");
   const [levelChecklists, setLevelChecklists] = useState({});
@@ -1069,7 +1228,7 @@ const Inspections = () => {
   const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
 
   const assignedBuilding =
-    (isVerifyMode && verificationIssue?.buildingId
+    (verificationIssue?.buildingId
       ? buildings.find((building) => building.id === verificationIssue.buildingId)
       : null) ||
     buildings[0] ||
@@ -1102,7 +1261,7 @@ const Inspections = () => {
   );
 
   useEffect(() => {
-    if (!isVerifyMode) {
+    if (!isVerifyMode && !issueIdFromQuery && !location.state?.issue) {
       setVerificationIssue(null);
       setVerificationIssueError("");
       setFixProofPhotoFile(null);
@@ -1143,7 +1302,6 @@ const Inspections = () => {
     setSelectedLevel((current) => {
       if (levels.length === 0) return "";
       if (
-        isVerifyMode &&
         verificationIssue?.floorId &&
         levels.some((level) => level.id === verificationIssue.floorId)
       ) {
@@ -1151,7 +1309,7 @@ const Inspections = () => {
       }
       return levels.some((level) => level.id === current) ? current : levels[0].id;
     });
-  }, [isVerifyMode, levels, verificationIssue?.floorId]);
+  }, [levels, verificationIssue?.floorId]);
 
   useEffect(() => {
     setLevelChecklists({});
@@ -1204,6 +1362,32 @@ const Inspections = () => {
       const templateChecklist = createEmptyChecklist();
 
       try {
+        if (verificationIssue && (verificationIssue.inspectionId || verificationIssue.inspectionKey)) {
+          const linkedResults = verificationIssue.inspectionId
+            ? await getInspectionResultsByInspectionId(verificationIssue.inspectionId)
+            : await getInspectionResultsByInspectionKey(verificationIssue.inspectionKey);
+
+          if (isCancelled) return;
+
+          if (linkedResults.length > 0) {
+            setLevelChecklists((current) => ({
+              ...current,
+              [selectedLevel]: applyIssueFocusToChecklist(
+                hydrateChecklistFromSavedResults(templateChecklist, linkedResults),
+                verificationIssue
+              )
+            }));
+
+            setLevelRemarks((current) => ({
+              ...current,
+              [selectedLevel]: verificationIssue.generalRemarks || current[selectedLevel] || ""
+            }));
+
+            setPrefilledInspectionKeys((current) => ({ ...current, [inspectionKey]: true }));
+            return;
+          }
+        }
+
         const currentInspection = await getInspectionByAssignmentPeriod({
           buildingId: selectedBuilding,
           floorId: selectedLevel,
@@ -1221,7 +1405,7 @@ const Inspections = () => {
             ...current,
             [selectedLevel]: applyIssueFocusToChecklist(
               hydrateChecklistFromSavedResults(templateChecklist, currentResults),
-              isVerifyMode ? verificationIssue : null
+              verificationIssue
             )
           }));
 
@@ -1260,7 +1444,7 @@ const Inspections = () => {
           ...current,
           [selectedLevel]: applyIssueFocusToChecklist(
             hydrateChecklistFromPreviousMonth(templateChecklist, previousResults),
-            isVerifyMode ? verificationIssue : null
+            verificationIssue
           )
         }));
 
@@ -1277,7 +1461,7 @@ const Inspections = () => {
           ...current,
           [selectedLevel]: applyIssueFocusToChecklist(
             current[selectedLevel] || templateChecklist,
-            isVerifyMode ? verificationIssue : null
+            verificationIssue
           )
         }));
         setLevelRemarks((current) => ({
@@ -1309,7 +1493,7 @@ const Inspections = () => {
   ]);
 
   useEffect(() => {
-    if (!isVerifyMode || !verificationIssue || !selectedLevel) return;
+    if (!verificationIssue || !selectedLevel) return;
 
     const verificationKey = buildRecordKey(
       verificationIssue.issueKey || verificationIssue.issueId || verificationIssue.id,
@@ -1340,7 +1524,30 @@ const Inspections = () => {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 100);
     setFocusedVerificationKey(verificationKey);
-  }, [checklist, focusedVerificationKey, isVerifyMode, selectedLevel, verificationIssue]);
+  }, [checklist, focusedVerificationKey, selectedLevel, verificationIssue]);
+
+  useEffect(() => {
+    if (!selectedLevel || !Array.isArray(issues) || issues.length === 0) return;
+
+    setLevelChecklists((current) => {
+      const currentChecklist = current[selectedLevel];
+      if (!currentChecklist) return current;
+
+      const relatedIssues = issues.filter((issue) =>
+        (!selectedBuilding || issue.buildingId === selectedBuilding) &&
+        (!selectedLevel || issue.floorId === selectedLevel || issue.floorName === selectedLevelName)
+      );
+      if (relatedIssues.length === 0) return current;
+
+      const nextChecklist = mergeIssueTicketsIntoChecklist(currentChecklist, relatedIssues);
+      if (JSON.stringify(nextChecklist) === JSON.stringify(currentChecklist)) return current;
+
+      return {
+        ...current,
+        [selectedLevel]: nextChecklist
+      };
+    });
+  }, [issues, selectedBuilding, selectedLevel, selectedLevelName]);
 
   const setChecklistForSelectedLevel = (updater) => {
     if (!selectedLevel) return;
@@ -1471,29 +1678,69 @@ const Inspections = () => {
   };
 
   const handlePhotoChange = (categoryId, itemId, files) => {
-    const file = files && files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateChecklistItem(categoryId, itemId, { photoPreview: reader.result, photoFile: file });
-    };
-    reader.readAsDataURL(file);
+    const selectedFiles = Array.from(files || []);
+    if (selectedFiles.length === 0) return;
+
+    setChecklistForSelectedLevel((current) =>
+      current.map((category) => {
+        if (category.id !== categoryId) return category;
+        return {
+          ...category,
+          items: category.items.map((item) => {
+            if (item.id !== itemId) return item;
+            const existingCount = uniqueValues([...(item.defectPhotoUrls || []), item.photo]).length;
+            const remaining = Math.max(PHOTO_LIMIT - existingCount - (item.photoFiles || []).length, 0);
+            const acceptedFiles = selectedFiles.slice(0, remaining);
+            return {
+              ...item,
+              photoFiles: [...(item.photoFiles || []), ...acceptedFiles],
+              photoPreviews: [
+                ...(item.photoPreviews || []),
+                ...acceptedFiles.map((file) => URL.createObjectURL(file))
+              ],
+              photoPreview: ""
+            };
+          })
+        };
+      })
+    );
   };
 
-  const removePhoto = (categoryId, itemId) => {
-    updateChecklistItem(categoryId, itemId, { photoPreview: "", photoFile: null, photo: "" });
+  const removePhoto = (categoryId, itemId, photoIndex = 0) => {
+    setChecklistForSelectedLevel((current) =>
+      current.map((category) => {
+        if (category.id !== categoryId) return category;
+        return {
+          ...category,
+          items: category.items.map((item) => {
+            if (item.id !== itemId) return item;
+            return {
+              ...item,
+              photoFiles: (item.photoFiles || []).filter((_, index) => index !== photoIndex),
+              photoPreviews: (item.photoPreviews || []).filter((_, index) => index !== photoIndex),
+              photoPreview: "",
+              photoFile: null
+            };
+          })
+        };
+      })
+    );
   };
 
   const handleFixProofPhotoChange = (files) => {
-    const file = files && files[0];
-    if (!file) {
-      setFixProofPhotoFile(null);
-      setFixProofPhotoPreview("");
+    const selectedFiles = Array.from(files || []);
+    if (selectedFiles.length === 0) {
+      setFixProofPhotoFile([]);
+      setFixProofPhotoPreview([]);
       return;
     }
 
-    setFixProofPhotoFile(file);
-    setFixProofPhotoPreview(URL.createObjectURL(file));
+    const currentFiles = Array.isArray(fixProofPhotoFile) ? fixProofPhotoFile : fixProofPhotoFile ? [fixProofPhotoFile] : [];
+    const currentPreviews = Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview : fixProofPhotoPreview ? [fixProofPhotoPreview] : [];
+    const remaining = Math.max(PHOTO_LIMIT - getFixPhotoUrls(verificationIssue).length - currentFiles.length, 0);
+    const acceptedFiles = selectedFiles.slice(0, remaining);
+    setFixProofPhotoFile([...currentFiles, ...acceptedFiles]);
+    setFixProofPhotoPreview([...currentPreviews, ...acceptedFiles.map((file) => URL.createObjectURL(file))]);
   };
 
   const handleIssueUpdate = (categoryId, itemId, changes) => {
@@ -1515,18 +1762,200 @@ const Inspections = () => {
         };
       })
     );
+
+    if (Object.prototype.hasOwnProperty.call(changes, "status")) {
+      window.setTimeout(() => saveChecklistItem(categoryId, itemId), 0);
+    }
+  };
+
+  const saveChecklistItem = async (categoryId, itemId) => {
+    if (!canSaveInspection || inspectionSubmitting) return;
+    const category = checklist.find((itemCategory) => itemCategory.id === categoryId);
+    const item = category?.items.find((checklistItem) => checklistItem.id === itemId);
+    if (!category || !item) return;
+
+    try {
+      setInspectionSubmitting(true);
+      setInspectionSubmitError("");
+      setInspectionSubmitSuccess("");
+
+      const created = await upsertInspection({
+        inspectionKey,
+        inspectionId: inspectionKey,
+        buildingId: selectedBuilding,
+        floorId: selectedLevel,
+        floorName: selectedLevelName,
+        fsmId,
+        periodKey,
+        inspectionType: "Monthly Inspection",
+        inspectionMode: "Semi-Automated",
+        templateId: null,
+        inspectionDate: new Date(),
+        progressPercent,
+        generalRemarks,
+        aiAssistanceUsed: false,
+        aiSummary: "",
+        status: "Draft"
+      });
+
+      const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
+      const isFaultyItem = item.condition === "Faulty";
+      const issueKey = isFaultyItem ? resultKey : "";
+      let defectPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
+      let photoUrl = defectPhotoUrls[0] || "";
+      let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
+      let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
+      let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
+      const selectedPhotoFiles = [
+        ...(item.photoFiles || []),
+        ...(item.photoFile ? [item.photoFile] : [])
+      ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
+
+      if (selectedPhotoFiles.length > 0 && isFaultyItem) {
+        const uploadedPhotos = [];
+        for (const file of selectedPhotoFiles) {
+          const uploaded = await uploadFile(
+            file,
+            getInspectionDefectPhotoFolder({ inspectionKey, categoryId: category.id, itemId: item.id })
+          );
+          if (uploaded?.url) uploadedPhotos.push(uploaded);
+        }
+        defectPhotoUrls = uniqueValues([...defectPhotoUrls, ...uploadedPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        photoUrl = defectPhotoUrls[0] || "";
+        defectPhotoStoragePath = uploadedPhotos[uploadedPhotos.length - 1]?.path || "";
+        defectPhotoUploadedAt = new Date();
+        defectPhotoUploadedBy = fsmId;
+      }
+
+      const result = await upsertInspectionResult({
+        resultKey,
+        resultId: resultKey,
+        inspectionKey,
+        inspectionId: created.id,
+        buildingId: selectedBuilding,
+        floorId: selectedLevel,
+        floorName: selectedLevelName,
+        fsmId,
+        periodKey,
+        equipmentId: null,
+        templateId: null,
+        categoryCode: category.id,
+        categoryName: category.title,
+        itemCode: item.code,
+        itemLabel: item.label,
+        inspectionPath: `${buildingName} > ${selectedLevelName} > ${item.label}`,
+        condition: item.condition || "",
+        passFail: getPassFail(item.condition),
+        remark: item.remark || "",
+        photoUrl,
+        defectPhotoUrl: photoUrl,
+        defectPhotoUrls,
+        defectPhotoStoragePath,
+        defectPhotoUploadedAt,
+        defectPhotoUploadedBy,
+        issueDescription: item.issue?.description || "",
+        rectification: item.issue?.rectification || "",
+        priority: item.issue?.priority || "",
+        issueStatus: item.issue?.status || "",
+        manualVerificationRequired: !!item.isManualVerification,
+        checkedAt: new Date(),
+        checkedBy: fsmId,
+        qrScanned: false,
+        qrCodeValue: "",
+        historyLoaded: false,
+        aiChecklistSuggestion: ""
+      });
+
+      if (isFaultyItem) {
+        const existingIssue = await getIssueById(issueKey);
+        const historyEntries = [];
+        if (!existingIssue) {
+          historyEntries.push(createAuditEntry({
+            status: item.issue?.status || ISSUE_STATUS.OPEN,
+            note: item.issue?.description || item.remark || "Auto created from checklist",
+            updatedBy: fsmId,
+            eventType: "issue_created"
+          }));
+        } else if (String(existingIssue.status || "") !== String(item.issue?.status || "")) {
+          historyEntries.push(createAuditEntry({
+            status: item.issue?.status || ISSUE_STATUS.OPEN,
+            note: item.issue?.rectification || item.issue?.description || item.remark || "",
+            updatedBy: fsmId,
+            eventType: "status_update"
+          }));
+        }
+        if (selectedPhotoFiles.length > 0) {
+          historyEntries.push(createAuditEntry({
+            status: item.issue?.status || ISSUE_STATUS.OPEN,
+            note: `${selectedPhotoFiles.length} defect photo(s) uploaded`,
+            updatedBy: fsmId,
+            eventType: "photos_uploaded"
+          }));
+        }
+
+        await upsertIssue({
+          issueKey,
+          issueId: issueKey,
+          inspectionKey,
+          inspectionId: created.id,
+          resultKey,
+          resultId: result.id || resultKey,
+          buildingId: selectedBuilding,
+          floorId: selectedLevel,
+          floorName: selectedLevelName,
+          categoryCode: category.id,
+          itemCode: item.code,
+          itemLabel: item.label,
+          location: selectedLevelName,
+          equipmentId: null,
+          reportedBy: fsmId,
+          issueTitle: item.label,
+          issueDescription: item.issue?.description || item.remark || "",
+          rectification: item.issue?.rectification || "",
+          priority: item.issue?.priority || "High",
+          status: item.issue?.status || ISSUE_STATUS.OPEN,
+          issuePhotoUrl: photoUrl,
+          defectPhotoUrl: photoUrl,
+          defectPhotoUrls,
+          defectPhotoStoragePath,
+          defectPhotoUploadedAt,
+          defectPhotoUploadedBy,
+          aiRecommendation: "",
+          ...(historyEntries.length ? { history: appendHistory(existingIssue, historyEntries) } : {})
+        });
+      }
+
+      setInspectionSubmitSuccess(`${item.code} saved successfully.`);
+    } catch (err) {
+      console.error("Checklist item save failed", err);
+      setInspectionSubmitError(err.message || "Could not save checklist item.");
+    } finally {
+      setInspectionSubmitting(false);
+    }
+  };
+
+  const openChecklistIssueVerification = async (categoryId, item) => {
+    const issueKey = buildRecordKey(inspectionKey, categoryId, item.id);
+    await saveChecklistItem(categoryId, item.id);
+    navigate(`/fsm/inspections/verify?issueId=${encodeURIComponent(issueKey)}`);
   };
 
   const resolveVerificationIssue = async () => {
     if (!verificationIssue || inspectionSubmitting) return;
 
     const issueKey = verificationIssue.issueKey || verificationIssue.id || verificationIssue.issueId;
-    if (!fixProofPhotoFile && !getFixPhotoUrl(verificationIssue)) {
+    const selectedFixPhotoFiles = Array.isArray(fixProofPhotoFile)
+      ? fixProofPhotoFile
+      : fixProofPhotoFile
+        ? [fixProofPhotoFile]
+        : [];
+
+    if (selectedFixPhotoFiles.length === 0 && getFixPhotoUrls(verificationIssue).length === 0) {
       setInspectionSubmitError("Please upload a fix/resolution photo before marking this issue as resolved.");
       return;
     }
 
-    if (!window.confirm("Mark this issue as resolved? Please confirm the defect has been fixed and the uploaded resolution photo is correct.")) {
+    if (!window.confirm("Verify closure and close this issue? Please confirm the defect has been fixed and accepted.")) {
       return;
     }
 
@@ -1539,11 +1968,18 @@ const Inspections = () => {
       let fixPhotoStoragePath = verificationIssue.fixPhotoStoragePath || "";
       let fixPhotoUploadedAt = verificationIssue.fixPhotoUploadedAt || null;
       let fixPhotoUploadedBy = verificationIssue.fixPhotoUploadedBy || "";
+      let fixPhotoUrls = getFixPhotoUrls(verificationIssue);
 
-      if (fixProofPhotoFile) {
-        const uploaded = await uploadFile(fixProofPhotoFile, `closure-verifications/${issueKey}`);
-        fixPhotoUrl = uploaded?.url || fixPhotoUrl;
-        fixPhotoStoragePath = uploaded?.path || "";
+      const uploadedFixPhotos = [];
+      for (const file of selectedFixPhotoFiles.slice(0, Math.max(PHOTO_LIMIT - fixPhotoUrls.length, 0))) {
+        const uploaded = await uploadFile(file, `closure-verifications/${issueKey}`);
+        if (uploaded?.url) uploadedFixPhotos.push(uploaded);
+      }
+
+      if (uploadedFixPhotos.length) {
+        fixPhotoUrls = uniqueValues([...fixPhotoUrls, ...uploadedFixPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        fixPhotoUrl = fixPhotoUrls[0] || fixPhotoUrl;
+        fixPhotoStoragePath = uploadedFixPhotos[uploadedFixPhotos.length - 1].path || "";
         fixPhotoUploadedAt = new Date();
         fixPhotoUploadedBy = fsmId;
       }
@@ -1556,10 +1992,12 @@ const Inspections = () => {
         beforePhotoUrl: getDefectPhotoUrl(verificationIssue),
         afterPhotoUrl: fixPhotoUrl,
         defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+        defectPhotoUrls: getDefectPhotoUrls(verificationIssue),
         defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
         defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
         defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
         fixPhotoUrl,
+        fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy,
@@ -1572,28 +2010,47 @@ const Inspections = () => {
         issueKey,
         issueId: verificationIssue.issueId || issueKey,
         reportedBy: verificationIssue.reportedBy || fsmId,
-        status: ISSUE_STATUS.RESOLVED,
+        status: ISSUE_STATUS.CLOSED,
         defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
+        defectPhotoUrls: getDefectPhotoUrls(verificationIssue),
         defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
         defectPhotoUploadedAt: verificationIssue.defectPhotoUploadedAt || null,
         defectPhotoUploadedBy: verificationIssue.defectPhotoUploadedBy || "",
         fixPhotoUrl,
+        fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
-        fixPhotoUploadedBy
+        fixPhotoUploadedBy,
+        history: appendHistory(verificationIssue, [
+          uploadedFixPhotos.length
+            ? createAuditEntry({
+                status: ISSUE_STATUS.RESOLVED,
+                note: `${uploadedFixPhotos.length} after-repair photo(s) uploaded`,
+                updatedBy: fsmId,
+                eventType: "photos_uploaded"
+              })
+            : null,
+          createAuditEntry({
+            status: ISSUE_STATUS.CLOSED,
+            note: verificationIssue.rectification || "Verified and accepted",
+            updatedBy: fsmId,
+            eventType: "status_update"
+          })
+        ])
       });
 
       setVerificationIssue((current) => ({
         ...current,
-        status: ISSUE_STATUS.RESOLVED,
+        status: ISSUE_STATUS.CLOSED,
         fixPhotoUrl,
+        fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy
       }));
-      setFixProofPhotoFile(null);
-      setFixProofPhotoPreview("");
-      setInspectionSubmitSuccess("Issue marked as resolved successfully.");
+      setFixProofPhotoFile([]);
+      setFixProofPhotoPreview([]);
+      setInspectionSubmitSuccess("Verification submitted and issue closed successfully.");
     } catch (err) {
       console.error("Issue resolution failed", err);
       setInspectionSubmitError(err.message || "Could not mark issue as resolved.");
@@ -1661,24 +2118,34 @@ const Inspections = () => {
           const isFaultyItem = item.condition === "Faulty";
           const issueKey = isFaultyItem ? buildRecordKey(inspectionKey, category.id, item.id) : "";
           let photoUrl = item.photo || "";
+          let defectPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
           let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
           let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
           let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
+          const selectedPhotoFiles = [
+            ...(item.photoFiles || []),
+            ...(item.photoFile ? [item.photoFile] : [])
+          ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
 
-          if (item.photoFile && isFaultyItem) {
-            const uploaded = await uploadFile(
-              item.photoFile,
-              getInspectionDefectPhotoFolder({
-                inspectionKey,
-                categoryId: category.id,
-                itemId: item.id
-              })
-            );
-            photoUrl = uploaded?.url || photoUrl;
-            defectPhotoStoragePath = uploaded?.path || "";
+          if (selectedPhotoFiles.length > 0 && isFaultyItem) {
+            const uploadedPhotos = [];
+            for (const file of selectedPhotoFiles) {
+              const uploaded = await uploadFile(
+                file,
+                getInspectionDefectPhotoFolder({
+                  inspectionKey,
+                  categoryId: category.id,
+                  itemId: item.id
+                })
+              );
+              if (uploaded?.url) uploadedPhotos.push(uploaded);
+            }
+            defectPhotoUrls = uniqueValues([...defectPhotoUrls, ...uploadedPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+            photoUrl = defectPhotoUrls[0] || photoUrl;
+            defectPhotoStoragePath = uploadedPhotos[uploadedPhotos.length - 1]?.path || "";
             defectPhotoUploadedAt = new Date();
             defectPhotoUploadedBy = fsmId;
-          } else if (item.photoFile) {
+          } else if (selectedPhotoFiles.length > 0) {
             console.warn("Skipped non-faulty checklist photo upload", {
               resultKey,
               itemCode: item.code,
@@ -1710,6 +2177,7 @@ const Inspections = () => {
             remark: item.remark || "",
             photoUrl,
             defectPhotoUrl,
+            defectPhotoUrls,
             defectPhotoStoragePath,
             defectPhotoUploadedAt,
             defectPhotoUploadedBy,
@@ -1737,6 +2205,31 @@ const Inspections = () => {
           });
 
           if (status === "Submitted" && isFaultyItem) {
+            const existingIssue = await getIssueById(issueKey);
+            const historyEntries = [];
+            if (!existingIssue) {
+              historyEntries.push(createAuditEntry({
+                status: item.issue?.status || ISSUE_STATUS.OPEN,
+                note: item.issue?.description || item.remark || "Auto created from checklist",
+                updatedBy: fsmId,
+                eventType: "issue_created"
+              }));
+            } else if (String(existingIssue.status || "") !== String(item.issue?.status || "")) {
+              historyEntries.push(createAuditEntry({
+                status: item.issue?.status || ISSUE_STATUS.OPEN,
+                note: item.issue?.rectification || item.issue?.description || item.remark || "",
+                updatedBy: fsmId,
+                eventType: "status_update"
+              }));
+            }
+            if (selectedPhotoFiles.length > 0) {
+              historyEntries.push(createAuditEntry({
+                status: item.issue?.status || ISSUE_STATUS.OPEN,
+                note: `${selectedPhotoFiles.length} defect photo(s) uploaded`,
+                updatedBy: fsmId,
+                eventType: "photos_uploaded"
+              }));
+            }
             await upsertIssue({
               issueKey,
               issueId: issueKey,
@@ -1760,14 +2253,17 @@ const Inspections = () => {
               status: item.issue?.status || ISSUE_STATUS.OPEN,
               issuePhotoUrl: photoUrl,
               defectPhotoUrl,
+              defectPhotoUrls,
               defectPhotoStoragePath,
               defectPhotoUploadedAt,
               defectPhotoUploadedBy,
               fixPhotoUrl: verificationIssue?.fixPhotoUrl || "",
+              fixPhotoUrls: getFixPhotoUrls(verificationIssue),
               fixPhotoStoragePath: verificationIssue?.fixPhotoStoragePath || "",
               fixPhotoUploadedAt: verificationIssue?.fixPhotoUploadedAt || null,
               fixPhotoUploadedBy: verificationIssue?.fixPhotoUploadedBy || "",
-              aiRecommendation: ""
+              aiRecommendation: "",
+              ...(historyEntries.length ? { history: appendHistory(existingIssue, historyEntries) } : {})
             });
           }
         }
@@ -1831,6 +2327,20 @@ const Inspections = () => {
         </div>
       </section>
 
+      {!isVerifyMode && (
+        <div className="inspection-floating-submit" role="complementary" aria-label="Inspection submit action">
+          <span>{completedCount} / {totalRows} completed</span>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={handleSubmit}
+            disabled={!canSaveInspection || inspectionSubmitting}
+          >
+            {inspectionSubmitting ? "Submitting..." : "Submit Inspection"}
+          </button>
+        </div>
+      )}
+
       <div className="inspection-grid inspection-grid--single">
         <div className="inspection-main inspection-main--wide">
           {isVerifyMode && (
@@ -1841,36 +2351,50 @@ const Inspections = () => {
                 <p className="hint-text">{verificationIssue?.issueDescription || verificationIssueError || "Loading linked issue details..."}</p>
               </div>
               <div className="verification-banner-grid">
-                <span>Issue ID <strong>{verificationIssue?.issueId || verificationIssue?.issueKey || verificationIssue?.id || "-"}</strong></span>
+                <span>Status <strong>{verificationIssue?.status || "-"}</strong></span>
                 <span>Building <strong>{buildingName}</strong></span>
                 <span>Level <strong>{verificationIssue?.floorName || selectedLevelName || "-"}</strong></span>
                 <span>Rectification <strong>{verificationIssue?.rectification || "-"}</strong></span>
               </div>
-              {(getDefectPhotoUrl(verificationIssue) || fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)) && (
+              {(getDefectPhotoUrls(verificationIssue).length > 0 || getFixPhotoUrls(verificationIssue).length > 0 || (Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview.length : fixProofPhotoPreview)) && (
                 <div className="verification-photo-grid">
-                  {getDefectPhotoUrl(verificationIssue) && (
-                    <figure className="verification-photo">
-                      <figcaption>Before</figcaption>
-                      <img src={getDefectPhotoUrl(verificationIssue)} alt="Original defect evidence" />
+                  {getDefectPhotoUrls(verificationIssue).map((photoUrl, index) => (
+                    <figure key={`before-${photoUrl}-${index}`} className="verification-photo">
+                      <figcaption>Before {index + 1}</figcaption>
+                      <img src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
                     </figure>
-                  )}
-                  {(fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)) && (
-                    <figure className="verification-photo">
-                      <figcaption>After</figcaption>
-                      <img src={fixProofPhotoPreview || getFixPhotoUrl(verificationIssue)} alt="Closure evidence" />
-                    </figure>
-                  )}
+                  ))}
+                  {[...getFixPhotoUrls(verificationIssue), ...(Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview : fixProofPhotoPreview ? [fixProofPhotoPreview] : [])]
+                    .slice(0, PHOTO_LIMIT)
+                    .map((photoUrl, index) => (
+                      <figure key={`after-${photoUrl}-${index}`} className="verification-photo">
+                        <figcaption>After {index + 1}</figcaption>
+                        <img src={photoUrl} alt={`Closure evidence ${index + 1}`} />
+                      </figure>
+                    ))}
                 </div>
               )}
               {isVerifyMode && verificationIssue && (
-                <label className="verification-fix-photo-upload">
-                  <span>Fix/resolution photo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => handleFixProofPhotoChange(event.target.files)}
-                  />
-                </label>
+                <div className="verification-action-row">
+                  <label className="verification-fix-photo-upload">
+                    <span>Fix/resolution photos (max 3)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={getFixPhotoUrls(verificationIssue).length + (Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview.length : fixProofPhotoPreview ? 1 : 0) >= PHOTO_LIMIT}
+                      onChange={(event) => handleFixProofPhotoChange(event.target.files)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="primary-button compact-action-button"
+                    onClick={handleSubmit}
+                    disabled={!verificationIssue || !fsmId || inspectionSubmitting}
+                  >
+                    {inspectionSubmitting ? "Closing..." : "Close Issue"}
+                  </button>
+                </div>
               )}
             </section>
           )}
@@ -1895,11 +2419,6 @@ const Inspections = () => {
             levels={levels}
             selectedLevel={selectedLevel}
             setSelectedLevel={setSelectedLevel}
-            canSave={isVerifyMode ? Boolean(verificationIssue && fsmId) : canSaveInspection}
-            isSubmitting={inspectionSubmitting}
-            submitLabel={isVerifyMode ? "Mark Resolved" : "Submit Inspection"}
-            submittingLabel={isVerifyMode ? "Resolving..." : "Submitting..."}
-            onSubmit={handleSubmit}
           />
           <IssueSummary
             openCount={issueCounts.open}
@@ -1982,6 +2501,7 @@ const Inspections = () => {
                             onIssueUpdate={handleIssueUpdate}
                             onToggle={toggleRow}
                             onRemovePhoto={removePhoto}
+                            onVerifyClosure={openChecklistIssueVerification}
                           />
                         ))
                       )}

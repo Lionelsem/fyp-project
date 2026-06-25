@@ -41,14 +41,15 @@ const emptyIssueForm = {
   fixPhotoUploadedBy: "",
   verificationComments: "",
   aiRecommendation: "",
-  photoFile: null
+  photoFiles: [],
+  photoPreviews: []
 };
 
 const emptyVerificationForm = {
-  defectPhotoFile: null,
-  defectPhotoPreview: "",
-  afterPhotoFile: null,
-  afterPhotoPreview: "",
+  defectPhotoFiles: [],
+  defectPhotoPreviews: [],
+  afterPhotoFiles: [],
+  afterPhotoPreviews: [],
   issueDescription: "",
   rectification: "",
   verificationComments: ""
@@ -99,21 +100,60 @@ const getBuildingName = (building) =>
 
 const getIssueKey = (issue) => issue?.issueKey || issue?.id || issue?.issueId || "";
 
+const PHOTO_LIMIT = 3;
+
+const uniqueValues = (values) =>
+  Array.from(new Set((values || []).filter(Boolean)));
+
+const getDefectPhotoUrls = (issue) =>
+  uniqueValues([
+    ...(Array.isArray(issue?.defectPhotoUrls) ? issue.defectPhotoUrls : []),
+    issue?.defectPhotoUrl,
+    issue?.issuePhotoUrl
+  ]).slice(0, PHOTO_LIMIT);
+
+const getFixPhotoUrls = (issue) =>
+  uniqueValues([
+    ...(Array.isArray(issue?.fixPhotoUrls) ? issue.fixPhotoUrls : []),
+    issue?.fixPhotoUrl,
+    issue?.afterPhotoUrl
+  ]).slice(0, PHOTO_LIMIT);
+
 const getDefectPhotoUrl = (issue) =>
-  issue?.defectPhotoUrl || issue?.issuePhotoUrl || "";
+  getDefectPhotoUrls(issue)[0] || "";
 
 const getFixPhotoUrl = (issue) =>
-  issue?.fixPhotoUrl || "";
+  getFixPhotoUrls(issue)[0] || "";
 
-const EvidencePhotoBox = ({ label, src, alt }) => (
-  <figure>
-    <figcaption>{label}</figcaption>
-    {src ? (
-      <img className="issue-ticket-detail-photo" src={src} alt={alt} />
-    ) : (
-      <div className="issue-ticket-detail-photo issue-ticket-detail-photo--empty" aria-label={alt} />
-    )}
-  </figure>
+const createAuditEntry = ({ status, note, updatedBy, eventType }) => ({
+  status,
+  note: note || "",
+  updatedBy: updatedBy || "",
+  updatedAt: new Date(),
+  eventType: eventType || "status_update"
+});
+
+const appendHistory = (issue, entries) => [
+  ...(Array.isArray(issue?.history) ? issue.history : []),
+  ...entries.filter(Boolean)
+];
+
+const EvidencePhotoBox = ({ label, urls, alt }) => (
+  <div className="issue-ticket-photo-group">
+    <span>{label}</span>
+    <div className="issue-ticket-photo-grid">
+      {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
+        const src = urls[index];
+        return src ? (
+          <figure key={`${label}-${src}-${index}`}>
+            <img className="issue-ticket-detail-photo" src={src} alt={`${alt} ${index + 1}`} />
+          </figure>
+        ) : (
+          <div key={`${label}-empty-${index}`} className="issue-ticket-detail-photo issue-ticket-detail-photo--empty" aria-label={`${alt} slot ${index + 1}`} />
+        );
+      })}
+    </div>
+  </div>
 );
 
 const toDate = (value) => {
@@ -158,6 +198,49 @@ const priorityClassName = (priority) => {
   return "issue-priority issue-priority--medium";
 };
 
+const IssueHistoryTimeline = ({ issue }) => {
+  const createdEntry = issue.createdAt
+    ? {
+        status: ISSUE_STATUS.OPEN,
+        note: issue.issueDescription || "Issue created",
+        updatedBy: issue.reportedBy || "",
+        updatedAt: issue.createdAt,
+        eventType: "issue_created"
+      }
+    : null;
+  const entries = [createdEntry, ...(Array.isArray(issue.history) ? issue.history : [])].filter(Boolean);
+  const sortedEntries = [...entries].sort((first, second) => {
+    const firstTime = toDate(first.updatedAt)?.getTime() || 0;
+    const secondTime = toDate(second.updatedAt)?.getTime() || 0;
+    return secondTime - firstTime;
+  });
+
+  return (
+    <div className="issue-history-panel">
+      <div className="card-header-row">
+        <h3 className="section-title">Status History</h3>
+        <span className="hint-text">{sortedEntries.length} entries</span>
+      </div>
+      {sortedEntries.length > 0 ? (
+        <ol className="issue-history-timeline">
+          {sortedEntries.map((entry, index) => (
+            <li key={`${entry.eventType || "event"}-${index}`}>
+              <span className={statusClassName(entry.status)}>{entry.status || "Update"}</span>
+              <div>
+                <strong>{String(entry.eventType || "status update").replace(/_/g, " ")}</strong>
+                <p>{entry.updatedBy || "-"} · {formatDateTime(entry.updatedAt)}</p>
+                {entry.note ? <small>{entry.note}</small> : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="hint-text">No status history recorded yet.</p>
+      )}
+    </div>
+  );
+};
+
 const buildManualIssueKey = () => {
   const randomPart =
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -189,15 +272,20 @@ const createFormFromIssue = (issue) => ({
   status: issue.status || ISSUE_STATUS.OPEN,
   issuePhotoUrl: issue.issuePhotoUrl || issue.defectPhotoUrl || "",
   defectPhotoUrl: getDefectPhotoUrl(issue),
+  defectPhotoUrls: getDefectPhotoUrls(issue),
   defectPhotoStoragePath: issue.defectPhotoStoragePath || "",
   defectPhotoUploadedAt: issue.defectPhotoUploadedAt || null,
   defectPhotoUploadedBy: issue.defectPhotoUploadedBy || "",
   fixPhotoUrl: getFixPhotoUrl(issue),
+  fixPhotoUrls: getFixPhotoUrls(issue),
   fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
   fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
   fixPhotoUploadedBy: issue.fixPhotoUploadedBy || "",
   verificationComments: issue.verificationComments || "",
-  aiRecommendation: issue.aiRecommendation || ""
+  history: Array.isArray(issue.history) ? issue.history : [],
+  aiRecommendation: issue.aiRecommendation || "",
+  photoFiles: [],
+  photoPreviews: []
 });
 
 const createVerificationFormFromIssue = (issue) => ({
@@ -350,16 +438,20 @@ const IssueForm = ({
       </label>
       <div className="issue-ticket-photo-field">
         <label>
-          <span>Defect Photo</span>
+          <span>Defect Photos (max 3)</span>
           <input
             type="file"
             accept="image/*"
-            onChange={(event) => onChange("photoFile", event.target.files?.[0] || null)}
+            multiple
+            onChange={(event) => onChange("photoFiles", Array.from(event.target.files || []))}
+            disabled={getDefectPhotoUrls(form).length + (form.photoPreviews || []).length >= PHOTO_LIMIT}
           />
         </label>
-        {getDefectPhotoUrl(form) && (
-          <img className="issue-ticket-photo-preview" src={getDefectPhotoUrl(form)} alt="Defect evidence" />
-        )}
+        <EvidencePhotoBox
+          label="Defect evidence"
+          urls={[...getDefectPhotoUrls(form), ...(form.photoPreviews || [])].slice(0, PHOTO_LIMIT)}
+          alt="Defect evidence"
+        />
       </div>
       <div className="issue-ticket-actions">
         <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
@@ -411,31 +503,35 @@ const VerifyClosePanel = ({
       <div className="issue-ticket-evidence-grid">
         <EvidencePhotoBox
           label="Before"
-          src={form.defectPhotoPreview || getDefectPhotoUrl(issue)}
+          urls={[...getDefectPhotoUrls(issue), ...(form.defectPhotoPreviews || [])].slice(0, PHOTO_LIMIT)}
           alt="Original defect evidence"
         />
         <EvidencePhotoBox
           label="After"
-          src={form.afterPhotoPreview || getFixPhotoUrl(issue)}
+          urls={[...getFixPhotoUrls(issue), ...(form.afterPhotoPreviews || [])].slice(0, PHOTO_LIMIT)}
           alt="Closure evidence"
         />
       </div>
       <label>
-        <span>Defect Photo</span>
+        <span>Defect Photos (max 3)</span>
         <input
           type="file"
           accept="image/*"
-          onChange={(event) => onChange("defectPhotoFile", event.target.files?.[0] || null)}
-          required={!getDefectPhotoUrl(issue)}
+          multiple
+          onChange={(event) => onChange("defectPhotoFiles", Array.from(event.target.files || []))}
+          required={getDefectPhotoUrls(issue).length === 0}
+          disabled={getDefectPhotoUrls(issue).length + (form.defectPhotoPreviews || []).length >= PHOTO_LIMIT}
         />
       </label>
       <label>
-        <span>After Photo</span>
+        <span>After Photos (max 3)</span>
         <input
           type="file"
           accept="image/*"
-          onChange={(event) => onChange("afterPhotoFile", event.target.files?.[0] || null)}
-          required={!getFixPhotoUrl(issue)}
+          multiple
+          onChange={(event) => onChange("afterPhotoFiles", Array.from(event.target.files || []))}
+          required={getFixPhotoUrls(issue).length === 0}
+          disabled={getFixPhotoUrls(issue).length + (form.afterPhotoPreviews || []).length >= PHOTO_LIMIT}
         />
       </label>
       <label>
@@ -465,6 +561,7 @@ const VerifyClosePanel = ({
           required
         />
       </label>
+      <IssueHistoryTimeline issue={issue} />
       <div className="issue-ticket-actions">
         <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
         <button type="submit" className="primary-button" disabled={saving}>
@@ -475,7 +572,7 @@ const VerifyClosePanel = ({
   </section>
 );
 
-const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) => (
+const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onViewChecklist }) => (
   <aside className="dashboard-card issue-ticket-detail">
     <div className="card-header-row">
       <div>
@@ -485,10 +582,6 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) =
       <span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span>
     </div>
     <div className="issue-ticket-detail-grid">
-      <div>
-        <span>Issue ID</span>
-        <strong>{issue.issueId || issue.id}</strong>
-      </div>
       <div>
         <span>Building</span>
         <strong>{buildingName || "-"}</strong>
@@ -529,16 +622,26 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose }) =
     <div className="issue-ticket-evidence-grid">
       <EvidencePhotoBox
         label="Before"
-        src={getDefectPhotoUrl(issue)}
+        urls={getDefectPhotoUrls(issue)}
         alt="Original defect evidence"
       />
       <EvidencePhotoBox
         label="After"
-        src={getFixPhotoUrl(issue)}
+        urls={getFixPhotoUrls(issue)}
         alt="Closure evidence"
       />
     </div>
+    <IssueHistoryTimeline issue={issue} />
     <div className="issue-ticket-actions">
+      <button
+        type="button"
+        className="secondary-button issue-icon-action"
+        onClick={() => onViewChecklist(issue)}
+        aria-label="View Checklist"
+        title="View Checklist"
+      >
+        <span aria-hidden="true">{"\uD83D\uDC41"}</span>
+      </button>
       <button type="button" className="secondary-button" onClick={() => onEdit(issue)}>
         Edit
       </button>
@@ -560,7 +663,7 @@ const DeleteModal = ({ issue, saving, onCancel, onConfirm }) => {
       <div className="issue-ticket-modal" role="dialog" aria-modal="true" aria-labelledby="delete-issue-title">
         <h2 id="delete-issue-title">Delete Issue Ticket?</h2>
         <p>Delete fire safety issue ticket "{issueName}"?</p>
-        <strong>{issue.issueId || issue.id}</strong>
+        <strong>{issue.floorName || issue.location || issue.issueTitle || "-"}</strong>
         <div className="issue-ticket-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
           <button type="button" className="danger-button" onClick={onConfirm} disabled={saving}>
@@ -670,30 +773,78 @@ const Issues = ({ verifyClosureMode = false }) => {
     });
   };
 
+  const openChecklistItem = (issue) => {
+    const issueId = issue.id || getIssueKey(issue);
+    navigate(`/fsm/inspections?issueId=${encodeURIComponent(issueId)}`, {
+      state: { issue }
+    });
+  };
+
   const handleIssueFormChange = (field, value) => {
+    if (field === "photoFiles") {
+      setIssueForm((current) => {
+        const remaining = PHOTO_LIMIT - getDefectPhotoUrls(current).length - (current.photoFiles || []).length;
+        const selected = value.slice(0, Math.max(remaining, 0));
+        return {
+          ...current,
+          photoFiles: [...(current.photoFiles || []), ...selected],
+          photoPreviews: [
+            ...(current.photoPreviews || []),
+            ...selected.map((file) => URL.createObjectURL(file))
+          ]
+        };
+      });
+      return;
+    }
+
     setIssueForm((current) => ({ ...current, [field]: value }));
   };
 
   const handleVerificationChange = (field, value) => {
-    if (field === "defectPhotoFile") {
+    if (field === "defectPhotoFiles") {
       setVerificationForm((current) => ({
         ...current,
-        defectPhotoFile: value,
-        defectPhotoPreview: value ? URL.createObjectURL(value) : ""
+        defectPhotoFiles: [
+          ...(current.defectPhotoFiles || []),
+          ...value.slice(0, Math.max(PHOTO_LIMIT - getDefectPhotoUrls(activeIssue).length - (current.defectPhotoFiles || []).length, 0))
+        ],
+        defectPhotoPreviews: [
+          ...(current.defectPhotoPreviews || []),
+          ...value
+            .slice(0, Math.max(PHOTO_LIMIT - getDefectPhotoUrls(activeIssue).length - (current.defectPhotoFiles || []).length, 0))
+            .map((file) => URL.createObjectURL(file))
+        ]
       }));
       return;
     }
 
-    if (field === "afterPhotoFile") {
+    if (field === "afterPhotoFiles") {
       setVerificationForm((current) => ({
         ...current,
-        afterPhotoFile: value,
-        afterPhotoPreview: value ? URL.createObjectURL(value) : ""
+        afterPhotoFiles: [
+          ...(current.afterPhotoFiles || []),
+          ...value.slice(0, Math.max(PHOTO_LIMIT - getFixPhotoUrls(activeIssue).length - (current.afterPhotoFiles || []).length, 0))
+        ],
+        afterPhotoPreviews: [
+          ...(current.afterPhotoPreviews || []),
+          ...value
+            .slice(0, Math.max(PHOTO_LIMIT - getFixPhotoUrls(activeIssue).length - (current.afterPhotoFiles || []).length, 0))
+            .map((file) => URL.createObjectURL(file))
+        ]
       }));
       return;
     }
 
     setVerificationForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const uploadIssuePhotos = async (files, folder) => {
+    const uploadedPhotos = [];
+    for (const file of files || []) {
+      const uploaded = await uploadFile(file, folder);
+      if (uploaded?.url) uploadedPhotos.push(uploaded);
+    }
+    return uploadedPhotos;
   };
 
   const handleIssueSubmit = async (event) => {
@@ -714,16 +865,44 @@ const Issues = ({ verifyClosureMode = false }) => {
       let defectPhotoStoragePath = issueForm.defectPhotoStoragePath;
       let defectPhotoUploadedAt = issueForm.defectPhotoUploadedAt;
       let defectPhotoUploadedBy = issueForm.defectPhotoUploadedBy;
-      if (issueForm.photoFile) {
-        const uploaded = await uploadFile(
-          issueForm.photoFile,
-          getIssueDefectPhotoFolder(issueForm, issueKey)
-        );
-        issuePhotoUrl = uploaded.url;
-        defectPhotoUrl = uploaded.url;
-        defectPhotoStoragePath = uploaded.path;
+      let defectPhotoUrls = getDefectPhotoUrls(issueForm);
+      const uploadedDefectPhotos = await uploadIssuePhotos(
+        issueForm.photoFiles,
+        getIssueDefectPhotoFolder(issueForm, issueKey)
+      );
+      if (uploadedDefectPhotos.length) {
+        defectPhotoUrls = uniqueValues([...defectPhotoUrls, ...uploadedDefectPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        issuePhotoUrl = defectPhotoUrls[0] || "";
+        defectPhotoUrl = defectPhotoUrls[0] || "";
+        defectPhotoStoragePath = uploadedDefectPhotos[uploadedDefectPhotos.length - 1].path;
         defectPhotoUploadedAt = new Date();
         defectPhotoUploadedBy = getPrimaryFsmId(user);
+      }
+
+      const historyEntries = [];
+      if (activeForm === "create") {
+        historyEntries.push(createAuditEntry({
+          status: issueForm.status || ISSUE_STATUS.OPEN,
+          note: issueForm.issueDescription || "Issue created",
+          updatedBy: getPrimaryFsmId(user),
+          eventType: "issue_created"
+        }));
+      }
+      if (activeForm === "edit" && activeIssue && normalizeText(activeIssue.status) !== normalizeText(issueForm.status)) {
+        historyEntries.push(createAuditEntry({
+          status: issueForm.status || ISSUE_STATUS.OPEN,
+          note: issueForm.rectification || issueForm.issueDescription || "",
+          updatedBy: getPrimaryFsmId(user),
+          eventType: "status_update"
+        }));
+      }
+      if (uploadedDefectPhotos.length) {
+        historyEntries.push(createAuditEntry({
+          status: issueForm.status || ISSUE_STATUS.OPEN,
+          note: `${uploadedDefectPhotos.length} defect photo(s) uploaded`,
+          updatedBy: getPrimaryFsmId(user),
+          eventType: "photos_uploaded"
+        }));
       }
 
       const payload = {
@@ -733,11 +912,14 @@ const Issues = ({ verifyClosureMode = false }) => {
         reportedBy: getPrimaryFsmId(user),
         issuePhotoUrl,
         defectPhotoUrl,
+        defectPhotoUrls,
         defectPhotoStoragePath,
         defectPhotoUploadedAt,
-        defectPhotoUploadedBy
+        defectPhotoUploadedBy,
+        ...(historyEntries.length ? { history: appendHistory(issueForm, historyEntries) } : {})
       };
-      delete payload.photoFile;
+      delete payload.photoFiles;
+      delete payload.photoPreviews;
 
       await upsertIssue(payload);
       setActiveIssueId(issueKey);
@@ -770,7 +952,7 @@ const Issues = ({ verifyClosureMode = false }) => {
     setFormError("");
     setFormSuccess("");
 
-    if ((!verificationForm.afterPhotoFile && !getFixPhotoUrl(activeIssue)) || !verificationForm.verificationComments.trim()) {
+    if (((verificationForm.afterPhotoFiles || []).length === 0 && getFixPhotoUrls(activeIssue).length === 0) || !verificationForm.verificationComments.trim()) {
       setFormError("After photo and verification comments are required.");
       return;
     }
@@ -791,23 +973,27 @@ const Issues = ({ verifyClosureMode = false }) => {
       let fixPhotoStoragePath = activeIssue.fixPhotoStoragePath || "";
       let fixPhotoUploadedAt = activeIssue.fixPhotoUploadedAt || null;
       let fixPhotoUploadedBy = activeIssue.fixPhotoUploadedBy || "";
+      let defectPhotoUrls = getDefectPhotoUrls(activeIssue);
+      let fixPhotoUrls = getFixPhotoUrls(activeIssue);
 
-      if (verificationForm.defectPhotoFile) {
-        const uploaded = await uploadFile(
-          verificationForm.defectPhotoFile,
-          getIssueDefectPhotoFolder(activeIssue, issueKey)
-        );
-        issuePhotoUrl = uploaded.url;
-        defectPhotoUrl = uploaded.url;
-        defectPhotoStoragePath = uploaded.path;
+      const uploadedDefectPhotos = await uploadIssuePhotos(
+        verificationForm.defectPhotoFiles,
+        getIssueDefectPhotoFolder(activeIssue, issueKey)
+      );
+      if (uploadedDefectPhotos.length) {
+        defectPhotoUrls = uniqueValues([...defectPhotoUrls, ...uploadedDefectPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        issuePhotoUrl = defectPhotoUrls[0] || "";
+        defectPhotoUrl = defectPhotoUrls[0] || "";
+        defectPhotoStoragePath = uploadedDefectPhotos[uploadedDefectPhotos.length - 1].path;
         defectPhotoUploadedAt = new Date();
         defectPhotoUploadedBy = getPrimaryFsmId(user);
       }
 
-      if (verificationForm.afterPhotoFile) {
-        const uploaded = await uploadFile(verificationForm.afterPhotoFile, `closure-verifications/${issueKey}`);
-        fixPhotoUrl = uploaded.url;
-        fixPhotoStoragePath = uploaded.path;
+      const uploadedFixPhotos = await uploadIssuePhotos(verificationForm.afterPhotoFiles, `closure-verifications/${issueKey}`);
+      if (uploadedFixPhotos.length) {
+        fixPhotoUrls = uniqueValues([...fixPhotoUrls, ...uploadedFixPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        fixPhotoUrl = fixPhotoUrls[0] || "";
+        fixPhotoStoragePath = uploadedFixPhotos[uploadedFixPhotos.length - 1].path;
         fixPhotoUploadedAt = new Date();
         fixPhotoUploadedBy = getPrimaryFsmId(user);
       }
@@ -820,10 +1006,12 @@ const Issues = ({ verifyClosureMode = false }) => {
         beforePhotoUrl: defectPhotoUrl,
         afterPhotoUrl: fixPhotoUrl,
         defectPhotoUrl,
+        defectPhotoUrls,
         defectPhotoStoragePath,
         defectPhotoUploadedAt,
         defectPhotoUploadedBy,
         fixPhotoUrl,
+        fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy,
@@ -838,14 +1026,32 @@ const Issues = ({ verifyClosureMode = false }) => {
         location: activeIssue.location || "",
         issuePhotoUrl,
         defectPhotoUrl,
+        defectPhotoUrls,
         defectPhotoStoragePath,
         defectPhotoUploadedAt,
         defectPhotoUploadedBy,
         fixPhotoUrl,
+        fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy,
-        verificationComments: verificationForm.verificationComments
+        verificationComments: verificationForm.verificationComments,
+        history: appendHistory(activeIssue, [
+          uploadedDefectPhotos.length || uploadedFixPhotos.length
+            ? createAuditEntry({
+                status: ISSUE_STATUS.RESOLVED,
+                note: `${uploadedDefectPhotos.length + uploadedFixPhotos.length} photo(s) uploaded`,
+                updatedBy: getPrimaryFsmId(user),
+                eventType: "photos_uploaded"
+              })
+            : null,
+          createAuditEntry({
+            status: ISSUE_STATUS.RESOLVED,
+            note: verificationForm.verificationComments,
+            updatedBy: getPrimaryFsmId(user),
+            eventType: "status_update"
+          })
+        ])
       });
 
       closePanels({ keepSuccess: true });
@@ -872,8 +1078,8 @@ const Issues = ({ verifyClosureMode = false }) => {
       !activeIssue.issueTitle?.trim() ||
       !verificationForm.issueDescription.trim() ||
       !verificationForm.rectification.trim() ||
-      (!verificationForm.defectPhotoFile && !getDefectPhotoUrl(activeIssue)) ||
-      (!verificationForm.afterPhotoFile && !getFixPhotoUrl(activeIssue)) ||
+      ((verificationForm.defectPhotoFiles || []).length === 0 && getDefectPhotoUrls(activeIssue).length === 0) ||
+      ((verificationForm.afterPhotoFiles || []).length === 0 && getFixPhotoUrls(activeIssue).length === 0) ||
       !verificationForm.verificationComments.trim()
     ) {
       setFormError("Issue details, before photo, after photo, resolution details, and verification comments are required before closing.");
@@ -896,23 +1102,27 @@ const Issues = ({ verifyClosureMode = false }) => {
       let fixPhotoStoragePath = activeIssue.fixPhotoStoragePath || "";
       let fixPhotoUploadedAt = activeIssue.fixPhotoUploadedAt || null;
       let fixPhotoUploadedBy = activeIssue.fixPhotoUploadedBy || "";
+      let defectPhotoUrls = getDefectPhotoUrls(activeIssue);
+      let fixPhotoUrls = getFixPhotoUrls(activeIssue);
 
-      if (verificationForm.defectPhotoFile) {
-        const uploaded = await uploadFile(
-          verificationForm.defectPhotoFile,
-          getIssueDefectPhotoFolder(activeIssue, issueKey)
-        );
-        issuePhotoUrl = uploaded.url;
-        defectPhotoUrl = uploaded.url;
-        defectPhotoStoragePath = uploaded.path;
+      const uploadedDefectPhotos = await uploadIssuePhotos(
+        verificationForm.defectPhotoFiles,
+        getIssueDefectPhotoFolder(activeIssue, issueKey)
+      );
+      if (uploadedDefectPhotos.length) {
+        defectPhotoUrls = uniqueValues([...defectPhotoUrls, ...uploadedDefectPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        issuePhotoUrl = defectPhotoUrls[0] || "";
+        defectPhotoUrl = defectPhotoUrls[0] || "";
+        defectPhotoStoragePath = uploadedDefectPhotos[uploadedDefectPhotos.length - 1].path;
         defectPhotoUploadedAt = new Date();
         defectPhotoUploadedBy = getPrimaryFsmId(user);
       }
 
-      if (verificationForm.afterPhotoFile) {
-        const uploaded = await uploadFile(verificationForm.afterPhotoFile, `closure-verifications/${issueKey}`);
-        fixPhotoUrl = uploaded.url;
-        fixPhotoStoragePath = uploaded.path;
+      const uploadedFixPhotos = await uploadIssuePhotos(verificationForm.afterPhotoFiles, `closure-verifications/${issueKey}`);
+      if (uploadedFixPhotos.length) {
+        fixPhotoUrls = uniqueValues([...fixPhotoUrls, ...uploadedFixPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        fixPhotoUrl = fixPhotoUrls[0] || "";
+        fixPhotoStoragePath = uploadedFixPhotos[uploadedFixPhotos.length - 1].path;
         fixPhotoUploadedAt = new Date();
         fixPhotoUploadedBy = getPrimaryFsmId(user);
       }
@@ -925,10 +1135,12 @@ const Issues = ({ verifyClosureMode = false }) => {
         beforePhotoUrl: defectPhotoUrl,
         afterPhotoUrl: fixPhotoUrl,
         defectPhotoUrl,
+        defectPhotoUrls,
         defectPhotoStoragePath,
         defectPhotoUploadedAt,
         defectPhotoUploadedBy,
         fixPhotoUrl,
+        fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy,
@@ -947,14 +1159,32 @@ const Issues = ({ verifyClosureMode = false }) => {
         rectification: verificationForm.rectification,
         issuePhotoUrl,
         defectPhotoUrl,
+        defectPhotoUrls,
         defectPhotoStoragePath,
         defectPhotoUploadedAt,
         defectPhotoUploadedBy,
         fixPhotoUrl,
+        fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy,
-        verificationComments: verificationForm.verificationComments
+        verificationComments: verificationForm.verificationComments,
+        history: appendHistory(activeIssue, [
+          uploadedDefectPhotos.length || uploadedFixPhotos.length
+            ? createAuditEntry({
+                status: ISSUE_STATUS.CLOSED,
+                note: `${uploadedDefectPhotos.length + uploadedFixPhotos.length} photo(s) uploaded`,
+                updatedBy: getPrimaryFsmId(user),
+                eventType: "photos_uploaded"
+              })
+            : null,
+          createAuditEntry({
+            status: ISSUE_STATUS.CLOSED,
+            note: verificationForm.verificationComments,
+            updatedBy: getPrimaryFsmId(user),
+            eventType: "status_update"
+          })
+        ])
       });
 
       setActiveIssueId(issueKey);
@@ -1010,7 +1240,7 @@ const Issues = ({ verifyClosureMode = false }) => {
             onCancel={closePanels}
             onSubmit={handleVerifyClose}
           />
-        ) : verifyClosureMode && activeIssue ? (
+        ) : verifyClosureMode && activeIssue && normalizeText(activeIssue.status) !== normalizeText(ISSUE_STATUS.CLOSED) ? (
           <VerifyClosePanel
             issue={activeIssue}
             form={verificationForm}
@@ -1020,6 +1250,16 @@ const Issues = ({ verifyClosureMode = false }) => {
             onCancel={closePanels}
             onSubmit={handleCloseReviewedIssue}
           />
+        ) : verifyClosureMode && activeIssue ? (
+          <IssueDetail
+            issue={activeIssue}
+            buildingName={activeIssue.buildingName}
+            onEdit={openEditForm}
+            onDelete={setDeleteTarget}
+            onVerifyClose={openVerifyClose}
+            onViewChecklist={openChecklistItem}
+            saving={saving}
+          />
         ) : activeIssue ? (
           <IssueDetail
             issue={activeIssue}
@@ -1027,6 +1267,7 @@ const Issues = ({ verifyClosureMode = false }) => {
             onEdit={openEditForm}
             onDelete={setDeleteTarget}
             onVerifyClose={openVerifyClose}
+            onViewChecklist={openChecklistItem}
             saving={saving}
           />
         ) : (
@@ -1068,7 +1309,7 @@ const Issues = ({ verifyClosureMode = false }) => {
             <table className="dashboard-table issue-ticket-table">
               <thead>
                 <tr>
-                  <th>Issue ID</th>
+                  <th>Level / Location</th>
                   <th>Finding</th>
                   <th>Building</th>
                   <th>Status</th>
@@ -1078,7 +1319,7 @@ const Issues = ({ verifyClosureMode = false }) => {
               </thead>
               <tbody>
                 {visibleIssues.map((issue) => {
-                  const issueDisplayId = issue.issueId || issue.id;
+                  const locationLabel = issue.floorName || issue.location || "-";
                   const issueUpdatedAt = formatDateTime(issue.updatedAt || issue.createdAt);
 
                   return (
@@ -1087,7 +1328,7 @@ const Issues = ({ verifyClosureMode = false }) => {
                       className={activeIssue?.id === issue.id ? "issue-ticket-row-active" : ""}
                       onClick={() => setActiveIssueId(issue.id)}
                     >
-                      <td className="id-cell" title={issueDisplayId}>{issueDisplayId}</td>
+                      <td title={locationLabel}>{locationLabel}</td>
                       <td title={issue.issueTitle || ""}>{issue.issueTitle || "-"}</td>
                       <td title={issue.buildingName || ""}>{issue.buildingName || "-"}</td>
                       <td><span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span></td>

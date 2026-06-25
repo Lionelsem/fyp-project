@@ -267,6 +267,7 @@ const hasNonBlankRemark = (result) =>
 
 const getResultPhotoUrl = (result) =>
   [
+    ...(Array.isArray(result?.defectPhotoUrls) ? result.defectPhotoUrls : []),
     result?.defectPhotoUrl,
     result?.photoUrl,
     result?.issuePhotoUrl,

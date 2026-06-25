@@ -925,6 +925,36 @@ button {
   margin: 0 auto;
 }
 
+.inspection-floating-submit {
+  position: fixed;
+  right: 28px;
+  bottom: 24px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.inspection-floating-submit span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.inspection-floating-submit .primary-button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
 .page-header {
   display: flex;
   align-items: flex-start;
@@ -1141,6 +1171,30 @@ button {
   gap: 12px;
 }
 
+.issue-ticket-photo-grid,
+.issue-photo-wrapper--grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.issue-ticket-photo-grid figure,
+.inspection-photo-preview {
+  position: relative;
+  margin: 0;
+}
+
+.issue-ticket-photo-group {
+  display: grid;
+  gap: 8px;
+}
+
+.issue-ticket-photo-group > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .verification-photo,
 .issue-ticket-evidence-grid figure {
   display: grid;
@@ -1169,6 +1223,13 @@ button {
   display: grid;
   gap: 8px;
   max-width: 24rem;
+}
+
+.verification-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
 }
 
 .overview-grid {
@@ -1474,6 +1535,21 @@ button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.issue-status-field {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.checklist-verify-button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .issue-photo-upload input {
@@ -2934,13 +3010,89 @@ button {
   align-items: center;
 }
 
+.issue-ticket-actions .secondary-button,
+.issue-ticket-actions .primary-button,
+.issue-ticket-actions .danger-button,
+.compact-action-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
 .issue-ticket-detail .issue-ticket-actions {
   align-items: stretch;
   justify-content: flex-end;
 }
 
 .issue-ticket-detail .issue-ticket-actions button {
-  flex: 0 1 150px;
+  flex: 0 0 112px;
+}
+
+.issue-ticket-detail .issue-ticket-actions .issue-icon-action {
+  flex: 0 0 42px;
+  width: 42px;
+  padding: 8px;
+  font-size: 15px;
+}
+
+.issue-history-panel {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.issue-history-panel--compact {
+  padding: 10px 0 0;
+}
+
+.issue-history-panel--compact h5 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.issue-history-panel--compact .issue-history-timeline {
+  gap: 8px;
+}
+
+.issue-history-panel--compact .issue-history-timeline li {
+  padding: 10px;
+}
+
+.issue-history-timeline {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.issue-history-timeline li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.issue-history-timeline strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.issue-history-timeline p,
+.issue-history-timeline small {
+  display: block;
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .issue-ticket-detail {
@@ -3809,6 +3961,13 @@ button {
 }
 
 @media (max-width: 640px) {
+  .inspection-floating-submit {
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    justify-content: space-between;
+  }
+
   .summary-grid {
     grid-template-columns: 1fr;
   }

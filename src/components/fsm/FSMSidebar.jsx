@@ -10,6 +10,7 @@ const menuItems = [
     icon: "📋",
     submenu: [
       { path: "/fsm/inspections", label: "My Inspections" },
+      { path: "/fsm/issues", label: "Issue Tickets" },
       { path: "/fsm/inspections/verify", label: "Verify Closure" }
     ]
   },
@@ -62,7 +63,7 @@ const FSMSidebar = ({ profile }) => {
   };
 
   useEffect(() => {
-    if (location.pathname.startsWith("/fsm/inspections")) {
+    if (location.pathname.startsWith("/fsm/inspections") || location.pathname.startsWith("/fsm/issues")) {
       setExpandedMenu("/fsm/inspections");
     }
   }, [location.pathname]);
