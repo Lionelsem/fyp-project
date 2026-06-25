@@ -265,13 +265,38 @@ const formatResultNotes = (result) => {
 const hasNonBlankRemark = (result) =>
   String(result?.remark || "").trim().length > 0;
 
+const getResultPhotoUrl = (result) =>
+  [
+    result?.defectPhotoUrl,
+    result?.photoUrl,
+    result?.issuePhotoUrl,
+    result?.beforePhotoUrl,
+    result?.photo
+  ]
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || "";
+
+const isDefectResult = (result) => {
+  const condition = String(result?.condition || "").trim().toLowerCase();
+  const passFail = String(result?.passFail || "").trim().toLowerCase();
+  return condition === "faulty" || passFail === "fail";
+};
+
+const hasAppendixEvidence = (result) =>
+  hasNonBlankRemark(result) ||
+  !!getResultPhotoUrl(result) ||
+  String(result?.issueDescription || "").trim().length > 0 ||
+  String(result?.rectification || "").trim().length > 0 ||
+  isDefectResult(result);
+
 const buildAppendixAEntries = (results = []) =>
   results
     .filter((result) => {
       const selectedCondition = String(result.condition || result.passFail || "").trim();
-      return selectedCondition && hasNonBlankRemark(result);
+      return selectedCondition && hasAppendixEvidence(result);
     })
     .map((result) => {
+      const remarkText = String(result.remark || "").trim();
       const categoryLabel =
         result.categoryCode && result.categoryName && result.categoryName !== result.categoryCode
           ? `${result.categoryCode} - ${result.categoryName}`
@@ -284,15 +309,17 @@ const buildAppendixAEntries = (results = []) =>
         result.issueDescription && `Finding: ${result.issueDescription}`,
         result.rectification && `Rectification: ${result.rectification}`
       ].filter(Boolean);
+      const photoUrl = getResultPhotoUrl(result);
 
       return {
         location: result.location || result.floorName || result.inspectionPath || "-",
-        photographs: result.photoUrl || result.defectPhotoUrl ? "(See system)" : "-",
+        photoUrl,
+        photographs: photoUrl ? "Attached" : "-",
         findings: `Section: ${categoryLabel}\nItem: ${itemLabel}\nCondition: ${getResultAnswer(result)}`,
         remarks: [
-          `Remark: ${String(result.remark || "").trim()}`,
+          remarkText && `Remark: ${remarkText}`,
           ...linkedDetails
-        ].join("\n")
+        ].filter(Boolean).join("\n") || "-"
       };
     });
 
@@ -383,6 +410,45 @@ const renderHtmlTable = (headers, rows) => `
   </table>
 `;
 
+const renderMultilineHtml = (value) =>
+  escapeHtml(value).replace(/\n/g, "<br />");
+
+const renderReportPhotoHtml = (url, alt) =>
+  url
+    ? `<img class="report-photo" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" />`
+    : `<span class="photo-fallback">-</span>`;
+
+const renderAppendixAHtml = (entries = []) => {
+  if (entries.length === 0) {
+    return "<p>No findings to report for this period.</p>";
+  }
+
+  return `
+    <table>
+      <thead>
+        <tr>
+          <th>S/No</th>
+          <th>Location</th>
+          <th>Photographs</th>
+          <th>Findings</th>
+          <th>Remarks / Proposed Rectification</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entries.map((entry, idx) => `
+          <tr>
+            <td>${String(idx + 1).padStart(2, "0")}</td>
+            <td>${renderMultilineHtml(entry.location)}</td>
+            <td class="photo-cell">${renderReportPhotoHtml(entry.photoUrl, `Finding ${idx + 1} photograph`)}</td>
+            <td>${renderMultilineHtml(entry.findings)}</td>
+            <td>${renderMultilineHtml(entry.remarks)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+};
+
 const renderChecklistResultHtml = ({ inspections = [], inspectionResults = [], buildingMap }) => {
   if (inspections.length === 0) {
     return "<p>No inspection checklist results were recorded during this period.</p>";
@@ -449,11 +515,50 @@ const printHtmlReport = (html, title) => {
   printDocument.write(html);
   printDocument.close();
 
-  window.setTimeout(() => {
+  const waitForFrameLoad = () =>
+    new Promise((resolve) => {
+      if (printDocument.readyState === "complete") {
+        resolve();
+        return;
+      }
+
+      const timeout = window.setTimeout(resolve, 1500);
+      printWindow.addEventListener("load", () => {
+        window.clearTimeout(timeout);
+        resolve();
+      }, { once: true });
+    });
+
+  const waitForImages = () => {
+    const images = Array.from(printDocument.images || []);
+    if (images.length === 0) return Promise.resolve();
+
+    const imagePromises = images.map((image) => {
+      if (image.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        image.addEventListener("load", resolve, { once: true });
+        image.addEventListener("error", resolve, { once: true });
+      });
+    });
+
+    return Promise.race([
+      Promise.all(imagePromises),
+      new Promise((resolve) => window.setTimeout(resolve, 7000))
+    ]);
+  };
+
+  const printWhenReady = async () => {
+    await waitForFrameLoad();
+    if (printDocument.fonts?.ready) {
+      await printDocument.fonts.ready.catch(() => {});
+    }
+    await waitForImages();
     printWindow.focus();
     printWindow.print();
     window.setTimeout(() => iframe.remove(), 1000);
-  }, 250);
+  };
+
+  void printWhenReady();
 };
 
 // ─── docx builder helpers (receive live docx namespace) ──────────────────────
@@ -843,6 +948,7 @@ export const generateMonthlyReportPdf = async ({
   const monthIssues = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
   const monthInspectionResults = getResultsForInspections(monthInspections, inspectionResults);
   const checklistSummary = getChecklistSummary(monthInspectionResults);
+  const appendixAEntries = buildAppendixAEntries(monthInspectionResults);
   const openIssues = monthIssues.filter(
     (i) => ["open", "in progress"].includes(String(i.status || "").toLowerCase())
   );
@@ -939,6 +1045,19 @@ export const generateMonthlyReportPdf = async ({
           .meta div:nth-last-child(-n+2) { border-bottom: 0; }
           .muted { color: #4b5563; font-size: 12px; }
           .end { text-align: center; color: #6b7280; font-style: italic; margin-top: 24px; }
+          .appendix { page-break-before: always; }
+          .appendix table { page-break-inside: auto; }
+          .appendix tr { page-break-inside: avoid; }
+          .photo-cell { width: 130px; }
+          .report-photo {
+            display: block;
+            width: 116px;
+            max-height: 92px;
+            object-fit: contain;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+          }
+          .photo-fallback { color: #6b7280; font-size: 11px; }
         </style>
       </head>
       <body>
@@ -1011,6 +1130,15 @@ export const generateMonthlyReportPdf = async ({
         <p><strong>Name of Fire Safety Manager:</strong> ${escapeHtml(generatedBy)}</p>
         <p><strong>Signature:</strong> _______________________________</p>
         <p><strong>Date:</strong> ${escapeHtml(fmtDate(new Date()))}</p>
+
+        <section class="appendix">
+          <h2>Appendix A - Detailed Findings</h2>
+          <p><strong>Property:</strong> ${escapeHtml(buildingName)}</p>
+          <p><strong>Period:</strong> ${escapeHtml(`${monthLabel} ${year}`)}</p>
+          <p><strong>Prepared By:</strong> ${escapeHtml(`${generatedBy}, CBRE Pte Ltd`)}</p>
+          ${renderAppendixAHtml(appendixAEntries)}
+        </section>
+
         <p class="end">End of Monthly Inspection Report</p>
       </body>
     </html>
