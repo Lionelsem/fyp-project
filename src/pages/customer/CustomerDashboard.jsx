@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const summaryCards = [
   {
@@ -67,23 +68,36 @@ const latestReports = [
     title: "Latest Monthly Report",
     subtitle: "September 2026",
     icon: "📋",
-    iconBg: "#ecfdf5"
+    iconBg: "#ecfdf5",
+    path: "/inspection-reports"
   },
   {
     title: "Latest Fire Drill",
     subtitle: "August 15, 2026",
     icon: "🚒",
-    iconBg: "#fce7f3"
+    iconBg: "#fce7f3",
+    path: "/fire-drill-reports"
   },
   {
     title: "Annual Safety Report",
     subtitle: "Year 2025",
     icon: "📊",
-    iconBg: "#ecfdf5"
+    iconBg: "#ecfdf5",
+    path: "/annual-reports"
   }
 ];
 
 const CustomerDashboard = () => {
+  const navigate = useNavigate();
+
+  const handleFeedbackNavigation = () => {
+    navigate("/feedbacks");
+  };
+
+  const handleReportNavigation = (path) => {
+    navigate(path);
+  };
+
   return (
     <div className="dashboard-container">
       <div className="building-card-section">
@@ -172,7 +186,12 @@ const CustomerDashboard = () => {
             </div>
             <div className="reports-container">
               {latestReports.map((report) => (
-                <button key={report.title} type="button" className="report-btn">
+                <button
+                  key={report.title}
+                  type="button"
+                  className="report-btn"
+                  onClick={() => handleReportNavigation(report.path)}
+                >
                   <div className="report-icon" style={{ backgroundColor: report.iconBg }}>
                     {report.icon}
                   </div>
@@ -187,10 +206,15 @@ const CustomerDashboard = () => {
           </div>
 
           <div className="dashboard-card comments-card">
-            <div className="card-header-row">
+            <button
+              type="button"
+              className="card-header-row"
+              onClick={handleFeedbackNavigation}
+              style={{ background: "none", border: "none", padding: 0, width: "100%", cursor: "pointer", textAlign: "left" }}
+            >
               <h2 className="section-title">Comments / Feedback</h2>
               <span className="card-icon">→</span>
-            </div>
+            </button>
             <p className="comments-subtitle">Request updates or clarify issues</p>
           </div>
         </div>
