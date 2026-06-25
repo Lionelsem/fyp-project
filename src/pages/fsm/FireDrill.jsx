@@ -26,6 +26,7 @@ const emptyConductForm = {
   scheduledDrillId: "",
   actualDate: "",
   actualTime: "",
+  actualParticipants: "",
   alarmToEvacuationTime: "",
   totalEvacuationTime: "",
   observations: "",
@@ -199,6 +200,15 @@ const getBuildingParticipants = (building) => {
   return value === undefined || value === null ? "" : String(value);
 };
 
+const getActualParticipants = (drill) =>
+  [
+    drill?.actualParticipants,
+    drill?.participantsAttended,
+    drill?.attendanceCount
+  ]
+    .map((value) => String(value ?? "").trim())
+    .find(Boolean) || "";
+
 const getFsmLookupIds = (user) => [
   user?.uid,
   user?.authUid,
@@ -261,6 +271,8 @@ const normalizeDrill = (drill, buildingMap) => {
     customEvacuationType: drill.customEvacuationType || "",
     scope: drill.scope || drill.location || "Scope TBC",
     participants: drill.participants || drill.occupants || "Participants TBC",
+    scheduledParticipants: drill.scheduledParticipants || drill.plannedParticipants || drill.participants || drill.occupants || "",
+    actualParticipants: getActualParticipants(drill),
     status
   };
 };
@@ -499,7 +511,7 @@ const ConductForm = ({
         <ReadOnlyItem label="Scheduled Time" value={formatTimeRange(selectedDrill || {})} />
         <ReadOnlyItem label="Drill Type" value={selectedDrill?.drillType} />
         <ReadOnlyItem label="Scope" value={selectedDrill?.scope} />
-        <ReadOnlyItem label="Participants" value={selectedDrill?.participants} />
+        <ReadOnlyItem label="Planned Participants" value={selectedDrill?.participants} />
       </div>
 
       <div className="conduct-drill-section-title">Actual Information</div>
@@ -519,6 +531,18 @@ const ConductForm = ({
             type="time"
             value={form.actualTime}
             onChange={(event) => onChange("actualTime", event.target.value)}
+            required
+          />
+        </label>
+        <label className="fire-drill-form-field">
+          <span>Actual Participants</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            value={form.actualParticipants}
+            onChange={(event) => onChange("actualParticipants", event.target.value)}
             required
           />
         </label>
@@ -884,6 +908,17 @@ const FireDrill = () => {
       return;
     }
 
+    const actualParticipants = String(conductForm.actualParticipants || "").trim();
+    const actualParticipantsNumber = Number(actualParticipants);
+    if (
+      actualParticipants === "" ||
+      !Number.isInteger(actualParticipantsNumber) ||
+      actualParticipantsNumber < 0
+    ) {
+      setFormError("Enter the number of participants who attended the drill.");
+      return;
+    }
+
     try {
       setSaving(true);
       const uploadedPhotos = conductForm.photos.length > 0
@@ -897,6 +932,9 @@ const FireDrill = () => {
       await completeFireDrill(selectedDrill.id, {
         actualDate: conductForm.actualDate,
         actualTime: conductForm.actualTime,
+        scheduledParticipants: selectedDrill.scheduledParticipants || selectedDrill.participants,
+        actualParticipants,
+        participants: actualParticipants,
         alarmToEvacuationTime: conductForm.alarmToEvacuationTime,
         totalEvacuationTime: conductForm.totalEvacuationTime,
         observations: conductForm.observations,
@@ -1020,9 +1058,9 @@ const FireDrill = () => {
             <table className="dashboard-table fire-drill-history-table">
               <thead>
                 <tr>
-                  <th>DRILL ID</th>
                   <th>TYPE</th>
                   <th>DATE</th>
+                  <th>ATTENDED</th>
                   <th>STATUS</th>
                 </tr>
               </thead>
@@ -1033,9 +1071,9 @@ const FireDrill = () => {
 
                   return (
                     <tr key={drill.id}>
-                      <td className="id-cell">{drill.id}</td>
                       <td>{drill.drillType}</td>
                       <td>{formatDate(drill.actualDate || drill.conductedDate || drill.drillDate)}</td>
+                      <td>{drill.actualParticipants || drill.participants || "-"}</td>
                       <td>
                         <span
                           className="fire-drill-status-badge"

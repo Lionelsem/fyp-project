@@ -11,7 +11,10 @@ import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { REPORT_STATUS } from "../constants/status";
 
-const textValue = (value) => String(value || "").trim();
+const textValue = (value) => String(value ?? "").trim();
+
+const firstTextValue = (...values) =>
+  values.map(textValue).find(Boolean) || "";
 
 const buildFireDrillPayload = (data) => ({
   buildingId: textValue(data.buildingId),
@@ -72,12 +75,29 @@ export const deleteFireDrill = async (id) => {
 };
 
 export const completeFireDrill = async (id, data) => {
+  const actualParticipants = firstTextValue(
+    data.actualParticipants,
+    data.participantsAttended,
+    data.attendanceCount,
+    data.participants
+  );
+  const scheduledParticipants = firstTextValue(
+    data.scheduledParticipants,
+    data.plannedParticipants
+  );
+
   return updateFireDrill(id, {
     status: "Completed",
     performanceStatus: textValue(data.performanceStatus) || "Completed",
     actualDate: textValue(data.actualDate),
     actualTime: textValue(data.actualTime),
     conductedDate: textValue(data.actualDate),
+    participants: actualParticipants || textValue(data.participants),
+    actualParticipants,
+    participantsAttended: actualParticipants,
+    attendanceCount: actualParticipants ? Number(actualParticipants) : null,
+    scheduledParticipants,
+    plannedParticipants: scheduledParticipants,
     alarmToEvacuationTime: textValue(data.alarmToEvacuationTime),
     totalEvacuationTime: textValue(data.totalEvacuationTime),
     evacuationTime: textValue(data.totalEvacuationTime),

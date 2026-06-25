@@ -3127,17 +3127,13 @@ button {
 }
 
 .my-building-page {
-  height: calc(100vh - 156px);
-  min-height: 0;
-  overflow: hidden;
+  min-height: calc(100vh - 156px);
+  overflow: visible;
 }
 
 .my-building-content {
-  height: 100%;
-  min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 12px;
+  gap: 24px;
 }
 
 .my-building-content .building-card-section {
@@ -3565,7 +3561,7 @@ button {
 .my-building-reports {
   display: grid;
   min-height: 0;
-  gap: 8px;
+  gap: 10px;
 }
 
 .my-building-section-heading {
@@ -3583,6 +3579,8 @@ button {
 
 .my-building-report-layout {
   min-height: 0;
+  display: grid;
+  gap: 10px;
 }
 
 .my-building-report-layout .fsm-report-action-list {
@@ -3592,38 +3590,39 @@ button {
 }
 
 .my-building-report-layout .fsm-report-action-card {
-  min-height: 112px;
-  padding: 20px;
-  gap: 16px;
+  min-height: 102px;
+  padding: 14px;
+  gap: 12px;
   align-items: start;
   border-radius: 12px;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
 }
 
 .my-building-report-layout .fsm-report-action-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  font-size: 17px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 800;
 }
 
 .my-building-report-layout .fsm-report-action-body {
-  gap: 5px;
+  gap: 3px;
+  overflow-wrap: anywhere;
 }
 
 .my-building-report-layout .fsm-report-action-body strong {
-  font-size: 18px;
-  line-height: 1.2;
+  font-size: 16px;
+  line-height: 1.18;
 }
 
 .my-building-report-layout .fsm-report-action-body span {
-  font-size: 14px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .my-building-report-layout .fsm-report-action-body em {
-  font-size: 15px;
+  font-size: 13px;
 }
 
 @media (max-width: 520px) {
@@ -3634,6 +3633,12 @@ button {
   .fsm-report-action-icon {
     width: 36px;
     height: 36px;
+  }
+}
+
+@media (max-width: 900px) {
+  .my-building-report-layout .fsm-report-action-list {
+    grid-template-columns: 1fr;
   }
 }
 
