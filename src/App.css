@@ -925,30 +925,31 @@ button {
   margin: 0 auto;
 }
 
-.inspection-floating-submit {
-  position: fixed;
-  right: 28px;
-  bottom: 24px;
-  z-index: 30;
+.checklist-floating-submit {
+  position: sticky;
+  top: 12px;
+  z-index: 20;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  margin: 0 0 16px;
   padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(8px);
 }
 
-.inspection-floating-submit span {
+.checklist-floating-submit span {
   color: #475569;
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
 
-.inspection-floating-submit .primary-button {
+.checklist-floating-submit .primary-button {
   min-height: 36px;
   padding: 8px 14px;
   border-radius: 10px;
@@ -1197,6 +1198,7 @@ button {
 
 .verification-photo,
 .issue-ticket-evidence-grid figure {
+  position: relative;
   display: grid;
   gap: 6px;
   margin: 0;
@@ -3961,11 +3963,9 @@ button {
 }
 
 @media (max-width: 640px) {
-  .inspection-floating-submit {
-    right: 14px;
-    bottom: 14px;
-    left: 14px;
+  .checklist-floating-submit {
     justify-content: space-between;
+    align-items: stretch;
   }
 
   .summary-grid {

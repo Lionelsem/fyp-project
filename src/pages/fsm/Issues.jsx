@@ -138,7 +138,7 @@ const appendHistory = (issue, entries) => [
   ...entries.filter(Boolean)
 ];
 
-const EvidencePhotoBox = ({ label, urls, alt }) => (
+const EvidencePhotoBox = ({ label, urls, alt, onRemove, removableFrom = PHOTO_LIMIT }) => (
   <div className="issue-ticket-photo-group">
     <span>{label}</span>
     <div className="issue-ticket-photo-grid">
@@ -147,6 +147,16 @@ const EvidencePhotoBox = ({ label, urls, alt }) => (
         return src ? (
           <figure key={`${label}-${src}-${index}`}>
             <img className="issue-ticket-detail-photo" src={src} alt={`${alt} ${index + 1}`} />
+            {onRemove && index >= removableFrom && (
+              <button
+                type="button"
+                className="photo-remove-btn issue-remove-btn"
+                onClick={() => onRemove(index - removableFrom)}
+                aria-label={`Remove selected ${alt} ${index + 1}`}
+              >
+                &times;
+              </button>
+            )}
           </figure>
         ) : (
           <div key={`${label}-empty-${index}`} className="issue-ticket-detail-photo issue-ticket-detail-photo--empty" aria-label={`${alt} slot ${index + 1}`} />
@@ -503,26 +513,17 @@ const VerifyClosePanel = ({
       <div className="issue-ticket-evidence-grid">
         <EvidencePhotoBox
           label="Before"
-          urls={[...getDefectPhotoUrls(issue), ...(form.defectPhotoPreviews || [])].slice(0, PHOTO_LIMIT)}
+          urls={getDefectPhotoUrls(issue).slice(0, PHOTO_LIMIT)}
           alt="Original defect evidence"
         />
         <EvidencePhotoBox
           label="After"
           urls={[...getFixPhotoUrls(issue), ...(form.afterPhotoPreviews || [])].slice(0, PHOTO_LIMIT)}
           alt="Closure evidence"
+          removableFrom={getFixPhotoUrls(issue).length}
+          onRemove={(index) => onChange("removeAfterPhotoFile", index)}
         />
       </div>
-      <label>
-        <span>Defect Photos (max 3)</span>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(event) => onChange("defectPhotoFiles", Array.from(event.target.files || []))}
-          required={getDefectPhotoUrls(issue).length === 0}
-          disabled={getDefectPhotoUrls(issue).length + (form.defectPhotoPreviews || []).length >= PHOTO_LIMIT}
-        />
-      </label>
       <label>
         <span>After Photos (max 3)</span>
         <input
@@ -801,6 +802,15 @@ const Issues = ({ verifyClosureMode = false }) => {
   };
 
   const handleVerificationChange = (field, value) => {
+    if (field === "removeAfterPhotoFile") {
+      setVerificationForm((current) => ({
+        ...current,
+        afterPhotoFiles: (current.afterPhotoFiles || []).filter((_, index) => index !== value),
+        afterPhotoPreviews: (current.afterPhotoPreviews || []).filter((_, index) => index !== value)
+      }));
+      return;
+    }
+
     if (field === "defectPhotoFiles") {
       setVerificationForm((current) => ({
         ...current,
@@ -1078,11 +1088,11 @@ const Issues = ({ verifyClosureMode = false }) => {
       !activeIssue.issueTitle?.trim() ||
       !verificationForm.issueDescription.trim() ||
       !verificationForm.rectification.trim() ||
-      ((verificationForm.defectPhotoFiles || []).length === 0 && getDefectPhotoUrls(activeIssue).length === 0) ||
+      getDefectPhotoUrls(activeIssue).length === 0 ||
       ((verificationForm.afterPhotoFiles || []).length === 0 && getFixPhotoUrls(activeIssue).length === 0) ||
       !verificationForm.verificationComments.trim()
     ) {
-      setFormError("Issue details, before photo, after photo, resolution details, and verification comments are required before closing.");
+      setFormError("Issue details, existing before photo, after photo, resolution details, and verification comments are required before closing.");
       return;
     }
 
