@@ -187,8 +187,9 @@ const getIssueBucket = (issue) => {
   const priority = normalizeText(issue.priority);
   const status = normalizeText(issue.status);
 
-  if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") return "failed";
   if (status === normalizeText(ISSUE_STATUS.CLOSED)) return "passed";
+  if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") return "failed";
+  if (status === normalizeText(ISSUE_STATUS.IN_PROGRESS)) return "pending";
   return "pending";
 };
 
@@ -306,7 +307,11 @@ const buildSummaryCards = (issues) => {
   ).length;
   const urgentIssueCount = issues.filter((issue) => {
     const priority = normalizeText(issue.priority);
-    return priority === normalizeText(PRIORITY.HIGH) || priority === "critical";
+    const status = normalizeText(issue.status);
+    return (
+      status !== normalizeText(ISSUE_STATUS.CLOSED) &&
+      (priority === normalizeText(PRIORITY.HIGH) || priority === "critical")
+    );
   }).length;
 
   return [

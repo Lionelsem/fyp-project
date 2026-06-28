@@ -10,7 +10,6 @@ const menuItems = [
     icon: "📋",
     submenu: [
       { path: "/fsm/inspections", label: "My Inspections" },
-      { path: "/fsm/issues", label: "Issue Tickets" },
       { path: "/fsm/inspections/verify", label: "Verify Closure" }
     ]
   },

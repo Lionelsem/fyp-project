@@ -210,6 +210,8 @@ const buildInspectionResultPayload = (data) => ({
 const buildIssuePayload = (data) => ({
   issueKey: data.issueKey || "",
   issueId: data.issueId,
+  periodKey: data.periodKey || "",
+  reportedAt: data.reportedAt || null,
   inspectionKey: data.inspectionKey || "",
   inspectionId: data.inspectionId,
   resultKey: data.resultKey || "",
@@ -344,6 +346,13 @@ export const upsertInspectionResult = async (data) => {
       resultId: data.resultId || resultKey
     })
   );
+};
+
+export const updateInspectionResult = async (id, data) => {
+  return await updateDoc(doc(db, COLLECTION_NAMES.INSPECTION_RESULTS, id), {
+    ...removeUndefinedFields(data),
+    updatedAt: serverTimestamp()
+  });
 };
 
 export const getInspectionResultsByInspectionId = async (inspectionId) => {
@@ -518,6 +527,10 @@ const buildReportPayload = (data) => ({
   reportFileUrl: data.reportFileUrl || "",
   reportTitle: data.reportTitle || "",
   period: data.period || "",
+  reportMonth: data.reportMonth ?? null,
+  reportYear: data.reportYear ?? null,
+  dateFrom: data.dateFrom || "",
+  dateTo: data.dateTo || "",
   priority: data.priority || "Normal",
   aiSummaryIncluded: !!data.aiSummaryIncluded,
   status: data.status || REPORT_STATUS.DRAFT

@@ -4,6 +4,7 @@ import FSMLayout from "../layouts/FSMLayout";
 import FSMDashboard from "../pages/fsm/FSMDashboard";
 import Inspections from "../pages/fsm/Inspections";
 import Issues from "../pages/fsm/Issues";
+import IssueTickets from "../pages/fsm/IssueTickets";
 import FireDrill from "../pages/fsm/FireDrill";
 import MyBuilding from "../pages/fsm/MyBuilding";
 import Profile from "../pages/Profile";
@@ -19,7 +20,7 @@ const FSMRoutes = () => {
           <Route path="/fsm/dashboard" element={<FSMDashboard />} />
           <Route path="/fsm/inspections" element={<Inspections />} />
           <Route path="/fsm/inspections/verify" element={<Issues verifyClosureMode />} />
-          <Route path="/fsm/issues" element={<Issues />} />
+          <Route path="/fsm/issues" element={<IssueTickets />} />
           <Route path="/fsm/fire-drill" element={<FireDrill />} />
           <Route path="/fsm/reports" element={<Navigate to="/fsm/building" replace />} />
           <Route path="/fsm/building" element={<MyBuilding />} />

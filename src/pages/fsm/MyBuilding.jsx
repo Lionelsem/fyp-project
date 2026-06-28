@@ -69,6 +69,17 @@ const reportActions = [
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
+const matchesReportMonth = (report, monthValue) => {
+  if (!monthValue) return true;
+  const [year, month] = monthValue.split("-").map(Number);
+  if (Number(report.reportYear) && Number(report.reportMonth)) {
+    return Number(report.reportYear) === year && Number(report.reportMonth) === month;
+  }
+  const monthName = new Date(year, month - 1, 1).toLocaleString("en", { month: "long" }).toLowerCase();
+  const period = String(report.period || report.reportTitle || "").toLowerCase();
+  return period.includes(String(year)) && period.includes(monthName);
+};
+
 const toDate = (value) => {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
@@ -323,6 +334,7 @@ const DetailItem = ({ label, value }) => (
 const MyBuilding = () => {
   const { user } = useAuthContext();
   const [selectedReportType, setSelectedReportType] = useState(reportActions[0].type);
+  const [selectedReportMonth, setSelectedReportMonth] = useState("");
   const [users, setUsers] = useState([]);
   const {
     loading,
@@ -376,11 +388,13 @@ const MyBuilding = () => {
     if (!selectedBuilding) return [];
 
     const relatedReports = reports.filter((report) =>
-      isForBuilding(report, selectedBuilding) && isReportType(report, selectedReportType)
+      isForBuilding(report, selectedBuilding) &&
+      isReportType(report, selectedReportType) &&
+      matchesReportMonth(report, selectedReportMonth)
     );
 
     return sortByLatestDate(relatedReports, ["generatedDate", "createdAt", "date"]);
-  }, [reports, selectedBuilding, selectedReportType]);
+  }, [reports, selectedBuilding, selectedReportMonth, selectedReportType]);
 
   return (
     <div className="dashboard-container my-building-page">
@@ -463,6 +477,14 @@ const MyBuilding = () => {
               <section className="dashboard-card fsm-latest-report-card">
                 <div className="card-header-row">
                   <h2 className="section-title">{selectedReportAction.title}</h2>
+                  <label className="report-month-filter">
+                    <span>Reporting month</span>
+                    <input
+                      type="month"
+                      value={selectedReportMonth}
+                      onChange={(event) => setSelectedReportMonth(event.target.value)}
+                    />
+                  </label>
                 </div>
 
                 <div className="fsm-latest-report-list">

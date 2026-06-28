@@ -22,6 +22,11 @@ export const upsertInspectionResult = async (data) => {
   return { ...data, id: docRef.id };
 };
 
+export const updateInspectionResult = async (id, data) => {
+  await fs.updateInspectionResult(id, data);
+  return { id, ...data };
+};
+
 export const getInspectionByAssignmentPeriodStatus = async (params) => {
   const snapshot = await fs.getInspectionByAssignmentPeriodStatus(params);
   const docSnap = snapshot.docs[0];

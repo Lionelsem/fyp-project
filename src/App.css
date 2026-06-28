@@ -1172,6 +1172,64 @@ button {
   gap: 12px;
 }
 
+.issue-evidence-sections {
+  display: grid;
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.issue-evidence-section,
+.issue-evidence-sections > .issue-ticket-photo-group {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.issue-evidence-section h4,
+.issue-evidence-section h5 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.issue-panel-heading,
+.issue-update-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.issue-panel-section-title {
+  margin: 16px 0 8px;
+  color: #0f172a;
+}
+
+.issue-update-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.report-month-filter {
+  display: grid;
+  gap: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.report-month-filter input {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+}
+
 .issue-ticket-photo-grid,
 .issue-photo-wrapper--grid {
   display: grid;
@@ -2784,6 +2842,123 @@ button {
   gap: 24px;
 }
 
+.issue-overview-page {
+  display: grid;
+  gap: 20px;
+}
+
+.issue-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.issue-overview-stat {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.issue-overview-stat-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.issue-overview-stat-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.issue-overview-stat--pending .issue-overview-stat-icon {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.issue-overview-stat--completed .issue-overview-stat-icon {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.issue-overview-stat--urgent .issue-overview-stat-icon {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.issue-overview-stat > strong {
+  color: #0f172a;
+  font-size: 26px;
+}
+
+.issue-overview-stat > small {
+  color: #334155;
+}
+
+.issue-overview-table-card {
+  min-width: 0;
+}
+
+.issue-overview-toolbar {
+  grid-template-columns: minmax(15rem, 1.4fr) repeat(3, minmax(10rem, 0.7fr));
+  align-items: end;
+}
+
+.issue-overview-filter {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.issue-overview-filter input,
+.issue-overview-filter select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.issue-overview-table td:first-child strong,
+.issue-overview-table td:first-child small {
+  display: block;
+}
+
+.issue-overview-table td:first-child small {
+  margin-top: 4px;
+  color: #64748b;
+}
+
+@media (max-width: 1050px) {
+  .issue-overview-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .issue-overview-stats,
+  .issue-overview-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
 .issue-ticket-header {
   display: flex;
   justify-content: space-between;
@@ -2821,6 +2996,74 @@ button {
   grid-template-columns: minmax(14rem, 1.5fr) repeat(2, minmax(9rem, 1fr));
   gap: 10px;
   align-items: center;
+}
+
+.issue-ticket-toolbar.issue-ticket-toolbar--four {
+  grid-template-columns: minmax(12rem, 1.35fr) repeat(3, minmax(9rem, 0.8fr));
+  align-items: center;
+}
+
+.issue-ticket-toolbar.issue-overview-toolbar {
+  grid-template-columns: minmax(12rem, 1.4fr) repeat(3, minmax(9rem, 0.75fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.issue-overview-toolbar .issue-overview-filter input,
+.issue-overview-toolbar .issue-overview-filter select {
+  min-height: 38px;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+
+.issue-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.issue-overview-action {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #d1fae5;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  cursor: pointer;
+}
+
+.issue-overview-action--delete {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.issue-overview-action--edit {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.issue-overview-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 900px) {
+  .issue-ticket-toolbar.issue-overview-toolbar,
+  .issue-ticket-toolbar.issue-ticket-toolbar--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .issue-ticket-toolbar.issue-overview-toolbar,
+  .issue-ticket-toolbar.issue-ticket-toolbar--four {
+    grid-template-columns: 1fr;
+  }
 }
 
 .issue-ticket-toolbar input,

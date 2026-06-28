@@ -5,6 +5,7 @@ import {
   getInspectionByAssignmentPeriodStatus,
   getInspectionResultsByInspectionId,
   getInspectionResultsByInspectionKey,
+  updateInspectionResult,
   upsertInspection,
   upsertInspectionResult
 } from "../../services/inspectionService";
@@ -425,11 +426,13 @@ const getPrimaryFsmId = (user) =>
 const getInspectorName = (user) =>
   user?.fullName || user?.displayName || user?.email?.split("@")[0] || "FSM";
 
-const formatInspectionMonth = () =>
-  new Date().toLocaleDateString(undefined, {
+const formatInspectionMonth = (periodKey) => {
+  const [year, month] = String(periodKey || getPeriodKey()).split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric"
   });
+};
 
 const formatLastUpdated = () =>
   new Date().toLocaleString(undefined, {
@@ -450,6 +453,16 @@ const getPassFail = (condition) => {
 const getPeriodKey = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const getInspectionDateForPeriod = (periodKey) => {
+  const match = String(periodKey || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return new Date();
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const today = new Date();
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  return new Date(year, monthIndex, Math.min(today.getDate(), lastDay), 12, 0, 0, 0);
 };
 
 const getPreviousMonthPeriodKey = (periodKey) => {
@@ -613,11 +626,11 @@ const getFixPhotoUrls = (source) =>
     source?.afterPhotoUrl
   ]).slice(0, PHOTO_LIMIT);
 
-const createAuditEntry = ({ status, note, updatedBy, eventType }) => ({
+const createAuditEntry = ({ status, note, updatedBy, eventType, updatedAt }) => ({
   status,
   note: note || "",
   updatedBy: updatedBy || "",
-  updatedAt: new Date(),
+  updatedAt: updatedAt || new Date(),
   eventType: eventType || "status_update"
 });
 
@@ -722,6 +735,8 @@ const InspectionOverview = ({
   levels,
   selectedLevel,
   setSelectedLevel,
+  selectedPeriod,
+  setSelectedPeriod,
   readOnly = false
 }) => (
   <section className="inspection-card overview-card">
@@ -756,7 +771,17 @@ const InspectionOverview = ({
         </div>
         <div>
           <span className="overview-label">Month</span>
-          <p>{inspectionInfo.month}</p>
+          <label>
+            <input
+              type="month"
+              value={selectedPeriod}
+              onChange={(event) => event.target.value && setSelectedPeriod(event.target.value)}
+              disabled={readOnly}
+              required
+              aria-label="Inspection month"
+            />
+          </label>
+          <small className="hint-text">{inspectionInfo.month}</small>
         </div>
         <div>
           <span className="overview-label">Inspector</span>
@@ -1021,12 +1046,14 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
   );
 };
 
-const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onVerifyClosure }) => {
+const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, isIssueEditing = false, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onVerifyClosure, onStartIssueEdit, onCancelIssueEdit, onSaveIssue }) => {
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
   const savedPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]);
   const photoUrls = uniqueValues([...savedPhotoUrls, ...(item.photoPreviews || []), item.photoPreview]).slice(0, PHOTO_LIMIT);
+  const afterPhotoUrls = getFixPhotoUrls(item);
+  const isClosedIssue = String(item.issue?.status || "").trim().toLowerCase() === ISSUE_STATUS.CLOSED.toLowerCase();
 
   return (
     <div
@@ -1074,7 +1101,20 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
       {hasIssue && rowOpen && (
         <div className="row-detail">
           <div className="issue-panel">
-            <h4>Issue Details <span className="issue-badge">Auto created when marked as Faulty</span></h4>
+            <div className="issue-panel-heading">
+              <h4>Issue Details <span className="issue-badge">Linked to checklist item</span></h4>
+              {!isVerifyMode && !isIssueEditing && (
+                <button
+                  type="button"
+                  className="secondary-button compact-action-button"
+                  onClick={() => onStartIssueEdit(categoryId, item.id)}
+                  disabled={isClosedIssue}
+                  title={isClosedIssue ? "Closed issues cannot be edited" : "Edit issue"}
+                >
+                  Edit
+                </button>
+              )}
+            </div>
             <label>
               <span>Issue Description</span>
               <textarea
@@ -1082,7 +1122,7 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 rows={2}
                 placeholder="Describe the fault"
                 onChange={(e) => onIssueUpdate(categoryId, item.id, { description: e.target.value })}
-                disabled={readOnly}
+                disabled={!isIssueEditing}
               />
             </label>
             <label>
@@ -1092,16 +1132,17 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 value={item.issue.rectification}
                 placeholder="Recommended rectification"
                 onChange={(e) => onIssueUpdate(categoryId, item.id, { rectification: e.target.value })}
-                disabled={readOnly}
+                disabled={!isIssueEditing}
               />
             </label>
+            <h5 className="issue-panel-section-title">Update Status</h5>
             <div className="issue-fields-row">
               <label>
                 <span>Priority</span>
                 <select
                   value={item.issue.priority}
                   onChange={(e) => onIssueUpdate(categoryId, item.id, { priority: e.target.value })}
-                  disabled={readOnly}
+                  disabled={!isIssueEditing}
                 >
                   <option value="High">High</option>
                   <option value="Medium">Medium</option>
@@ -1113,14 +1154,14 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 <select
                   value={item.issue.status}
                   onChange={(e) => onIssueUpdate(categoryId, item.id, { status: e.target.value })}
-                  disabled={readOnly}
+                  disabled={!isIssueEditing}
                 >
                   <option value={ISSUE_STATUS.OPEN}>{ISSUE_STATUS.OPEN}</option>
                   <option value={ISSUE_STATUS.IN_PROGRESS}>{ISSUE_STATUS.IN_PROGRESS}</option>
                   <option value={ISSUE_STATUS.RESOLVED}>{ISSUE_STATUS.RESOLVED}</option>
-                  <option value={ISSUE_STATUS.CLOSED}>{ISSUE_STATUS.CLOSED}</option>
+                  <option value={ISSUE_STATUS.CLOSED} disabled>{ISSUE_STATUS.CLOSED}</option>
                 </select>
-                {!readOnly && item.issue.status === ISSUE_STATUS.RESOLVED && (
+                {item.issue.status === ISSUE_STATUS.RESOLVED && (
                   <button
                     type="button"
                     className="primary-button checklist-verify-button"
@@ -1131,9 +1172,10 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 )}
               </label>
             </div>
-            <IssueHistoryTimeline history={item.issue?.history || []} />
-            {!isVerifyMode && !readOnly && (
-              <div className="fault-proof-row">
+            <div className="issue-evidence-sections">
+              <section className="issue-evidence-section" aria-label="Fault Photos Before">
+                <h5>Fault Photos (Before)</h5>
+                {!isVerifyMode && isIssueEditing && !readOnly && (
                 <label className="issue-photo-upload">
                   <span>Defect photos (max 3)</span>
                   <input
@@ -1144,6 +1186,7 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                     onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)}
                   />
                 </label>
+                )}
                 <div className="issue-photo-wrapper issue-photo-wrapper--grid">
                   {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
                     const photoUrl = photoUrls[index];
@@ -1166,8 +1209,31 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                     );
                   })}
                 </div>
+              </section>
+              <section className="issue-evidence-section" aria-label="After-Repair Photos">
+                <h5>After-Repair Photos</h5>
+                <div className="issue-photo-wrapper issue-photo-wrapper--grid">
+                  {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
+                    const photoUrl = afterPhotoUrls[index];
+                    return photoUrl ? (
+                      <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
+                        <img className="issue-photo-preview" src={photoUrl} alt={`After-repair evidence ${index + 1}`} />
+                      </figure>
+                    ) : (
+                      <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`After-repair photo slot ${index + 1}`} />
+                    );
+                  })}
+                </div>
+                <p className="hint-text">After-repair evidence is added during Verify Closure.</p>
+              </section>
+            </div>
+            {isIssueEditing && !isVerifyMode && (
+              <div className="issue-update-actions">
+                <button type="button" className="secondary-button" onClick={onCancelIssueEdit}>Cancel</button>
+                <button type="button" className="primary-button" onClick={() => onSaveIssue(categoryId, item.id)}>Submit Issue Update</button>
               </div>
             )}
+            <IssueHistoryTimeline history={item.issue?.history || []} />
           </div>
         </div>
       )}
@@ -1215,6 +1281,10 @@ const Inspections = () => {
     () => new URLSearchParams(location.search).get("issueId") || "",
     [location.search]
   );
+  const editIssueFromQuery = useMemo(
+    () => new URLSearchParams(location.search).get("mode") === "edit",
+    [location.search]
+  );
   const isChecklistReviewMode = !isVerifyMode && Boolean(issueIdFromQuery || location.state?.issue);
   const {
     loading: assignmentLoading,
@@ -1223,6 +1293,7 @@ const Inspections = () => {
     issues
   } = useFsmDashboardData(getFsmLookupIds(user));
   const [selectedLevel, setSelectedLevel] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState(getPeriodKey);
   const [levelChecklists, setLevelChecklists] = useState({});
   const [levelRemarks, setLevelRemarks] = useState({});
   const [prefilledInspectionKeys, setPrefilledInspectionKeys] = useState({});
@@ -1232,6 +1303,8 @@ const Inspections = () => {
   const [inspectionSubmitError, setInspectionSubmitError] = useState("");
   const [inspectionSubmitSuccess, setInspectionSubmitSuccess] = useState("");
   const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
+  const [editingIssueRowKey, setEditingIssueRowKey] = useState("");
+  const [issueEditSnapshot, setIssueEditSnapshot] = useState(null);
   const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
   const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
 
@@ -1247,9 +1320,12 @@ const Inspections = () => {
   const selectedLevelInfo = levels.find((level) => level.id === selectedLevel) || null;
   const selectedLevelName = selectedLevelInfo?.name || selectedLevel;
   const fsmId = getPrimaryFsmId(user);
-  const periodKey = getPeriodKey();
+  const periodKey = selectedPeriod;
+  const inspectionDate = getInspectionDateForPeriod(periodKey);
   const inspectionKey = buildRecordKey(fsmId, selectedBuilding, selectedLevel, periodKey);
-  const canSaveInspection = Boolean(selectedBuilding && selectedLevel && fsmId);
+  const canSaveInspection = Boolean(
+    selectedBuilding && selectedLevel && fsmId && /^\d{4}-\d{2}$/.test(periodKey)
+  );
   const activeChecklist = levelChecklists[selectedLevel];
   const checklist = useMemo(
     () => activeChecklist || createEmptyChecklist(),
@@ -1261,11 +1337,11 @@ const Inspections = () => {
     () => ({
       ...inspectionInfo,
       building: buildingName,
-      month: formatInspectionMonth(),
+      month: formatInspectionMonth(periodKey),
       inspector: getInspectorName(user),
       lastUpdated: formatLastUpdated()
     }),
-    [buildingName, user]
+    [buildingName, periodKey, user]
   );
 
   useEffect(() => {
@@ -1307,6 +1383,10 @@ const Inspections = () => {
   }, [isVerifyMode, issueIdFromQuery, location.state]);
 
   useEffect(() => {
+    if (verificationIssue?.periodKey) setSelectedPeriod(verificationIssue.periodKey);
+  }, [verificationIssue?.periodKey]);
+
+  useEffect(() => {
     setSelectedLevel((current) => {
       if (levels.length === 0) return "";
       if (
@@ -1323,7 +1403,7 @@ const Inspections = () => {
     setLevelChecklists({});
     setLevelRemarks({});
     setPrefilledInspectionKeys({});
-  }, [selectedBuilding]);
+  }, [periodKey, selectedBuilding]);
 
   useEffect(() => {
     if (!selectedLevel) return;
@@ -1505,7 +1585,8 @@ const Inspections = () => {
 
     const verificationKey = buildRecordKey(
       verificationIssue.issueKey || verificationIssue.issueId || verificationIssue.id,
-      selectedLevel
+      selectedLevel,
+      editIssueFromQuery ? "edit" : "view"
     );
     if (focusedVerificationKey === verificationKey) return;
 
@@ -1515,6 +1596,18 @@ const Inspections = () => {
     const matchedItem = matchedCategory?.items.find((item) => item.code === itemCode || item.id === itemCode);
 
     if (!matchedCategory || !matchedItem) return;
+
+    if (
+      editIssueFromQuery &&
+      String(matchedItem.issue?.status || "").trim().toLowerCase() !== ISSUE_STATUS.CLOSED.toLowerCase()
+    ) {
+      setIssueEditSnapshot({
+        categoryId: matchedCategory.id,
+        itemId: matchedItem.id,
+        issue: { ...matchedItem.issue }
+      });
+      setEditingIssueRowKey(`${matchedCategory.id}:${matchedItem.id}`);
+    }
 
     setLevelChecklists((current) => {
       const currentChecklist = current[selectedLevel];
@@ -1532,7 +1625,7 @@ const Inspections = () => {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 100);
     setFocusedVerificationKey(verificationKey);
-  }, [checklist, focusedVerificationKey, selectedLevel, verificationIssue]);
+  }, [checklist, editIssueFromQuery, focusedVerificationKey, selectedLevel, verificationIssue]);
 
   useEffect(() => {
     if (!selectedLevel || !Array.isArray(issues) || issues.length === 0) return;
@@ -1629,6 +1722,9 @@ const Inspections = () => {
 
     if (Object.prototype.hasOwnProperty.call(changes, "condition")) {
       setInspectionSubmitError("");
+      if (changes.condition === "Faulty") {
+        setEditingIssueRowKey(`${categoryId}:${itemId}`);
+      }
     }
 
     setChecklistForSelectedLevel((current) =>
@@ -1765,8 +1861,6 @@ const Inspections = () => {
   };
 
   const handleIssueUpdate = (categoryId, itemId, changes) => {
-    if (isChecklistReviewMode) return;
-
     setChecklistForSelectedLevel((current) =>
       current.map((category) => {
         if (category.id !== categoryId) return category;
@@ -1786,16 +1880,40 @@ const Inspections = () => {
       })
     );
 
-    if (Object.prototype.hasOwnProperty.call(changes, "status")) {
-      window.setTimeout(() => saveChecklistItem(categoryId, itemId), 0);
+  };
+
+  const startIssueEdit = (categoryId, itemId) => {
+    const item = checklist
+      .find((category) => category.id === categoryId)
+      ?.items.find((entry) => entry.id === itemId);
+    setIssueEditSnapshot(item ? { categoryId, itemId, issue: { ...item.issue } } : null);
+    setEditingIssueRowKey(`${categoryId}:${itemId}`);
+  };
+
+  const cancelIssueEdit = () => {
+    if (issueEditSnapshot) {
+      setChecklistForSelectedLevel((current) => current.map((category) =>
+        category.id !== issueEditSnapshot.categoryId
+          ? category
+          : {
+              ...category,
+              items: category.items.map((item) =>
+                item.id === issueEditSnapshot.itemId
+                  ? { ...item, issue: issueEditSnapshot.issue }
+                  : item
+              )
+            }
+      ));
     }
+    setEditingIssueRowKey("");
+    setIssueEditSnapshot(null);
   };
 
   const saveChecklistItem = async (categoryId, itemId) => {
-    if (isChecklistReviewMode || !canSaveInspection || inspectionSubmitting) return;
+    if (isChecklistReviewMode || !canSaveInspection || inspectionSubmitting) return false;
     const category = checklist.find((itemCategory) => itemCategory.id === categoryId);
     const item = category?.items.find((checklistItem) => checklistItem.id === itemId);
-    if (!category || !item) return;
+    if (!category || !item) return false;
 
     try {
       setInspectionSubmitting(true);
@@ -1813,7 +1931,7 @@ const Inspections = () => {
         inspectionType: "Monthly Inspection",
         inspectionMode: "Semi-Automated",
         templateId: null,
-        inspectionDate: new Date(),
+        inspectionDate,
         progressPercent,
         generalRemarks,
         aiAssistanceUsed: false,
@@ -1897,7 +2015,8 @@ const Inspections = () => {
             status: item.issue?.status || ISSUE_STATUS.OPEN,
             note: item.issue?.description || item.remark || "Auto created from checklist",
             updatedBy: fsmId,
-            eventType: "issue_created"
+            eventType: "issue_created",
+            updatedAt: inspectionDate
           }));
         } else if (String(existingIssue.status || "") !== String(item.issue?.status || "")) {
           historyEntries.push(createAuditEntry({
@@ -1921,6 +2040,8 @@ const Inspections = () => {
           issueId: issueKey,
           inspectionKey,
           inspectionId: created.id,
+          periodKey,
+          reportedAt: existingIssue?.reportedAt || inspectionDate,
           resultKey,
           resultId: result.id || resultKey,
           buildingId: selectedBuilding,
@@ -1949,9 +2070,74 @@ const Inspections = () => {
       }
 
       setInspectionSubmitSuccess(`${item.code} saved successfully.`);
+      return true;
     } catch (err) {
       console.error("Checklist item save failed", err);
       setInspectionSubmitError(err.message || "Could not save checklist item.");
+      return false;
+    } finally {
+      setInspectionSubmitting(false);
+    }
+  };
+
+  const saveIssueFromChecklist = async (categoryId, itemId) => {
+    const category = checklist.find((entry) => entry.id === categoryId);
+    const item = category?.items.find((entry) => entry.id === itemId);
+    const issueKey = isChecklistReviewMode
+      ? verificationIssue?.issueKey || verificationIssue?.id || verificationIssue?.issueId
+      : buildRecordKey(inspectionKey, categoryId, itemId);
+    if (!item || !issueKey || inspectionSubmitting) return;
+
+    try {
+      setInspectionSubmitError("");
+      const existingIssue = await getIssueById(issueKey) || (isChecklistReviewMode ? verificationIssue : null);
+      if (!existingIssue) {
+        const saved = await saveChecklistItem(categoryId, itemId);
+        if (saved) {
+          setEditingIssueRowKey("");
+          setIssueEditSnapshot(null);
+        }
+        return;
+      }
+
+      setInspectionSubmitting(true);
+      const statusChanged = String(existingIssue.status || "") !== String(item.issue.status || "");
+      const updatedIssue = {
+        ...existingIssue,
+        issueKey,
+        issueId: existingIssue.issueId || issueKey,
+        issueDescription: item.issue.description || "",
+        rectification: item.issue.rectification || "",
+        priority: item.issue.priority || existingIssue.priority || "Medium",
+        status: item.issue.status || ISSUE_STATUS.OPEN,
+        reportedBy: existingIssue.reportedBy || fsmId,
+        history: statusChanged
+          ? appendHistory(existingIssue, [createAuditEntry({
+              status: item.issue.status || ISSUE_STATUS.OPEN,
+              note: item.issue.rectification || item.issue.description || "Updated from inspection checklist",
+              updatedBy: fsmId,
+              eventType: "status_update"
+            })])
+          : existingIssue.history || []
+      };
+
+      await upsertIssue(updatedIssue);
+      const resultDocumentId = existingIssue.resultKey || existingIssue.resultId;
+      if (resultDocumentId) {
+        await updateInspectionResult(resultDocumentId, {
+          issueDescription: updatedIssue.issueDescription,
+          rectification: updatedIssue.rectification,
+          priority: updatedIssue.priority,
+          issueStatus: updatedIssue.status
+        });
+      }
+      if (isChecklistReviewMode) setVerificationIssue(updatedIssue);
+      setChecklistForSelectedLevel((current) => applyIssueFocusToChecklist(current, updatedIssue));
+      setEditingIssueRowKey("");
+      setIssueEditSnapshot(null);
+      setInspectionSubmitSuccess("Issue updated from the inspection checklist.");
+    } catch (error) {
+      setInspectionSubmitError(error.message || "Could not update issue.");
     } finally {
       setInspectionSubmitting(false);
     }
@@ -2127,7 +2313,7 @@ const Inspections = () => {
         inspectionType: "Monthly Inspection",
         inspectionMode: "Semi-Automated",
         templateId: null,
-        inspectionDate: new Date(),
+        inspectionDate,
         progressPercent,
         generalRemarks,
         aiAssistanceUsed: false,
@@ -2235,7 +2421,8 @@ const Inspections = () => {
                 status: item.issue?.status || ISSUE_STATUS.OPEN,
                 note: item.issue?.description || item.remark || "Auto created from checklist",
                 updatedBy: fsmId,
-                eventType: "issue_created"
+                eventType: "issue_created",
+                updatedAt: inspectionDate
               }));
             } else if (String(existingIssue.status || "") !== String(item.issue?.status || "")) {
               historyEntries.push(createAuditEntry({
@@ -2258,6 +2445,8 @@ const Inspections = () => {
               issueId: issueKey,
               inspectionKey,
               inspectionId: created.id,
+              periodKey,
+              reportedAt: existingIssue?.reportedAt || inspectionDate,
               resultKey,
               resultId: result.id || resultKey,
               buildingId: selectedBuilding,
@@ -2306,6 +2495,8 @@ const Inspections = () => {
           generatedDate: new Date(),
           reportTitle: `Monthly Report - ${currentInspectionInfo.month} - ${buildingName} - ${selectedLevelName}`,
           period: currentInspectionInfo.month,
+          reportMonth: Number(periodKey.slice(5, 7)),
+          reportYear: Number(periodKey.slice(0, 4)),
           priority: hasDefects ? "High" : "Normal",
           status: REPORT_STATUS.SUBMITTED
         });
@@ -2367,31 +2558,41 @@ const Inspections = () => {
                 <span>Rectification <strong>{verificationIssue?.rectification || "-"}</strong></span>
               </div>
               {(getDefectPhotoUrls(verificationIssue).length > 0 || getFixPhotoUrls(verificationIssue).length > 0 || (Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview.length : fixProofPhotoPreview)) && (
-                <div className="verification-photo-grid">
-                  {getDefectPhotoUrls(verificationIssue).map((photoUrl, index) => (
-                    <figure key={`before-${photoUrl}-${index}`} className="verification-photo">
-                      <figcaption>Before {index + 1}</figcaption>
-                      <img src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
-                    </figure>
-                  ))}
-                  {[...getFixPhotoUrls(verificationIssue), ...(Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview : fixProofPhotoPreview ? [fixProofPhotoPreview] : [])]
-                    .slice(0, PHOTO_LIMIT)
-                    .map((photoUrl, index) => (
-                      <figure key={`after-${photoUrl}-${index}`} className="verification-photo">
-                        <figcaption>After {index + 1}</figcaption>
-                        <img src={photoUrl} alt={`Closure evidence ${index + 1}`} />
-                        {index >= getFixPhotoUrls(verificationIssue).length && (
-                          <button
-                            type="button"
-                            className="photo-remove-btn issue-remove-btn"
-                            onClick={() => removeFixProofPhoto(index - getFixPhotoUrls(verificationIssue).length)}
-                            aria-label="Remove selected after photo"
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </figure>
-                    ))}
+                <div className="issue-evidence-sections">
+                  <section className="issue-evidence-section">
+                    <h4>Fault Photos (Before)</h4>
+                    <div className="verification-photo-grid">
+                      {getDefectPhotoUrls(verificationIssue).map((photoUrl, index) => (
+                        <figure key={`before-${photoUrl}-${index}`} className="verification-photo">
+                          <figcaption>Before {index + 1}</figcaption>
+                          <img src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
+                        </figure>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="issue-evidence-section">
+                    <h4>After-Repair Photos</h4>
+                    <div className="verification-photo-grid">
+                      {[...getFixPhotoUrls(verificationIssue), ...(Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview : fixProofPhotoPreview ? [fixProofPhotoPreview] : [])]
+                        .slice(0, PHOTO_LIMIT)
+                        .map((photoUrl, index) => (
+                          <figure key={`after-${photoUrl}-${index}`} className="verification-photo">
+                            <figcaption>After {index + 1}</figcaption>
+                            <img src={photoUrl} alt={`Closure evidence ${index + 1}`} />
+                            {index >= getFixPhotoUrls(verificationIssue).length && (
+                              <button
+                                type="button"
+                                className="photo-remove-btn issue-remove-btn"
+                                onClick={() => removeFixProofPhoto(index - getFixPhotoUrls(verificationIssue).length)}
+                                aria-label="Remove selected after photo"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </figure>
+                        ))}
+                    </div>
+                  </section>
                 </div>
               )}
               {isVerifyMode && verificationIssue && (
@@ -2439,6 +2640,8 @@ const Inspections = () => {
             levels={levels}
             selectedLevel={selectedLevel}
             setSelectedLevel={setSelectedLevel}
+            selectedPeriod={selectedPeriod}
+            setSelectedPeriod={setSelectedPeriod}
             readOnly={isChecklistReviewMode}
           />
           <IssueSummary
@@ -2533,12 +2736,16 @@ const Inspections = () => {
                             isHighlighted={isVerifyMode && isIssueTargetRow(verificationIssue, category, item)}
                             isVerifyMode={isVerifyMode}
                             readOnly={isChecklistReviewMode}
+                            isIssueEditing={editingIssueRowKey === `${category.id}:${item.id}`}
                             onUpdate={updateChecklistItem}
                             onPhotoChange={handlePhotoChange}
                             onIssueUpdate={handleIssueUpdate}
                             onToggle={toggleRow}
                             onRemovePhoto={removePhoto}
                             onVerifyClosure={openChecklistIssueVerification}
+                            onStartIssueEdit={startIssueEdit}
+                            onCancelIssueEdit={cancelIssueEdit}
+                            onSaveIssue={saveIssueFromChecklist}
                           />
                         ))
                       )}

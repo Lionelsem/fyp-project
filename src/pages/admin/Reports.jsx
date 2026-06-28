@@ -126,6 +126,7 @@ const AdminReports = () => {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [search, setSearch]       = useState("");
+  const [reportMonthFilter, setReportMonthFilter] = useState("");
 
   // Monthly modal
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
@@ -194,6 +195,17 @@ const AdminReports = () => {
     else if (activeTab === "annual") list = list.filter((r) => r.reportType === "Annual");
     else if (activeTab === "custom") list = list.filter((r) => r.reportType === "Custom");
 
+    if (reportMonthFilter) {
+      const [filterYear, filterMonth] = reportMonthFilter.split("-").map(Number);
+      list = list.filter((report) => {
+        if (Number(report.reportYear) && Number(report.reportMonth)) {
+          return Number(report.reportYear) === filterYear && Number(report.reportMonth) === filterMonth;
+        }
+        const period = String(report.period || "").toLowerCase();
+        return period.includes(String(filterYear)) && period.includes(MONTHS[filterMonth - 1].toLowerCase());
+      });
+    }
+
     const q = search.trim().toLowerCase();
     if (!q) return list;
     return list.filter((r) => {
@@ -203,7 +215,7 @@ const AdminReports = () => {
       const status   = String(r.status || "").toLowerCase();
       return id.includes(q) || building.includes(q) || type.includes(q) || status.includes(q);
     });
-  }, [reports, activeTab, search, buildingMap]);
+  }, [reports, activeTab, search, reportMonthFilter, buildingMap]);
 
   const refreshReports = async () => {
     const updated = await getAllReports();
@@ -255,7 +267,9 @@ const AdminReports = () => {
         reportTitle: `Monthly Report — ${monthLabel} ${selectedYear}`,
         status:   "Generated",
         priority: "Normal",
-        period:   `${monthLabel} ${selectedYear}`
+        period:   `${monthLabel} ${selectedYear}`,
+        reportMonth: selectedMonth,
+        reportYear: selectedYear
       });
       await refreshReports();
       setShowMonthlyModal(false);
@@ -442,7 +456,7 @@ const AdminReports = () => {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap" }}>
           <div className="search-box" style={{ flex: 1, maxWidth: "400px" }}>
             <span className="search-icon">🔍</span>
             <input
@@ -453,6 +467,14 @@ const AdminReports = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <label className="report-month-filter">
+            <span>Reporting month</span>
+            <input
+              type="month"
+              value={reportMonthFilter}
+              onChange={(event) => setReportMonthFilter(event.target.value)}
+            />
+          </label>
         </div>
 
         {loading ? (

@@ -309,10 +309,18 @@ const filterIssues = (issues, filters) => {
   const search = normalizeText(filters.search);
   const status = normalizeText(filters.status);
   const priority = normalizeText(filters.priority);
+  const month = String(filters.month || "");
 
   return issues.filter((issue) => {
     if (status && normalizeText(issue.status) !== status) return false;
     if (priority && normalizeText(issue.priority) !== priority) return false;
+    if (month) {
+      const issueDate = toDate(issue.reportedAt || issue.createdAt);
+      const issueMonth = issue.periodKey || (issueDate
+        ? `${issueDate.getFullYear()}-${String(issueDate.getMonth() + 1).padStart(2, "0")}`
+        : "");
+      if (issueMonth !== month) return false;
+    }
 
     if (!search) return true;
 
@@ -510,14 +518,14 @@ const VerifyClosePanel = ({
           <strong>{formatDateTime(issue.updatedAt || issue.createdAt)}</strong>
         </div>
       </div>
-      <div className="issue-ticket-evidence-grid">
+      <div className="issue-evidence-sections">
         <EvidencePhotoBox
-          label="Before"
+          label="Fault Photos (Before)"
           urls={getDefectPhotoUrls(issue).slice(0, PHOTO_LIMIT)}
           alt="Original defect evidence"
         />
         <EvidencePhotoBox
-          label="After"
+          label="After-Repair Photos"
           urls={[...getFixPhotoUrls(issue), ...(form.afterPhotoPreviews || [])].slice(0, PHOTO_LIMIT)}
           alt="Closure evidence"
           removableFrom={getFixPhotoUrls(issue).length}
@@ -620,14 +628,14 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onV
       <span>Verification Comments</span>
       <p>{issue.verificationComments || "-"}</p>
     </div>
-    <div className="issue-ticket-evidence-grid">
+    <div className="issue-evidence-sections">
       <EvidencePhotoBox
-        label="Before"
+        label="Fault Photos (Before)"
         urls={getDefectPhotoUrls(issue)}
         alt="Original defect evidence"
       />
       <EvidencePhotoBox
-        label="After"
+        label="After-Repair Photos"
         urls={getFixPhotoUrls(issue)}
         alt="Closure evidence"
       />
@@ -643,7 +651,13 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onV
       >
         <span aria-hidden="true">{"\uD83D\uDC41"}</span>
       </button>
-      <button type="button" className="secondary-button" onClick={() => onEdit(issue)}>
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={() => onEdit(issue)}
+        disabled={normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED)}
+        title={normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED) ? "Closed issues cannot be edited" : "Edit issue"}
+      >
         Edit
       </button>
       <button type="button" className="primary-button" onClick={() => onVerifyClose(issue)} disabled={normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED)}>
@@ -684,7 +698,8 @@ const Issues = ({ verifyClosureMode = false }) => {
   const [filters, setFilters] = useState({
     search: "",
     status: "",
-    priority: ""
+    priority: "",
+    month: ""
   });
   const [activeIssueId, setActiveIssueId] = useState("");
   const [activeForm, setActiveForm] = useState(null);
@@ -1294,7 +1309,7 @@ const Issues = ({ verifyClosureMode = false }) => {
             <span className="hint-text">{visibleIssues.length} shown</span>
           </div>
 
-          <div className="issue-ticket-toolbar">
+          <div className="issue-ticket-toolbar issue-ticket-toolbar--four">
             <input
               type="search"
               value={filters.search}
@@ -1313,6 +1328,13 @@ const Issues = ({ verifyClosureMode = false }) => {
                 <option key={priority} value={priority}>{priority}</option>
               ))}
             </select>
+            <input
+              type="month"
+              value={filters.month}
+              onChange={(event) => handleFilterChange("month", event.target.value)}
+              aria-label="Reporting month"
+              title="Reporting month"
+            />
           </div>
 
           <div className="issue-ticket-table-wrapper">
