@@ -5,9 +5,15 @@ import { logout } from "../../services/authService";
 const menuItems = [
   { path: "/dashboard", label: "Dashboard", icon: "🏠" },
   { path: "/issue-progress", label: "Issue Progress", icon: "📝" },
-  { path: "/inspection-reports", label: "Inspection Reports", icon: "📋" },
-  { path: "/fire-drill-reports", label: "Fire Drill Reports", icon: "🚒" },
-  { path: "/annual-reports", label: "Annual Reports", icon: "📊" },
+  {
+    label: "Reports",
+    icon: "📊",
+    submenu: [
+      { path: "/inspection-reports", label: "Inspection", icon: "📋" },
+      { path: "/fire-drill-reports", label: "Fire Drills", icon: "🚒" },
+      { path: "/annual-reports", label: "Annual", icon: "📈" }
+    ]
+  },
   { path: "/feedbacks", label: "Comments/Feedbacks", icon: "📝" },
   { path: "/building", label: "My Buildings", icon: "🏢" }
 ];
@@ -19,6 +25,7 @@ const CustomerSidebar = ({
 }) => {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
 
   const displayName = profile?.name || "Customer";
   const roleLabel = profile?.role || "Customer";
@@ -43,9 +50,11 @@ const CustomerSidebar = ({
     }
   };
 
-  const handleProfileNavigation = () => {
-    onNavigate();
-    navigate("/profile");
+  const toggleMenu = (label) => {
+    setExpandedMenus((prev) => ({
+      ...prev,
+      [label]: !prev[label]
+    }));
   };
 
   return (
@@ -73,17 +82,49 @@ const CustomerSidebar = ({
       <nav className="sidebar-menu">
         <ul className="sidebar-list">
           {menuItems.map((item) => (
-            <li key={item.path}>
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  isActive ? "menu-item active" : "menu-item"
-                }
-                onClick={onNavigate}
-              >
-                <span className="menu-icon">{item.icon}</span>
-                <span className="menu-label">{item.label}</span>
-              </NavLink>
+            <li key={item.label || item.path}>
+              {item.submenu ? (
+                <div>
+                  <button
+                    type="button"
+                    className="menu-item menu-toggle"
+                    onClick={() => toggleMenu(item.label)}
+                  >
+                    <span className="menu-icon">{item.icon}</span>
+                    <span className="menu-label">{item.label}</span>
+                    <span className={`menu-arrow ${expandedMenus[item.label] ? "expanded" : ""}`}>
+                      ▼
+                    </span>
+                  </button>
+                  {expandedMenus[item.label] && (
+                    <ul className="submenu">
+                      {item.submenu.map((subitem) => (
+                        <li key={subitem.path}>
+                          <NavLink
+                            to={subitem.path}
+                            className={({ isActive }) =>
+                              isActive ? "menu-item active" : "menu-item"
+                            }
+                          >
+                            <span className="menu-icon">{subitem.icon}</span>
+                            <span className="menu-label">{subitem.label}</span>
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    isActive ? "menu-item active" : "menu-item"
+                  }
+                >
+                  <span className="menu-icon">{item.icon}</span>
+                  <span className="menu-label">{item.label}</span>
+                </NavLink>
+              )}
             </li>
           ))}
         </ul>

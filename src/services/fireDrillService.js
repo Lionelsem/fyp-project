@@ -41,6 +41,9 @@ const buildFireDrillPayload = (data) => ({
   recommendations: textValue(data.recommendations),
   conductedDate: textValue(data.conductedDate),
   reportStatus: textValue(data.reportStatus) || REPORT_STATUS.DRAFT
+  ,
+  // Customer comments / feedback
+  customerComments: textValue(data.customerComments)
 });
 
 export const createFireDrill = async (data) => {

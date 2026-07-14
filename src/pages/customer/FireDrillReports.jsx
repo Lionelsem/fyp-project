@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getAllFireDrills } from "../../services/fireDrillService";
-import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { getAllFireDrills, updateFireDrill } from "../../services/fireDrillService";
 
 const fallbackDrills = [
   {
@@ -118,6 +117,15 @@ const FireDrillReports = () => {
   }, [drills, search, statusFilter]);
 
   const latestDrill = filteredDrills[0] || drills[0] || fallbackDrills[0];
+  const [drillComment, setDrillComment] = useState(latestDrill.customerComments || "");
+  const [isSavingDrillComment, setIsSavingDrillComment] = useState(false);
+  const [drillCommentMessage, setDrillCommentMessage] = useState("");
+
+  useEffect(() => {
+    setDrillComment(latestDrill.customerComments || "");
+    setDrillCommentMessage("");
+  }, [latestDrill.id]);
+
   const completedCount = drills.filter((drill) => String(drill.status || "").toLowerCase() === "completed").length;
   const scheduledCount = drills.filter((drill) => String(drill.status || "").toLowerCase() === "scheduled").length;
   const averageTime = useMemo(() => {
@@ -125,6 +133,31 @@ const FireDrillReports = () => {
     if (!completedDrills.length) return "—";
     return completedDrills[0].totalEvacuationTime;
   }, [drills]);
+
+  const handleSaveDrillComment = async () => {
+    if (!latestDrill?.id) {
+      alert("Cannot save feedback for this drill because no record is available.");
+      return;
+    }
+
+    setIsSavingDrillComment(true);
+    setDrillCommentMessage("");
+
+    try {
+      await updateFireDrill(latestDrill.id, { customerComments: drillComment });
+      setDrills((currentDrills) =>
+        currentDrills.map((drill) =>
+          drill.id === latestDrill.id ? { ...drill, customerComments: drillComment } : drill
+        )
+      );
+      setDrillCommentMessage("Feedback saved successfully.");
+    } catch (error) {
+      setDrillCommentMessage("Unable to save feedback. Please try again.");
+      console.error(error);
+    } finally {
+      setIsSavingDrillComment(false);
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -137,7 +170,28 @@ const FireDrillReports = () => {
           </p>
         </div>
         <div className="header-actions">
-          <button type="button" className="primary-btn">
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={() => {
+              const url = latestDrill?.reportFileUrl || latestDrill?.reportUrl || null;
+              if (!url) {
+                alert("No downloadable report file is available for the latest drill.");
+                return;
+              }
+              try {
+                const a = document.createElement("a");
+                a.href = url;
+                a.target = "_blank";
+                a.download = (latestDrill?.id || "drill-report") + ".pdf";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+              } catch (err) {
+                window.open(url, "_blank");
+              }
+            }}
+          >
             Download Report
           </button>
         </div>
@@ -214,6 +268,37 @@ const FireDrillReports = () => {
                 <p style={{ margin: 0, color: "#334155", lineHeight: "1.7" }}>
                   {latestDrill?.observations || "No observations recorded for this drill yet."}
                 </p>
+              </div>
+
+              <div className="form-field" style={{ marginTop: "20px" }}>
+                <label className="form-label">Your Remarks / Feedback</label>
+                <textarea
+                  className="form-input"
+                  rows={5}
+                  value={drillComment}
+                  onChange={(event) => setDrillComment(event.target.value)}
+                  placeholder="Add comments or feedback for this fire drill report..."
+                  style={{ minHeight: "140px" }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", gap: "12px" }}>
+                  <small style={{ color: "#64748b" }}>
+                    This feedback is saved to the current drill record.
+                  </small>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={handleSaveDrillComment}
+                    disabled={isSavingDrillComment || !latestDrill?.id}
+                    style={{ minWidth: "140px" }}
+                  >
+                    {isSavingDrillComment ? "Saving..." : "Save Feedback"}
+                  </button>
+                </div>
+                {drillCommentMessage && (
+                  <p style={{ margin: "10px 0 0", color: drillCommentMessage.includes("Unable") ? "#b91c1c" : "#047857" }}>
+                    {drillCommentMessage}
+                  </p>
+                )}
               </div>
             </div>
           </div>

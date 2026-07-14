@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getAllReports } from "../../services/reportService";
-import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { useAuthContext } from "../../context/AuthContext";
+import { getAllReports, updateReport } from "../../services/reportService";
 
 const fallbackReports = [
   {
@@ -121,9 +121,43 @@ const AnnualReports = () => {
   }, [reports]);
 
   const latestReport = filteredReports[0] || reports[0] || fallbackReports[0];
+  const [remarks, setRemarks] = useState(latestReport.customerComments || "");
+  const [isSavingRemarks, setIsSavingRemarks] = useState(false);
+  const [remarksSavedMessage, setRemarksSavedMessage] = useState("");
+
+  useEffect(() => {
+    setRemarks(latestReport.customerComments || "");
+    setRemarksSavedMessage("");
+  }, [latestReport.id]);
+
   const totalReports = reports.length;
   const submittedCount = reports.filter((report) => String(report.status || "").toLowerCase() === "submitted").length;
   const reviewedCount = reports.filter((report) => String(report.status || "").toLowerCase() === "reviewed").length;
+
+  const handleSaveRemarks = async () => {
+    if (!latestReport?.id) {
+      alert("Cannot save remarks for this report because no report record is available.");
+      return;
+    }
+
+    setIsSavingRemarks(true);
+    setRemarksSavedMessage("");
+
+    try {
+      await updateReport(latestReport.id, { customerComments: remarks });
+      setReports((currentReports) =>
+        currentReports.map((report) =>
+          report.id === latestReport.id ? { ...report, customerComments: remarks } : report
+        )
+      );
+      setRemarksSavedMessage("Remarks saved successfully.");
+    } catch (error) {
+      setRemarksSavedMessage("Unable to save remarks. Please try again.");
+      console.error(error);
+    } finally {
+      setIsSavingRemarks(false);
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -136,7 +170,31 @@ const AnnualReports = () => {
           </p>
         </div>
         <div className="header-actions">
-          <button type="button" className="primary-btn">
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={() => {
+              const url = latestReport?.reportFileUrl || latestReport?.reportUrl || null;
+              if (!url) {
+                alert("No downloadable report file is available for the latest report.");
+                return;
+              }
+              // create a temporary anchor to download or open file
+              try {
+                const a = document.createElement("a");
+                a.href = url;
+                a.target = "_blank";
+                // attempt to set a filename when same-origin
+                const filename = (latestReport?.reportId || "report") + ".pdf";
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+              } catch (err) {
+                window.open(url, "_blank");
+              }
+            }}
+          >
             Download Latest Report
           </button>
         </div>
@@ -211,6 +269,37 @@ const AnnualReports = () => {
                   <li>Inspection results, drill records, and issue resolutions were consolidated into a single view.</li>
                   <li>All critical actions have been documented for customer review and follow-up.</li>
                 </ul>
+              </div>
+
+              <div className="form-field" style={{ marginTop: "20px" }}>
+                <label className="form-label">Your Remarks / Feedback</label>
+                <textarea
+                  className="form-input"
+                  rows={5}
+                  value={remarks}
+                  onChange={(event) => setRemarks(event.target.value)}
+                  placeholder="Add comments or feedback for this annual report..."
+                  style={{ minHeight: "140px" }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", gap: "12px" }}>
+                  <small style={{ color: "#64748b" }}>
+                    This feedback is saved to the selected annual report.
+                  </small>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={handleSaveRemarks}
+                    disabled={isSavingRemarks || !latestReport?.id}
+                    style={{ minWidth: "140px" }}
+                  >
+                    {isSavingRemarks ? "Saving..." : "Save Feedback"}
+                  </button>
+                </div>
+                {remarksSavedMessage && (
+                  <p style={{ margin: "10px 0 0", color: remarksSavedMessage.includes("Unable") ? "#b91c1c" : "#047857" }}>
+                    {remarksSavedMessage}
+                  </p>
+                )}
               </div>
             </div>
           </div>

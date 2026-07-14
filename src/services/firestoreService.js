@@ -533,7 +533,9 @@ const buildReportPayload = (data) => ({
   dateTo: data.dateTo || "",
   priority: data.priority || "Normal",
   aiSummaryIncluded: !!data.aiSummaryIncluded,
-  status: data.status || REPORT_STATUS.DRAFT
+  status: data.status || REPORT_STATUS.DRAFT,
+  // Allow customers to add comments or feedback on reports
+  customerComments: data.customerComments || ""
 });
 
 export const addReport = async (data) => {
