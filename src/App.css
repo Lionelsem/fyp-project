@@ -6021,3 +6021,143 @@ select.responsive-control {
     transition: none;
   }
 }
+
+/* Make Inspections match the contained, single-column mobile Dashboard layout. */
+@media (max-width: 1120px) {
+  .fsm-main-content > .inspection-page {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: clip;
+  }
+
+  .inspection-page .inspection-grid,
+  .inspection-page .inspection-main,
+  .inspection-page .inspection-card,
+  .inspection-page .card-inner,
+  .inspection-page .category-list,
+  .inspection-page .category-card,
+  .inspection-page .category-body,
+  .inspection-page .checklist-row,
+  .inspection-page .row-detail,
+  .inspection-page .issue-panel,
+  .inspection-page .issue-evidence-sections,
+  .inspection-page .issue-evidence-section {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .inspection-page .row-main,
+  .inspection-page .issue-fields-row,
+  .inspection-page .issue-photo-wrapper--grid,
+  .inspection-page .issue-photo-gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inspection-page .row-main input,
+  .inspection-page .row-main select,
+  .inspection-page .row-main label,
+  .inspection-page .issue-panel input,
+  .inspection-page .issue-panel select,
+  .inspection-page .issue-panel textarea,
+  .inspection-page .issue-panel label,
+  .inspection-page .issue-photo-wrapper--grid,
+  .inspection-page .issue-photo-gallery,
+  .inspection-page .inspection-photo-preview,
+  .inspection-page .issue-photo-preview {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .inspection-page .issue-photo-preview {
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  .inspection-page .issue-panel-heading,
+  .inspection-page .issue-panel h4 {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .inspection-page .issue-panel-heading > .secondary-button {
+    width: 100%;
+  }
+
+  .inspection-page .hint-text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .inspection-page .checklist-floating-submit {
+    position: sticky;
+    top: 12px;
+    right: auto;
+    bottom: auto;
+    z-index: 100;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(10px);
+  }
+
+  .inspection-page .checklist-floating-submit span {
+    flex: 0 1 auto;
+  }
+
+  .inspection-page .checklist-floating-submit .primary-button {
+    width: auto;
+    min-width: min(190px, 100%);
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 430px) {
+  .inspection-page .checklist-floating-submit {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .inspection-page .checklist-floating-submit .primary-button {
+    width: 100%;
+  }
+}
+
+/* Mobile pages scroll at the document level, so pin the action to the viewport. */
+@media (max-width: 900px) {
+  .inspection-page .checklist-floating-submit {
+    display: none;
+    position: static;
+  }
+
+  .inspection-page .checklist-card--active .checklist-floating-submit {
+    display: flex;
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+    left: max(14px, env(safe-area-inset-left));
+    z-index: 290;
+    width: auto;
+    max-width: none;
+    margin: 0;
+  }
+
+  .inspection-page .checklist-card--active .checklist-floating-submit + .category-list {
+    padding-top: 92px;
+  }
+}
+
+@media (max-width: 430px) {
+  .inspection-page .checklist-card--active .checklist-floating-submit + .category-list {
+    padding-top: 140px;
+  }
+}

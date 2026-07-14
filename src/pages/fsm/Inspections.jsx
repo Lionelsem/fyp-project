@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   getInspectionByAssignmentPeriod,
@@ -1308,7 +1308,22 @@ const Inspections = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const categoryListRef = useRef(null);
+  const [isChecklistVisible, setIsChecklistVisible] = useState(false);
   const isVerifyMode = location.pathname.includes("/verify");
+
+  useEffect(() => {
+    const categoryList = categoryListRef.current;
+    if (!categoryList || typeof IntersectionObserver === "undefined") return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsChecklistVisible(entry.isIntersecting),
+      { threshold: 0 }
+    );
+
+    observer.observe(categoryList);
+    return () => observer.disconnect();
+  }, []);
   const issueIdFromQuery = useMemo(
     () => new URLSearchParams(location.search).get("issueId") || "",
     [location.search]
@@ -2804,7 +2819,7 @@ const Inspections = () => {
             resolvedCount={issueCounts.resolved}
           />
 
-          <section className="inspection-card checklist-card">
+          <section className={`inspection-card checklist-card${isChecklistVisible ? " checklist-card--active" : ""}`}>
             <div className="card-title-row">
               <div>
                 <p className="overline">Checklist</p>
@@ -2825,7 +2840,7 @@ const Inspections = () => {
                 </button>
               </div>
             )}
-            <div className="category-list">
+            <div ref={categoryListRef} className="category-list">
               {checklist.map((category) => (
                 <div className="category-card" key={category.id}>
                   <button
