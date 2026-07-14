@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 
 const mockBuildings = [
@@ -17,8 +16,6 @@ const mockBuildings = [
     imageUrl: "https://thumbs.dreamstime.com/b/asia-china-beijing-cbd-central-business-district-international-city-business-complex-modern-architecture-yuanyang-guanghua-43498817.jpg"
   }
 ];
-
-const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
 const toDate = (value) => {
   if (!value) return null;
@@ -93,7 +90,6 @@ const getBuildingName = (building) =>
   getFirstTextValue(building, BUILDING_NAME_FIELDS) || "Unnamed Building";
 
 const MyBuildings = () => {
-  const { user } = useAuthContext();
   const {
     loading,
     error,

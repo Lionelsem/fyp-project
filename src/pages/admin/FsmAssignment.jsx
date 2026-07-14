@@ -60,8 +60,14 @@ const FsmAssignment = () => {
   }, [selectedBuilding]);
 
   const getFsmName = (userId) => {
-    const user = users.find((item) => item.uid === userId || item.userId === userId);
-    return user?.fullName || user?.email || userId || "Unassigned";
+    if (!userId) return "Unassigned";
+    const normalizedId = String(userId);
+    const user = users.find((item) =>
+      [item.uid, item.userId, item.id, item.authUid]
+        .filter(Boolean)
+        .some((candidate) => String(candidate) === normalizedId)
+    );
+    return user?.fullName || user?.displayName || user?.email || "Assigned FSM";
   };
 
   const selectedFsmName = getFsmName(selectedFsmId);
@@ -132,7 +138,7 @@ const FsmAssignment = () => {
                   <option value="">Select building</option>
                   {buildings.map((building) => (
                     <option key={building.id} value={building.id}>
-                      {building.buildingName || building.building_name || building.buildingId}
+                      {building.buildingName || building.building_name || "Unnamed building"}
                     </option>
                   ))}
                 </select>
@@ -214,8 +220,15 @@ const FsmAssignment = () => {
             <div className="card-header-row">
               <h2 className="section-title">Assignment History</h2>
             </div>
-            <ResponsiveTableRegion label="FSM assignment history">
-              <table className="dashboard-table">
+            <ResponsiveTableRegion label="FSM assignment history" className="responsive-table-region--cards">
+              <table className="dashboard-table responsive-card-table assignment-history-table">
+              <colgroup>
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "28%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>DATE</th>
@@ -241,15 +254,15 @@ const FsmAssignment = () => {
                 ) : (
                   buildings.map((building) => (
                     <tr key={building.id}>
-                      <td>{building.updatedAt ? new Date(building.updatedAt.seconds * 1000).toLocaleDateString() : "—"}</td>
-                      <td>{building.buildingName || building.building_name || building.buildingId || "Unknown"}</td>
-                      <td>
+                      <td data-label="Date">{building.updatedAt ? new Date(building.updatedAt.seconds * 1000).toLocaleDateString() : "—"}</td>
+                      <td data-label="Building">{building.buildingName || building.building_name || "Unknown building"}</td>
+                      <td data-label="Action">
                         <span className="status-pill" style={{ backgroundColor: building.assignedFsmId ? "#ecfdf5" : "#f8fafc", color: building.assignedFsmId ? "#047857" : "#475569", borderColor: building.assignedFsmId ? "#d1fae5" : "#e5e7eb" }}>
                           {building.assignedFsmId ? "Assigned" : "Unassigned"}
                         </span>
                       </td>
-                      <td>{getFsmName(building.assignedFsmId)}</td>
-                      <td style={{ color: "#6b7280" }}>System Auto</td>
+                      <td data-label="FSM">{getFsmName(building.assignedFsmId)}</td>
+                      <td data-label="Performed by" style={{ color: "#6b7280" }}>System Auto</td>
                     </tr>
                   ))
                 )}

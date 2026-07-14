@@ -70,7 +70,7 @@ const AdminDashboard = () => {
   }, []);
 
   const buildingMap = useMemo(
-    () => new Map(buildings.map((b) => [b.id, b.buildingName || b.building_name || b.id])),
+    () => new Map(buildings.map((b) => [b.id, b.buildingName || b.building_name || "Unnamed building"])),
     [buildings]
   );
 
@@ -138,14 +138,14 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="dashboard-container">
+      <div className="dashboard-container admin-dashboard-page role-dashboard-page">
         <div className="loading-state">Loading dashboard...</div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-dashboard-page role-dashboard-page">
       {/* Summary cards */}
       <div className="summary-grid">
         {summaryCards.map((card) => (
@@ -179,7 +179,6 @@ const AdminDashboard = () => {
                 <table className="dashboard-table responsive-card-table">
                 <thead>
                   <tr>
-                    <th>ISSUE ID</th>
                     <th>BUILDING</th>
                     <th>FINDING</th>
                     <th>STATUS</th>
@@ -188,8 +187,7 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentIssues.map((issue) => (
                     <tr key={issue.id}>
-                      <td className="id-cell" data-label="Issue ID">{issue.issueId || issue.id}</td>
-                      <td data-label="Building">{buildingMap.get(issue.buildingId) || issue.buildingId || "-"}</td>
+                      <td data-label="Building">{buildingMap.get(issue.buildingId) || "Unknown building"}</td>
                       <td data-label="Finding">{issue.issueTitle || issue.issueDescription || "-"}</td>
                       <td data-label="Status">
                         <span className="status-badge" style={statusStyle(issue.status)}>

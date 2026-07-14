@@ -43,6 +43,8 @@ const CustomerLayout = ({ children }) => {
       profile={sidebarProfile}
       NavbarComponent={CustomerNavbar}
       SidebarComponent={CustomerSidebar}
+      shellClassName="customer-shell"
+      contentClassName="customer-main-content"
     >
       {children}
     </PortalShell>

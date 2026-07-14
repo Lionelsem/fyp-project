@@ -43,6 +43,8 @@ const AdminLayout = ({ children }) => {
       profile={sidebarProfile}
       NavbarComponent={AdminNavbar}
       SidebarComponent={AdminSidebar}
+      shellClassName="admin-shell"
+      contentClassName="admin-main-content"
     >
       {children}
     </PortalShell>

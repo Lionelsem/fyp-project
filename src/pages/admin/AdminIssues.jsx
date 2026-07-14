@@ -56,7 +56,7 @@ const AdminIssues = () => {
   }, []);
 
   const buildingMap = useMemo(
-    () => new Map(buildings.map((building) => [building.id, building.buildingName || building.building_name || building.buildingId])),
+    () => new Map(buildings.map((building) => [building.id, building.buildingName || building.building_name || "Unnamed building"])),
     [buildings]
   );
 
@@ -89,7 +89,8 @@ const AdminIssues = () => {
   }, [issues, search, statusFilter, buildingMap, userMap]);
 
   const uniqueStatuses = useMemo(() => {
-    return Array.from(new Set(issues.map((issue) => String(issue.status || "").trim()).filter(Boolean)));
+    const statuses = issues.map((issue) => String(issue.status || "").trim()).filter(Boolean);
+    return Array.from(new Set(["Open", "In Progress", "Resolved", "Closed", ...statuses]));
   }, [issues]);
 
   return (
@@ -143,12 +144,11 @@ const AdminIssues = () => {
       <div className="dashboard-card">
         <ResponsiveTableRegion
           label="Issues and defects"
-          className="fire-drill-history-table-wrapper"
+          className="fire-drill-history-table-wrapper responsive-table-region--cards"
         >
-          <table className="dashboard-table">
+          <table className="dashboard-table responsive-card-table">
             <thead>
               <tr>
-                <th>ISSUE ID</th>
                 <th>BUILDING</th>
                 <th>LOCATION</th>
                 <th>FINDING</th>
@@ -159,25 +159,24 @@ const AdminIssues = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                     Loading issues...
                   </td>
                 </tr>
               ) : filteredIssues.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                     No issues found.
                   </td>
                 </tr>
               ) : (
                 filteredIssues.map((issue) => (
                   <tr key={issue.id}>
-                    <td className="id-cell">{issue.issueId || issue.id}</td>
-                    <td>{buildingMap.get(issue.buildingId) || issue.buildingId || "Unknown"}</td>
-                    <td>{issue.location || "-"}</td>
-                    <td>{issue.issueTitle || issue.issueDescription || "-"}</td>
-                    <td>{userMap.get(issue.reportedBy) || issue.reportedBy || "-"}</td>
-                    <td>
+                    <td data-label="Building">{buildingMap.get(issue.buildingId) || "Unknown building"}</td>
+                    <td data-label="Location">{issue.location || "-"}</td>
+                    <td data-label="Finding">{issue.issueTitle || issue.issueDescription || "-"}</td>
+                    <td data-label="Reported by">{userMap.get(issue.reportedBy) || "Unknown user"}</td>
+                    <td data-label="Status">
                       <span className="status-badge" style={getStatusStyle(issue.status)}>
                         {issue.status || "Unknown"}
                       </span>

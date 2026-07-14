@@ -252,9 +252,9 @@ const FireDrillReports = () => {
             ) : (
               <ResponsiveTableRegion
                 label="Fire drill reports"
-                className="fire-drill-history-table-wrapper"
+                className="fire-drill-history-table-wrapper responsive-table-region--cards"
               >
-                <table className="dashboard-table">
+                <table className="dashboard-table responsive-card-table">
                   <thead>
                     <tr>
                       <th>DRILL</th>
@@ -266,13 +266,12 @@ const FireDrillReports = () => {
                   <tbody>
                     {filteredDrills.map((drill) => (
                       <tr key={drill.id}>
-                        <td>
+                        <td data-label="Drill">
                           <div className="id-cell">{drill.drillType || "Fire Drill"}</div>
-                          <div style={{ color: "#64748b", fontSize: "12px" }}>{drill.id}</div>
                         </td>
-                        <td>{drill.buildingName || "—"}</td>
-                        <td>{formatDate(drill.actualDate || drill.drillDate)}</td>
-                        <td>
+                        <td data-label="Building">{drill.buildingName || "—"}</td>
+                        <td data-label="Date">{formatDate(drill.actualDate || drill.drillDate)}</td>
+                        <td data-label="Status">
                           <span className="status-badge" style={getStatusStyle(drill.status || drill.performanceStatus)}>
                             {drill.status || drill.performanceStatus || "Pending"}
                           </span>

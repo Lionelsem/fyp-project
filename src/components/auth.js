@@ -62,6 +62,12 @@ const Auth = () => {
       <button onClick={handleLogin}>Login</button>
       <button onClick={handleLogout}>Logout</button>
 
+      {userData && (
+        <p>
+          Signed in as {userData.fullName || userData.displayName || userData.email || "User"}
+        </p>
+      )}
+
     </div>
   );
 };

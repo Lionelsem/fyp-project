@@ -48,7 +48,6 @@ const ManageUsers = () => {
           <table className="dashboard-table" style={{ width: "100%" }}>
           <thead>
             <tr>
-              <th>USER ID</th>
               <th>NAME</th>
               <th>ROLE</th>
               <th>ASSIGNED BUILDING</th>
@@ -60,20 +59,19 @@ const ManageUsers = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                   Loading users...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                   No users found.
                 </td>
               </tr>
             ) : (
               users.map((user) => (
                 <tr key={user.uid}>
-                  <td className="id-cell">{user.uid}</td>
                   <td>{user.fullName || "-"}</td>
                   <td>{user.role || "-"}</td>
                   <td>{user.assignedBuilding || "-"}</td>

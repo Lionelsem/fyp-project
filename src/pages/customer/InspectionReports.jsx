@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { useAuthContext } from "../../context/AuthContext";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const mockReports = [
@@ -48,7 +47,6 @@ const getFindingsLabel = (count) => {
 };
 
 const InspectionReports = () => {
-  const { user } = useAuthContext();
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [loading] = useState(false);
@@ -147,7 +145,6 @@ const InspectionReports = () => {
           <table className="dashboard-table">
             <thead>
               <tr>
-                <th>REPORT ID</th>
                 <th>INSPECTION MONTH</th>
                 <th>INSPECTION DATE</th>
                 <th>FSM IN-CHARGE</th>
@@ -159,20 +156,19 @@ const InspectionReports = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                     Loading reports...
                   </td>
                 </tr>
               ) : filteredReports.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                     No inspection reports found.
                   </td>
                 </tr>
               ) : (
                 filteredReports.map((report) => (
                   <tr key={report.id}>
-                    <td className="id-cell">{report.reportId}</td>
                     <td>{report.inspectionMonth}</td>
                     <td>{report.inspectionDate}</td>
                     <td>{report.fsmInCharge}</td>

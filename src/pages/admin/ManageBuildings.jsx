@@ -34,16 +34,20 @@ const ManageBuildings = () => {
     loadData();
   }, []);
 
-  const userMap = useMemo(
-    () => new Map(users.map((user) => [user.uid, user.fullName || user.email || user.uid])),
-    [users]
-  );
+  const userMap = useMemo(() => {
+    const entries = users.flatMap((user) =>
+      [user.uid, user.userId, user.id, user.authUid]
+        .filter(Boolean)
+        .map((key) => [String(key), user.fullName || user.displayName || user.email || "Assigned FSM"])
+    );
+    return new Map(entries);
+  }, [users]);
 
   const getAssignedFsmName = useCallback((assignedFsmId) => {
     if (!assignedFsmId) {
       return "Unassigned";
     }
-    return userMap.get(assignedFsmId) || assignedFsmId;
+    return userMap.get(String(assignedFsmId)) || "Assigned FSM";
   }, [userMap]);
 
   const filteredBuildings = useMemo(() => {
@@ -97,11 +101,19 @@ const ManageBuildings = () => {
           />
         </div>
 
-        <ResponsiveTableRegion label="Buildings">
-          <table className="dashboard-table" style={{ width: "100%" }}>
+        <ResponsiveTableRegion label="Buildings" className="responsive-table-region--cards">
+          <table className="dashboard-table responsive-card-table admin-buildings-table" style={{ width: "100%" }}>
+          <colgroup>
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "24%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "18%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "14%" }} />
+          </colgroup>
           <thead>
             <tr>
-              <th>BUILDING ID</th>
               <th>BUILDING NAME</th>
               <th>ADDRESS</th>
               <th>STOREYS</th>
@@ -127,13 +139,12 @@ const ManageBuildings = () => {
             ) : (
               filteredBuildings.map((building) => (
                 <tr key={building.id}>
-                  <td className="id-cell">{building.buildingId || building.id}</td>
-                  <td>{building.building_name || building.buildingName || "-"}</td>
-                  <td>{building.address || "-"}</td>
-                  <td>{building.noOfStoreys || "-"}</td>
-                  <td>{building.occupantLoad || "-"}</td>
-                  <td>{getAssignedFsmName(building.assignedFsmId)}</td>
-                  <td>
+                  <td data-label="Building">{building.building_name || building.buildingName || "-"}</td>
+                  <td data-label="Address">{building.address || "-"}</td>
+                  <td data-label="Storeys">{building.noOfStoreys || "-"}</td>
+                  <td data-label="Occupant load">{building.occupantLoad || "-"}</td>
+                  <td data-label="Assigned FSM">{getAssignedFsmName(building.assignedFsmId)}</td>
+                  <td data-label="Status">
                     <span
                       style={{
                         display: "inline-flex",
@@ -148,7 +159,7 @@ const ManageBuildings = () => {
                       {building.status || "Compliant"}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Action">
                     <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                       <button
                         type="button"
@@ -164,7 +175,7 @@ const ManageBuildings = () => {
                         title="Delete building"
                         disabled={deletingBuildingId === building.id}
                         onClick={async () => {
-                          const confirmed = window.confirm(`Delete building ${building.buildingName || building.buildingId || building.id}?`);
+                          const confirmed = window.confirm(`Delete ${building.buildingName || building.building_name || "this building"}?`);
                           if (!confirmed) return;
                           setDeletingBuildingId(building.id);
                           try {

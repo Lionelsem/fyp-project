@@ -71,8 +71,8 @@ const EditBuilding = () => {
     event.preventDefault();
     setMessage(null);
 
-    if (!form.buildingId || !form.buildingName || !form.address) {
-      setMessage({ type: "error", text: "Building ID, name, and address are required." });
+    if (!form.buildingName || !form.address) {
+      setMessage({ type: "error", text: "Building name and address are required." });
       return;
     }
 
@@ -122,16 +122,6 @@ const EditBuilding = () => {
         ) : (
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "24px", padding: "20px 0" }}>
             <div className="form-grid">
-              <div className="form-field">
-                <label className="form-label">Building ID *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. BLD-001"
-                  value={form.buildingId}
-                  onChange={handleChange("buildingId")}
-                />
-              </div>
               <div className="form-field">
                 <label className="form-label">Building Name *</label>
                 <input

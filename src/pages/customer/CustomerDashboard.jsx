@@ -100,7 +100,7 @@ const CustomerDashboard = () => {
   };
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container customer-dashboard-page role-dashboard-page">
       <div className="building-card-section">
         <div className="dashboard-card building-card">
           <div className="building-card-header">

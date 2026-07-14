@@ -25,6 +25,7 @@ const CustomerRoutes = () => {
           <Route path="annual-reports" element={<AnnualReports />} />
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="building" element={<MyBuildings />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </CustomerLayout>

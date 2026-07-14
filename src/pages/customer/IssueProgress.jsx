@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { useAuthContext } from "../../context/AuthContext";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const mockIssues = [
@@ -68,7 +67,6 @@ const getStatusStyle = (status) => {
 };
 
 const IssueProgress = () => {
-  const { user } = useAuthContext();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,12 +95,6 @@ const IssueProgress = () => {
       return matchesSearch && matchesStatus;
     });
   }, [issues, search, statusFilter]);
-
-  const uniqueStatuses = useMemo(() => {
-    return Array.from(
-      new Set(issues.map((issue) => String(issue.status || "").trim()).filter(Boolean))
-    );
-  }, [issues]);
 
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -173,7 +165,6 @@ const IssueProgress = () => {
           <table className="dashboard-table">
             <thead>
               <tr>
-                <th>ISSUE ID</th>
                 <th>LOCATION</th>
                 <th>FINDING</th>
                 <th>PROPOSED RECTIFICATION</th>
@@ -185,20 +176,19 @@ const IssueProgress = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                     Loading issues...
                   </td>
                 </tr>
               ) : filteredIssues.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                     No issues found.
                   </td>
                 </tr>
               ) : (
                 paginatedIssues.map((issue) => (
                   <tr key={issue.id}>
-                    <td className="id-cell">{issue.issueId}</td>
                     <td>{issue.location}</td>
                     <td>{issue.finding}</td>
                     <td>{issue.proposedRectification}</td>

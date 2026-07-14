@@ -6156,8 +6156,358 @@ select.responsive-control {
   }
 }
 
+/* Keep Admin building and assignment tables contained on desktop. */
+.admin-main-content .responsive-table-region .admin-buildings-table,
+.admin-main-content .responsive-table-region .assignment-history-table {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  table-layout: fixed;
+}
+
+.admin-buildings-table th,
+.admin-buildings-table td,
+.assignment-history-table th,
+.assignment-history-table td {
+  padding: 13px 8px;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.admin-buildings-table th,
+.assignment-history-table th {
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.admin-buildings-table th:nth-child(3),
+.admin-buildings-table td:nth-child(3) {
+  padding-right: 14px;
+}
+
+.admin-buildings-table th:nth-child(4),
+.admin-buildings-table td:nth-child(4) {
+  padding-left: 14px;
+}
+
+.admin-buildings-table td:last-child > div {
+  flex-wrap: wrap;
+  justify-content: flex-start !important;
+}
+
+.assignment-history-table td .status-pill {
+  max-width: 100%;
+  white-space: normal;
+}
+
+@media (max-width: 1180px) {
+  .admin-main-content .assignment-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Prevent a second browser scrollbar around portal dashboards. */
+.portal-shell {
+  position: fixed;
+  inset: 0;
+}
+
+@media (max-width: 900px) {
+  .portal-shell .responsive-table-region--cards {
+    overflow: visible;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table,
+  .portal-shell .responsive-table-region--cards .responsive-card-table tbody,
+  .portal-shell .responsive-table-region--cards .responsive-card-table tr,
+  .portal-shell .responsive-table-region--cards .responsive-card-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table {
+    table-layout: auto;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table thead,
+  .portal-shell .responsive-table-region--cards .responsive-card-table colgroup {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table tr {
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table td {
+    display: grid;
+    grid-template-columns: minmax(105px, 0.8fr) minmax(0, 1.2fr);
+    gap: 12px;
+    align-items: start;
+    padding: 9px 0;
+    border: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table td[colspan] {
+    display: block;
+    padding: 16px 0;
+    text-align: center;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table td[colspan]::before {
+    display: none;
+    content: none;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table td > * {
+    min-width: 0;
+    max-width: 100%;
+    justify-self: end;
+  }
+
+  .admin-main-content .dashboard-card,
+  .customer-main-content .dashboard-card {
+    padding: 16px;
+  }
+
+  .admin-main-content .issues-search-controls,
+  .customer-main-content .issues-search-controls {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* Admin and Customer dashboards follow the contained FSM dashboard geometry. */
+.role-dashboard-page {
+  width: 100%;
+  max-width: 1440px;
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.role-dashboard-page .summary-grid {
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.role-dashboard-page .summary-card {
+  min-width: 0;
+  min-height: 104px;
+  padding: 16px 18px;
+  border-radius: 18px;
+}
+
+.role-dashboard-page .dashboard-grid {
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.8fr);
+  gap: 18px;
+  min-width: 0;
+  align-items: start;
+}
+
+.role-dashboard-page .content-left,
+.role-dashboard-page .content-right,
+.role-dashboard-page .dashboard-card,
+.role-dashboard-page .responsive-table-region {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.role-dashboard-page .content-left,
+.role-dashboard-page .content-right {
+  gap: 18px;
+}
+
+.role-dashboard-page .dashboard-card {
+  padding: 18px;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.role-dashboard-page .responsive-table-region {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.role-dashboard-page .dashboard-table {
+  table-layout: fixed;
+}
+
+.role-dashboard-page .dashboard-table th,
+.role-dashboard-page .dashboard-table td {
+  min-width: 0;
+  padding: 12px 10px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.role-dashboard-page .dashboard-table th:first-child,
+.role-dashboard-page .dashboard-table td:first-child {
+  padding-left: 0;
+}
+
+.role-dashboard-page .dashboard-table th:last-child,
+.role-dashboard-page .dashboard-table td:last-child {
+  padding-right: 0;
+}
+
+@media (max-width: 1180px) {
+  .role-dashboard-page .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .role-dashboard-page .content-right {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .role-dashboard-page .content-right {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .role-dashboard-page .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .role-dashboard-page .responsive-table-region--cards {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 640px) {
+  .role-dashboard-page .summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .role-dashboard-page .dashboard-card,
+  .role-dashboard-page .summary-card {
+    padding: 16px;
+  }
+}
+
 @media (max-width: 430px) {
   .inspection-page .checklist-card--active .checklist-floating-submit + .category-list {
     padding-top: 140px;
+  }
+}
+
+/* All portal roles use a fixed viewport shell; only page content scrolls. */
+.portal-shell {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.portal-shell .portal-shell__body,
+.portal-shell .portal-shell__main {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.portal-shell .portal-shell__main {
+  min-width: 0;
+}
+
+.portal-shell .main-content,
+.portal-shell .fsm-main-content,
+.portal-shell .admin-main-content,
+.portal-shell .customer-main-content {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+  .portal-shell .portal-shell__body {
+    display: block;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .portal-shell .portal-shell__main {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .portal-shell .main-content {
+    padding: 14px;
+  }
+
+  .portal-shell .dashboard-container,
+  .portal-shell .inspection-page,
+  .portal-shell .profile-page,
+  .portal-shell .issues-page,
+  .portal-shell .issue-ticket-page,
+  .portal-shell .fire-drill-page,
+  .portal-shell .reports-page {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline: 0;
+  }
+
+  .portal-shell .summary-grid,
+  .portal-shell .dashboard-grid,
+  .portal-shell .status-cards-grid,
+  .portal-shell .building-details-layout,
+  .portal-shell .inspection-grid,
+  .portal-shell .fsm-chart-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .portal-shell .dashboard-card,
+  .portal-shell .summary-card,
+  .portal-shell .assignment-card,
+  .portal-shell .building-card,
+  .portal-shell .inspection-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 }

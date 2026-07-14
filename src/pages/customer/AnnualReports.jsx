@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useAuthContext } from "../../context/AuthContext";
 import { getAllReports } from "../../services/reportService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
@@ -67,7 +66,6 @@ const getStatusStyle = (status) => {
 };
 
 const AnnualReports = () => {
-  const { user } = useAuthContext();
   const [reports, setReports] = useState([]);
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -201,10 +199,6 @@ const AnnualReports = () => {
             <div className="customer-report-summary">
               <div className="customer-report-summary-grid">
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Report ID</div>
-                  <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.reportId || "—"}</strong>
-                </div>
-                <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
                   <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Generated</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{formatDate(latestReport?.generatedDate)}</strong>
                 </div>
@@ -259,9 +253,9 @@ const AnnualReports = () => {
             ) : (
               <ResponsiveTableRegion
                 label="Annual reports"
-                className="fire-drill-history-table-wrapper"
+                className="fire-drill-history-table-wrapper responsive-table-region--cards"
               >
-                <table className="dashboard-table">
+                <table className="dashboard-table responsive-card-table">
                   <thead>
                     <tr>
                       <th>REPORT</th>
@@ -273,13 +267,12 @@ const AnnualReports = () => {
                   <tbody>
                     {filteredReports.map((report) => (
                       <tr key={report.id || report.reportId}>
-                        <td>
-                          <div className="id-cell">{report.reportTitle || report.reportId}</div>
-                          <div style={{ color: "#64748b", fontSize: "12px" }}>{report.reportId}</div>
+                        <td data-label="Report">
+                          <div className="id-cell">{report.reportTitle || "Annual Report"}</div>
                         </td>
-                        <td>{report.period || "—"}</td>
-                        <td>{formatDate(report.generatedDate)}</td>
-                        <td>
+                        <td data-label="Period">{report.period || "—"}</td>
+                        <td data-label="Generated">{formatDate(report.generatedDate)}</td>
+                        <td data-label="Status">
                           <span className="status-badge" style={getStatusStyle(report.status)}>
                             {report.status || "Pending"}
                           </span>
