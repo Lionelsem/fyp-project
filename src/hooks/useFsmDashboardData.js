@@ -104,25 +104,36 @@ const formatDate = (value) => {
   const date = toDate(value);
   if (!date) return "-";
 
-  return date.toLocaleDateString(undefined, {
-    month: "short",
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
+    month: "short",
     year: "numeric"
   });
 };
 
 const formatTime = (value) => {
   if (typeof value === "string" && value.trim()) {
-    return value.trim();
+    const text = value.trim();
+    const timeMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+
+    if (!timeMatch) return text;
+
+    let hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const meridiem = timeMatch[3]?.toUpperCase();
+
+    if (meridiem === "PM" && hours < 12) hours += 12;
+    if (meridiem === "AM" && hours === 12) hours = 0;
+
+    const displayHour = String(((hours + 11) % 12) + 1).padStart(2, "0");
+    return `${displayHour}:${String(minutes).padStart(2, "0")} ${hours >= 12 ? "PM" : "AM"}`;
   }
 
   const date = toDate(value);
   if (!date) return "Time TBC";
 
-  return date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  const displayHour = String(((date.getHours() + 11) % 12) + 1).padStart(2, "0");
+  return `${displayHour}:${String(date.getMinutes()).padStart(2, "0")} ${date.getHours() >= 12 ? "PM" : "AM"}`;
 };
 
 const parseTimeParts = (value) => {
@@ -187,18 +198,22 @@ const getIssueBucket = (issue) => {
   const priority = normalizeText(issue.priority);
   const status = normalizeText(issue.status);
 
-  if (status === normalizeText(ISSUE_STATUS.CLOSED)) return "passed";
+  if (
+    status === normalizeText(ISSUE_STATUS.CLOSED) ||
+    status === normalizeText(ISSUE_STATUS.RESOLVED)
+  ) {
+    return "passed";
+  }
   if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") return "failed";
-  if (status === normalizeText(ISSUE_STATUS.IN_PROGRESS)) return "pending";
   return "pending";
 };
 
 const getIssueDate = (issue) =>
   toDate(
-    issue.updatedAt ||
-    issue.createdAt ||
     issue.reportedAt ||
+    issue.createdAt ||
     issue.inspectionDate ||
+    issue.updatedAt ||
     issue.fixPhotoUploadedAt ||
     issue.defectPhotoUploadedAt
   );
@@ -225,6 +240,28 @@ const getStatusStyle = (status) => {
   return { statusColor: "#475569", statusBg: "#f1f5f9" };
 };
 
+const normalizeDashboardStatus = (status) => {
+  const displayStatus = String(status || "").trim();
+  const normalized = normalizeText(displayStatus);
+
+  if (
+    normalized === normalizeText(ISSUE_STATUS.CLOSED) ||
+    normalized === normalizeText(ISSUE_STATUS.RESOLVED)
+  ) {
+    return "Resolved";
+  }
+
+  if (normalized === normalizeText(ISSUE_STATUS.IN_PROGRESS)) {
+    return "In Progress";
+  }
+
+  if (normalized === normalizeText(ISSUE_STATUS.OPEN)) return "Open";
+  if (normalized === normalizeText(ISSUE_STATUS.DRAFT)) return "Draft";
+  if (normalized === normalizeText("Submitted")) return "Submitted";
+
+  return displayStatus || "Submitted";
+};
+
 const getPriorityColor = (priority) => {
   const normalized = normalizeText(priority);
   if (normalized === "critical" || normalized === normalizeText(PRIORITY.HIGH)) {
@@ -234,6 +271,20 @@ const getPriorityColor = (priority) => {
     return "#b45309";
   }
   return "#666";
+};
+
+const getPriorityBackground = (priority) => {
+  const normalized = normalizeText(priority);
+  if (normalized === "critical" || normalized === normalizeText(PRIORITY.HIGH)) {
+    return "#fee2e2";
+  }
+  if (normalized === normalizeText(PRIORITY.MEDIUM)) {
+    return "#fef3c7";
+  }
+  if (normalized === normalizeText(PRIORITY.LOW)) {
+    return "#dbeafe";
+  }
+  return "#f1f5f9";
 };
 
 const isCompletedFireDrill = (drill) => {
@@ -390,29 +441,31 @@ const buildMonthlyTrend = (issues) => {
     .map(({ sortDate, ...month }) => month);
 };
 
-const buildRecentReports = (reports, buildingMap) =>
-  [...reports]
+const buildRecentReports = (issues, buildingMap) =>
+  [...issues]
     .sort((first, second) => {
-      const firstDate = toDate(first.generatedDate || first.createdAt);
-      const secondDate = toDate(second.generatedDate || second.createdAt);
+      const firstDate = getIssueDate(first);
+      const secondDate = getIssueDate(second);
       return (secondDate?.getTime() || 0) - (firstDate?.getTime() || 0);
     })
-    .slice(0, 2)
-    .map((report) => {
-      const status = report.status || report.reportStatus || "Draft";
-      const priority = report.priority || "Normal";
+    .slice(0, 5)
+    .map((issue) => {
+      const status = normalizeDashboardStatus(issue.status);
+      const priority = issue.priority || "Normal";
 
       return {
-        id: report.id,
+        id: issue.id,
         building: getBuildingName(
           buildingMap,
-          report.buildingId,
-          report.building
+          issue.buildingId,
+          issue.buildingName
         ),
-        date: formatDate(report.generatedDate || report.createdAt || report.date),
+        issue: issue.issueTitle || issue.issueDescription || "Untitled issue",
+        date: formatDate(getIssueDate(issue)),
         status,
         priority,
         priorityColor: getPriorityColor(priority),
+        priorityBg: getPriorityBackground(priority),
         ...getStatusStyle(status)
       };
     });
@@ -439,7 +492,7 @@ const buildUpcomingSchedule = (fireDrills, buildingMap) => {
       return hasExplicitTime ? dateTime >= now : dateTime >= todayStart;
     })
     .sort((first, second) => first.dateTime - second.dateTime)
-    .slice(0, 2)
+    .slice(0, 3)
     .map(({ drill, dateTime }) => ({
       id: drill.id,
       time: drill.drillTime
@@ -729,8 +782,8 @@ export const useFsmDashboardData = (fsmLookupValue) => {
   );
 
   const recentReports = useMemo(
-    () => buildRecentReports(data.reports, buildingMap),
-    [data.reports, buildingMap]
+    () => buildRecentReports(data.issues, buildingMap),
+    [data.issues, buildingMap]
   );
 
   const upcomingSchedule = useMemo(

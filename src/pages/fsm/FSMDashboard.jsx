@@ -1,309 +1,292 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 
-const hasMonthlyTrendData = (monthlyTrend) =>
-  monthlyTrend.some((item) => item.passed + item.pending + item.failed > 0);
+const CHART_SERIES = [
+  { key: "passed", label: "Resolved", color: "#009c83" },
+  { key: "pending", label: "In Progress", color: "#ff9f0a" },
+  { key: "failed", label: "Critical", color: "#f5333f" }
+];
 
-const BarChart = ({ monthlyTrend }) => {
-  const currentMonthShort = new Date().toLocaleString(undefined, { month: "short" });
+const QUICK_ACTIONS = [
+  { icon: "\uD83D\uDCCB", label: "Start Inspection", path: "/fsm/inspections" },
+  { icon: "\uD83D\uDD0D", label: "Issue Tickets", path: "/fsm/issues" },
+  { icon: "\u2713", label: "Verify Closure", path: "/fsm/inspections/verify" }
+];
 
-  if (!hasMonthlyTrendData(monthlyTrend)) {
+const ArrowRightIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const BuildingIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M4.5 17V4.7L10 2.8v14.1M10 6h5.5v11M2.8 17h14.4M6.8 6.3h.1m-.1 3h.1m-.1 3h.1m5.7-3.2h.1m-.1 3h.1" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const CalendarIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <rect x="3.2" y="4.5" width="13.6" height="12.2" rx="2" stroke="currentColor" strokeWidth="1.45" />
+    <path d="M6.5 2.8v3.4m7-3.4v3.4M3.5 8h13M6.4 10.8h.1m3.4 0h.1m3.4 0h.1m-7 3h.1m3.4 0h.1m3.4 0h.1" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
+  </svg>
+);
+
+const CardLink = ({ children, onClick, arrow = false, ariaLabel }) => (
+  <button type="button" className="fsm-card-link" onClick={onClick} aria-label={ariaLabel}>
+    <span>{children}</span>
+    {arrow && <ArrowRightIcon />}
+  </button>
+);
+
+const getNiceChartMaximum = (items) => {
+  const highestValue = Math.max(
+    0,
+    ...items.flatMap((item) => CHART_SERIES.map((series) => Number(item[series.key]) || 0))
+  );
+
+  if (highestValue <= 5) return 5;
+
+  const roughStep = highestValue / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalizedStep = roughStep / magnitude;
+  const niceStep = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 : normalizedStep <= 5 ? 5 : 10;
+
+  return niceStep * magnitude * 5;
+};
+
+const TrendChart = ({ items, loading }) => {
+  const hasData = items.some((item) =>
+    CHART_SERIES.some((series) => (Number(item[series.key]) || 0) > 0)
+  );
+
+  if (!hasData) {
     return (
-      <div
-        style={{
-          height: "200px",
-          display: "grid",
-          placeItems: "center",
-          color: "#64748b",
-          fontSize: "14px"
-        }}
-      >
-        No issue trend data found.
+      <div className="fsm-chart-empty">
+        {loading ? "Loading issue trends..." : "No issue trend data found."}
       </div>
     );
   }
 
-  const maxValue = Math.max(1, ...monthlyTrend.map((item) => item.passed + item.pending + item.failed));
+  const maximum = getNiceChartMaximum(items);
+  const step = maximum / 5;
+  const ticks = Array.from({ length: 6 }, (_, index) => maximum - (step * index));
+  const canvasWidth = Math.max(360, items.length * 104);
+  const gridColumns = { gridTemplateColumns: `repeat(${items.length}, minmax(88px, 1fr))` };
 
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        gap: "20px",
-        height: "200px",
-        padding: "20px 0"
-      }}
+      className="fsm-trend-chart"
+      role="img"
+      aria-label={`Issue trend chart. ${items.map((item) => `${item.label}: ${item.passed || 0} resolved, ${item.pending || 0} in progress, and ${item.failed || 0} critical`).join(". ")}`}
     >
-      {monthlyTrend.map((item) => {
-        const passedHeight = (item.passed / maxValue) * 150;
-        const pendingHeight = (item.pending / maxValue) * 150;
-        const failedHeight = (item.failed / maxValue) * 150;
-        const isCurrent = String((item.month || "").slice(0, 3)).toLowerCase() === String(currentMonthShort).slice(0, 3).toLowerCase();
+      <div className="fsm-trend-canvas" style={{ minWidth: `${canvasWidth}px` }}>
+        <div className="fsm-trend-y-axis" aria-hidden="true">
+          {ticks.map((tick, index) => (
+            <span key={`${tick}-${index}`} style={{ top: `${index * 20}%` }}>
+              {Number.isInteger(tick) ? tick : tick.toFixed(1)}
+            </span>
+          ))}
+        </div>
 
-        return (
-          <div
-            key={item.month}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center"
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                width: "100%",
-                height: "150px",
-                alignItems: "flex-end"
-              }}
-            >
-              <div
-                style={{
-                  flex: item.passed || 0.1,
-                  backgroundColor: "#10b981",
-                  height: `${passedHeight}px`,
-                  borderRadius: "4px 4px 0 0"
-                }}
+        <div className="fsm-trend-plot" aria-hidden="true">
+          <div className="fsm-trend-grid-lines">
+            {ticks.map((tick, index) => (
+              <span
+                key={`${tick}-${index}`}
+                className={index === ticks.length - 1 ? "is-baseline" : ""}
+                style={{ top: `${index * 20}%` }}
               />
-              <div
-                style={{
-                  flex: item.pending || 0.1,
-                  backgroundColor: "#f59e0b",
-                  height: `${pendingHeight}px`,
-                  borderRadius: "4px 4px 0 0"
-                }}
-              />
-              <div
-                style={{
-                  flex: item.failed || 0.1,
-                  backgroundColor: "#ef4444",
-                  height: `${failedHeight}px`,
-                  borderRadius: "4px 4px 0 0"
-                }}
-              />
-            </div>
-            <div style={{ marginTop: "8px", fontSize: "12px", fontWeight: "600", color: isCurrent ? "#111" : "#444" }}>
-              {item.month}
-            </div>
+            ))}
           </div>
-        );
-      })}
+
+          <div className="fsm-trend-groups" style={gridColumns}>
+            {items.map((item) => (
+              <div className="fsm-trend-group" key={item.key || item.label}>
+                {CHART_SERIES.map((series) => {
+                  const value = Number(item[series.key]) || 0;
+                  return (
+                    <span
+                      key={series.key}
+                      className={`fsm-trend-bar${value === 0 ? " is-empty" : ""}`}
+                      style={{
+                        "--bar-color": series.color,
+                        "--bar-height": `${(value / maximum) * 100}%`
+                      }}
+                    >
+                      <strong>{value}</strong>
+                    </span>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="fsm-trend-x-axis" style={gridColumns} aria-hidden="true">
+          {items.map((item) => (
+            <span key={item.key || item.label}>{item.label}</span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
 
-const DonutChart = ({ statusBreakdown }) => {
-  const total = statusBreakdown.total;
-  const passedPercent = total ? (statusBreakdown.passed / total) * 100 : 0;
-  const pendingPercent = total ? (statusBreakdown.pending / total) * 100 : 0;
-
-  const passedDeg = (passedPercent / 100) * 360;
-  const pendingDeg = (pendingPercent / 100) * 360;
-  const pendingEndDeg = passedDeg + pendingDeg;
+const IssueStatusChart = ({ statusBreakdown, loading }) => {
+  const total = Number(statusBreakdown?.total) || 0;
+  const statusItems = [
+    { label: "Resolved", value: Number(statusBreakdown?.passed) || 0, color: "#009c83" },
+    { label: "In Progress", value: Number(statusBreakdown?.pending) || 0, color: "#ff9f0a" },
+    { label: "Critical", value: Number(statusBreakdown?.failed) || 0, color: "#f5333f" }
+  ];
+  const resolvedEnd = total ? (statusItems[0].value / total) * 100 : 0;
+  const progressEnd = total ? resolvedEnd + ((statusItems[1].value / total) * 100) : 0;
   const chartBackground = total
-    ? `conic-gradient(#10b981 0deg ${passedDeg}deg, #f59e0b ${passedDeg}deg ${pendingEndDeg}deg, #ef4444 ${pendingEndDeg}deg 360deg)`
-    : "#e5e7eb";
+    ? `conic-gradient(${statusItems[0].color} 0 ${resolvedEnd}%, ${statusItems[1].color} ${resolvedEnd}% ${progressEnd}%, ${statusItems[2].color} ${progressEnd}% 100%)`
+    : "#e5eaee";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "20px"
-      }}
-    >
+    <div className="fsm-status-chart">
       <div
-        style={{
-          width: "150px",
-          height: "150px",
-          borderRadius: "50%",
-          background: chartBackground,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-        }}
+        className="fsm-status-donut"
+        style={{ background: chartBackground }}
+        role="img"
+        aria-label={loading && total === 0
+          ? "Loading issue status."
+          : `${total} total issues. ${statusItems.map((item) => `${item.label}: ${item.value}`).join(". ")}`}
       >
-        <div
-          style={{
-            width: "100px",
-            height: "100px",
-            borderRadius: "50%",
-            backgroundColor: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            fontSize: "20px",
-            fontWeight: "bold"
-          }}
-        >
-          <div>{total}</div>
-          <div style={{ fontSize: "12px", color: "#666" }}>TOTAL</div>
+        <div className="fsm-status-donut-center">
+          <strong>{loading && total === 0 ? "–" : total}</strong>
+          <span>{loading && total === 0 ? "Syncing..." : "Total Issues"}</span>
         </div>
       </div>
-      <div style={{ display: "flex", gap: "20px", fontSize: "14px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "12px",
-              height: "12px",
-              backgroundColor: "#10b981",
-              borderRadius: "2px"
-            }}
-          />
-          <span>Closed</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "12px",
-              height: "12px",
-              backgroundColor: "#f59e0b",
-              borderRadius: "2px"
-            }}
-          />
-          <span>Pending</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "12px",
-              height: "12px",
-              backgroundColor: "#ef4444",
-              borderRadius: "2px"
-            }}
-          />
-          <span>Urgent</span>
-        </div>
+
+      <div className="fsm-status-legend">
+        {statusItems.map((item) => {
+          const percentage = total ? Math.round((item.value / total) * 100) : 0;
+          return (
+            <div className="fsm-status-legend-row" key={item.label}>
+              <span className="fsm-status-dot" style={{ backgroundColor: item.color }} />
+              <span>{item.label}</span>
+              <strong>{item.value} ({percentage}%)</strong>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-const AnnualBarChart = ({ annualTrend }) => {
-  if (!annualTrend || annualTrend.length === 0) {
-    return (
-      <div
-        style={{
-          height: "200px",
-          display: "grid",
-          placeItems: "center",
-          color: "#64748b",
-          fontSize: "14px"
-        }}
-      >
-        No trend data found for yearly view.
-      </div>
-    );
+const getBadgeTone = (value, type) => {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (type === "priority") {
+    if (normalized === "high" || normalized === "critical") return "danger";
+    if (normalized === "medium") return "warning";
+    if (normalized === "low") return "info";
+    return "neutral";
   }
 
-  const maxValue = Math.max(1, ...annualTrend.map((i) => i.passed + i.pending + i.failed));
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        gap: "20px",
-        height: "200px",
-        padding: "20px 0"
-      }}
-    >
-      {annualTrend.map((item) => {
-        const passedHeight = (item.passed / maxValue) * 150;
-        const pendingHeight = (item.pending / maxValue) * 150;
-        const failedHeight = (item.failed / maxValue) * 150;
-
-        return (
-          <div
-            key={item.year}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center"
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                width: "100%",
-                height: "150px",
-                alignItems: "flex-end"
-              }}
-            >
-              <div
-                style={{
-                  flex: item.passed || 0.1,
-                  backgroundColor: "#10b981",
-                  height: `${passedHeight}px`,
-                  borderRadius: "4px 4px 0 0"
-                }}
-              />
-              <div
-                style={{
-                  flex: item.pending || 0.1,
-                  backgroundColor: "#f59e0b",
-                  height: `${pendingHeight}px`,
-                  borderRadius: "4px 4px 0 0"
-                }}
-              />
-              <div
-                style={{
-                  flex: item.failed || 0.1,
-                  backgroundColor: "#ef4444",
-                  height: `${failedHeight}px`,
-                  borderRadius: "4px 4px 0 0"
-                }}
-              />
-            </div>
-            <div style={{ marginTop: "8px", fontSize: "12px", fontWeight: "600" }}>{item.year}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  if (["resolved", "closed", "submitted", "approved"].includes(normalized)) return "success";
+  if (["in progress", "pending", "review"].includes(normalized)) return "warning";
+  if (["critical", "failed"].includes(normalized)) return "danger";
+  return "neutral";
 };
 
-const EmptyTableRow = ({ colSpan, children }) => (
+const EmptyTableRow = ({ loading }) => (
   <tr>
-    <td
-      colSpan={colSpan}
-      style={{
-        textAlign: "center",
-        color: "#64748b",
-        padding: "28px 0"
-      }}
-    >
-      {children}
+    <td colSpan="5" className="fsm-table-empty">
+      {loading ? "Loading issue reports..." : "No issue reports found."}
     </td>
   </tr>
 );
 
-const quickActions = [
-  {
-    icon: "\uD83D\uDCCB",
-    label: "Start Inspection",
-    path: "/fsm/inspections"
-  },
-  {
-    icon: "\uD83D\uDD0D",
-    label: "Issue Tickets",
-    path: "/fsm/issues"
-  },
-  {
-    icon: "\u2713",
-    label: "Verify Closure",
-    path: "/fsm/inspections/verify"
+const RecentIssueTable = ({ reports, loading }) => (
+  <div className="fsm-reports-table-wrap">
+    <table className="fsm-reports-table">
+      <caption className="sr-only">Recent issue reports</caption>
+      <colgroup>
+        <col style={{ width: "23%" }} />
+        <col style={{ width: "37%" }} />
+        <col style={{ width: "14%" }} />
+        <col style={{ width: "15%" }} />
+        <col style={{ width: "11%" }} />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Building</th>
+          <th>Issue</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody>
+        {reports.length === 0 ? (
+          <EmptyTableRow loading={loading} />
+        ) : (
+          reports.map((report) => (
+            <tr key={report.id}>
+              <td>
+                <span className="fsm-building-cell" title={report.building}>
+                  <span className="fsm-building-icon"><BuildingIcon /></span>
+                  <span>{report.building}</span>
+                </span>
+              </td>
+              <td className="fsm-issue-cell" title={report.issue}>{report.issue}</td>
+              <td>{report.date}</td>
+              <td>
+                <span className={`fsm-table-badge fsm-table-badge--${getBadgeTone(report.status, "status")}`}>
+                  {report.status}
+                </span>
+              </td>
+              <td>
+                <span className={`fsm-table-badge fsm-table-badge--${getBadgeTone(report.priority, "priority")}`}>
+                  {report.priority}
+                </span>
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+);
+
+const UpcomingActivities = ({ activities, loading }) => {
+  if (activities.length === 0) {
+    return (
+      <div className="fsm-activities-empty">
+        {loading ? "Loading activities..." : "No upcoming activities found."}
+      </div>
+    );
   }
-];
+
+  return (
+    <div className="fsm-activity-list">
+      {activities.map((activity, index) => (
+        <div className="fsm-activity-row" key={activity.id}>
+          <span className="fsm-activity-rail" aria-hidden="true">
+            <span />
+            {index < activities.length - 1 && <i />}
+          </span>
+          <span className="fsm-activity-icon"><CalendarIcon /></span>
+          <span className="fsm-activity-copy">
+            <strong>{activity.task}</strong>
+            <span>{activity.building}</span>
+          </span>
+          <span className="fsm-activity-date">
+            <strong>{activity.time}</strong>
+            <span>{activity.date}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const FSMDashboard = () => {
   const { user } = useAuthContext();
@@ -332,75 +315,49 @@ const FSMDashboard = () => {
     recentReports,
     upcomingSchedule
   } = useFsmDashboardData(fsmLookupIds);
-
-  const [trendTab, setTrendTab] = useState("monthly");
-  const [trendFilterDraft, setTrendFilterDraft] = useState("");
-  const [trendFilter, setTrendFilter] = useState("");
-  const [trendFilterOpen, setTrendFilterOpen] = useState(false);
+  const [trendPeriod, setTrendPeriod] = useState("monthly");
 
   const annualTrend = useMemo(() => {
-    const map = {};
+    const years = new Map();
 
-    if (Array.isArray(monthlyTrend)) {
-      monthlyTrend.forEach((item) => {
-        let y = null;
-        if (item.year) y = Number(item.year);
-        else if (item.month && typeof item.month === 'string') {
-          const m = item.month.match(/(20\d{2})/);
-          if (m) y = Number(m[1]);
-        }
-        if (!y && item.date && typeof item.date === 'string') {
-          const m = item.date.match(/(20\d{2})/);
-          if (m) y = Number(m[1]);
-        }
-        if (!y) return;
-        if (!map[y]) map[y] = { year: y, passed: 0, pending: 0, failed: 0 };
-        map[y].passed += item.passed || 0;
-        map[y].pending += item.pending || 0;
-        map[y].failed += item.failed || 0;
-      });
-    }
+    monthlyTrend.forEach((item) => {
+      const year = String(item.key || item.month || "").match(/20\d{2}/)?.[0];
+      if (!year) return;
 
-    return Object.values(map).sort((a, b) => a.year - b.year);
+      if (!years.has(year)) {
+        years.set(year, { key: year, label: year, passed: 0, pending: 0, failed: 0 });
+      }
+
+      const entry = years.get(year);
+      entry.passed += Number(item.passed) || 0;
+      entry.pending += Number(item.pending) || 0;
+      entry.failed += Number(item.failed) || 0;
+    });
+
+    return Array.from(years.values()).sort((first, second) => Number(first.key) - Number(second.key));
   }, [monthlyTrend]);
 
-  const filteredMonthlyTrend = useMemo(
-    () => trendFilter ? monthlyTrend.filter((item) => item.key === trendFilter) : monthlyTrend,
-    [monthlyTrend, trendFilter]
-  );
+  const trendItems = useMemo(() => {
+    if (trendPeriod === "annual") return annualTrend.slice(-5);
 
-  const filteredAnnualTrend = useMemo(
-    () => trendFilter ? annualTrend.filter((item) => String(item.year) === trendFilter) : annualTrend,
-    [annualTrend, trendFilter]
-  );
-
-  useEffect(() => {
-    setTrendFilter("");
-    setTrendFilterDraft("");
-    setTrendFilterOpen(false);
-  }, [trendTab]);
+    return monthlyTrend.slice(-6).map((item) => ({
+      ...item,
+      label: item.month || item.key
+    }));
+  }, [annualTrend, monthlyTrend, trendPeriod]);
 
   return (
-    <div className="dashboard-container fsm-dashboard-page">
-      {error && (
-        <div className="error-state" style={{ marginBottom: "18px" }}>
-          {error}
-        </div>
-      )}
+    <div className="dashboard-container fsm-dashboard-page" aria-busy={loading}>
+      {error && <div className="fsm-dashboard-alert" role="alert">{error}</div>}
 
-      {loading && (
-        <div className="loading-state" style={{ marginBottom: "18px" }}>
-          Syncing dashboard data...
-        </div>
-      )}
-
-      <div className="summary-grid">
+      <div className="summary-grid" aria-label="Issue summary">
         {summaryCards.map((card) => (
           <div key={card.label} className="summary-card">
             <div className="card-top">
               <div
                 className="card-icon"
                 style={{ backgroundColor: card.iconBg, color: card.iconColor }}
+                aria-hidden="true"
               >
                 {card.icon}
               </div>
@@ -412,321 +369,83 @@ const FSMDashboard = () => {
         ))}
       </div>
 
-      <div className="dashboard-grid">
-        <div className="content-left">
-          <div className="dashboard-card fsm-chart-card">
-            <div className="fsm-chart-grid">
-              <section className="fsm-chart-panel">
-                <div className="card-header-row">
-                  <h2 className="section-title">Inspection Issue Ticket Status Breakdown</h2>
-                </div>
-                <div className="fsm-chart-donut-body">
-                  <DonutChart statusBreakdown={statusBreakdown} />
-                </div>
-              </section>
-
-              <section className="fsm-chart-panel">
-                <div className="card-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "18px", paddingRight: "8px" }}>
-                  <h2 className="section-title">Inspection Issue Ticket Trend</h2>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    <select
-                      aria-label="Trend period"
-                      value={trendTab}
-                      onChange={(event) => setTrendTab(event.target.value)}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: "8px",
-                        background: "#f8fafc",
-                        color: "#111",
-                        cursor: "pointer",
-                        border: "1px solid #e5e7eb"
-                      }}
-                    >
-                      <option value="monthly">Monthly</option>
-                      <option value="annual">Annually</option>
-                    </select>
-                    <div style={{ position: "relative" }}>
-                      <button
-                        type="button"
-                        aria-label="Filter trend"
-                        onClick={() => setTrendFilterOpen((current) => !current)}
-                        style={{
-                          width: "34px",
-                          height: "34px",
-                          display: "grid",
-                          placeItems: "center",
-                          borderRadius: "8px",
-                          background: trendFilter ? "#2563eb" : "#f8fafc",
-                          color: trendFilter ? "#fff" : "#111",
-                          cursor: "pointer",
-                          border: "1px solid #e5e7eb"
-                        }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                      {trendFilterOpen && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            right: 0,
-                            top: "42px",
-                            zIndex: 10,
-                            width: "220px",
-                            display: "grid",
-                            gap: "10px",
-                            padding: "12px",
-                            borderRadius: "10px",
-                            border: "1px solid #e5e7eb",
-                            background: "#fff",
-                            boxShadow: "0 14px 30px rgba(15, 23, 42, 0.14)"
-                          }}
-                        >
-                          <label style={{ display: "grid", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#475569" }}>
-                            <span>{trendTab === "monthly" ? "Month and year" : "Year"}</span>
-                            <input
-                              type={trendTab === "monthly" ? "month" : "number"}
-                              value={trendFilterDraft}
-                              min={trendTab === "annual" ? "1900" : undefined}
-                              max={trendTab === "annual" ? "2100" : undefined}
-                              onChange={(event) => setTrendFilterDraft(event.target.value)}
-                              placeholder={trendTab === "annual" ? "2026" : undefined}
-                              style={{
-                                padding: "7px 9px",
-                                borderRadius: "8px",
-                                border: "1px solid #e5e7eb"
-                              }}
-                            />
-                          </label>
-                          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setTrendFilter("");
-                                setTrendFilterDraft("");
-                                setTrendFilterOpen(false);
-                              }}
-                              style={{
-                                padding: "7px 10px",
-                                borderRadius: "8px",
-                                background: "#f8fafc",
-                                color: "#111",
-                                cursor: "pointer",
-                                border: "1px solid #e5e7eb",
-                                fontWeight: 700
-                              }}
-                            >
-                              Clear
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setTrendFilter(trendFilterDraft);
-                                setTrendFilterOpen(false);
-                              }}
-                              style={{
-                                padding: "7px 10px",
-                                borderRadius: "8px",
-                                background: "#2563eb",
-                                color: "#fff",
-                                cursor: "pointer",
-                                border: "none",
-                                fontWeight: 700
-                              }}
-                            >
-                              Apply
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="fsm-chart-trend-body">
-                  {trendTab === "monthly" ? (
-                    <BarChart monthlyTrend={filteredMonthlyTrend} />
-                  ) : (
-                    <AnnualBarChart annualTrend={filteredAnnualTrend} />
-                  )}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "20px",
-                      justifyContent: "center",
-                      fontSize: "12px",
-                      marginTop: "20px"
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <div
-                        style={{
-                          width: "12px",
-                          height: "12px",
-                          backgroundColor: "#10b981"
-                        }}
-                      />
-                      <span>Closed</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <div
-                        style={{
-                          width: "12px",
-                          height: "12px",
-                          backgroundColor: "#f59e0b"
-                        }}
-                      />
-                      <span>Pending</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <div
-                        style={{
-                          width: "12px",
-                          height: "12px",
-                          backgroundColor: "#ef4444"
-                        }}
-                      />
-                      <span>Urgent</span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </div>
+      <section className="dashboard-card fsm-quick-actions-card" aria-labelledby="fsm-quick-actions-title">
+        <div className="card-header-row">
+          <h2 className="section-title" id="fsm-quick-actions-title">Quick Actions</h2>
         </div>
+        <div className="fsm-quick-actions-list">
+          {QUICK_ACTIONS.map((action) => (
+            <button
+              key={action.path}
+              type="button"
+              className="fsm-quick-action-btn"
+              onClick={() => navigate(action.path)}
+            >
+              <span className="fsm-quick-action-icon" aria-hidden="true">{action.icon}</span>
+              <span>{action.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
-        <div className="content-right">
-          <div className="dashboard-card fsm-quick-actions-card">
-            <div className="card-header-row">
-              <h2 className="section-title">Quick Actions</h2>
-            </div>
-            <div className="fsm-quick-actions-list">
-              {quickActions.map((action) => (
-                <button
-                  key={action.path}
-                  type="button"
-                  className="fsm-quick-action-btn"
-                  onClick={() => navigate(action.path)}
-                >
-                  <span className="fsm-quick-action-icon" aria-hidden="true">
-                    {action.icon}
-                  </span>
-                  <span>{action.label}</span>
-                </button>
+      <div className="fsm-overview-grid">
+        <section className="fsm-overview-card fsm-trends-card" aria-labelledby="fsm-trends-title">
+          <header className="fsm-card-header">
+            <h2 id="fsm-trends-title">Issue Trends</h2>
+          </header>
+
+          <div className="fsm-trend-toolbar">
+            <select
+              aria-label="Issue trend period"
+              value={trendPeriod}
+              onChange={(event) => setTrendPeriod(event.target.value)}
+            >
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annually</option>
+            </select>
+
+            <div className="fsm-trend-legend" aria-hidden="true">
+              {CHART_SERIES.map((series) => (
+                <span key={series.key}>
+                  <i style={{ backgroundColor: series.color }} />
+                  {series.label}
+                </span>
               ))}
             </div>
+            <span className="fsm-trend-toolbar-spacer" />
           </div>
 
-            <div className="dashboard-card fsm-recent-reports-card">
-            <div className="card-header-row">
-              <h2 className="section-title">Recent Reports</h2>
-              <button type="button" className="view-all-link" onClick={() => navigate("/fsm/building")}>
-                View All &gt;
-              </button>
-            </div>
-            <table className="dashboard-table">
-              <thead>
-                <tr>
-                  <th>BUILDING</th>
-                  <th>DATE</th>
-                  <th>STATUS</th>
-                  <th>PRIORITY</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentReports.length === 0 ? (
-                  <EmptyTableRow colSpan={4}>
-                    {loading ? "Loading reports..." : "No records found."}
-                  </EmptyTableRow>
-                ) : (
-                  recentReports.map((report) => (
-                    <tr key={report.id}>
-                      <td>{report.building}</td>
-                      <td>{report.date}</td>
-                      <td>
-                        <span
-                          className="status-badge"
-                          style={{
-                            backgroundColor: report.statusBg,
-                            color: report.statusColor,
-                            padding: "4px 12px",
-                            borderRadius: "4px",
-                            fontSize: "12px",
-                            fontWeight: "500"
-                          }}
-                        >
-                          {report.status}
-                        </span>
-                      </td>
-                      <td style={{ color: report.priorityColor }}>
-                        {report.priority}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <TrendChart items={trendItems} loading={loading} />
+        </section>
 
-          <div className="dashboard-card fsm-upcoming-card">
-            <div className="card-header-row">
-              <h2 className="section-title">Upcoming Schedule</h2>
-              <button type="button" className="view-all-link" onClick={() => navigate("/fsm/fire-drill")}>
-                View All &gt;
-              </button>
-            </div>
-            <div style={{ padding: "0" }}>
-              {upcomingSchedule.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    color: "#64748b",
-                    padding: "28px 0"
-                  }}
-                >
-                  {loading ? "Loading schedule..." : "No records found."}
-                </div>
-              ) : (
-                upcomingSchedule.map((item, index) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      padding: "10px 0",
-                      borderBottom:
-                        index < upcomingSchedule.length - 1
-                          ? "1px solid #e5e7eb"
-                          : "none",
-                      display: "flex",
-                      gap: "12px"
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: "600",
-                        color: "#111",
-                        minWidth: "70px"
-                      }}
-                    >
-                      {item.time}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "14px", fontWeight: "600", color: "#111" }}>
-                        {item.task}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        {item.date}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        Location: {item.building}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+        <section className="fsm-overview-card fsm-status-card" aria-labelledby="fsm-status-title">
+          <header className="fsm-card-header">
+            <h2 id="fsm-status-title">Issue Status</h2>
+          </header>
+          <IssueStatusChart statusBreakdown={statusBreakdown} loading={loading} />
+          <div className="fsm-card-footer">
+            <CardLink arrow onClick={() => navigate("/fsm/issues")}>View all issues</CardLink>
           </div>
-        </div>
+        </section>
+
+        <section className="fsm-overview-card fsm-reports-card" aria-labelledby="fsm-reports-title">
+          <header className="fsm-card-header">
+            <h2 id="fsm-reports-title">Recent Issue Reports</h2>
+            <CardLink onClick={() => navigate("/fsm/issues")} ariaLabel="View all issue reports">View all</CardLink>
+          </header>
+          <RecentIssueTable reports={recentReports} loading={loading} />
+        </section>
+
+        <section className="fsm-overview-card fsm-activities-card" aria-labelledby="fsm-activities-title">
+          <header className="fsm-card-header">
+            <h2 id="fsm-activities-title">Upcoming Activities</h2>
+            <CardLink onClick={() => navigate("/fsm/fire-drill")} ariaLabel="View all upcoming activities">View all</CardLink>
+          </header>
+          <UpcomingActivities activities={upcomingSchedule} loading={loading} />
+          <div className="fsm-card-footer fsm-activities-footer">
+            <CardLink arrow onClick={() => navigate("/fsm/fire-drill")}>View full schedule</CardLink>
+          </div>
+        </section>
       </div>
     </div>
   );
