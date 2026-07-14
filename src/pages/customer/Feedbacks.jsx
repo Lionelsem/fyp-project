@@ -102,32 +102,50 @@ const Feedbacks = () => {
 
   return (
     <div className={styles.feedbacksContainer}>
-      <div className={styles.header}>
-        <h1>Comments & Feedback</h1>
-        <p>Communicate with your assigned FSM or request clarifications on reports.</p>
-      </div>
+      <header className={styles.header}>
+        <div className={styles.headerCopy}>
+          <h1>Comments &amp; Feedback</h1>
+          <p>Communicate with your assigned FSM or request clarifications on reports.</p>
+        </div>
+        <button
+          type="button"
+          className={styles.newMessageButton}
+          onClick={() => setShowNewMessageModal(true)}
+        >
+          <span aria-hidden="true">+</span> New Message
+        </button>
+      </header>
 
       <div className={styles.contentWrapper}>
         {/* Messages List Panel */}
         <div className={styles.messagesPanel}>
           <div className={styles.searchBox}>
-            <input type="text" placeholder="Search messages..." />
+            <label className={styles.visuallyHidden} htmlFor="feedback-search">
+              Search messages
+            </label>
+            <input
+              id="feedback-search"
+              type="search"
+              placeholder="Search messages..."
+            />
           </div>
 
           <div className={styles.messagesList}>
             {messages.map((msg) => (
-              <div
+              <button
+                type="button"
                 key={msg.id}
                 className={`${styles.messageItem} ${
                   selectedMessage?.id === msg.id ? styles.active : ""
                 }`}
                 onClick={() => setSelectedMessage(msg)}
+                aria-pressed={selectedMessage?.id === msg.id}
               >
-                <h4>{msg.title}</h4>
+                <span className={styles.messageTitle}>{msg.title}</span>
                 {msg.issueId && <span className={styles.issueId}>{msg.issueId}</span>}
                 {msg.building && <span className={styles.building}>{msg.building}</span>}
-                <p className={styles.timestamp}>{msg.timestamp}</p>
-              </div>
+                <span className={styles.timestamp}>{msg.timestamp}</span>
+              </button>
             ))}
           </div>
         </div>
@@ -143,7 +161,7 @@ const Feedbacks = () => {
                 )}
               </div>
 
-              <div className={styles.messagesThread}>
+              <div className={styles.messagesThread} aria-live="polite">
                 {selectedMessage.replies.map((reply) => (
                   <div
                     key={reply.id}
@@ -167,13 +185,16 @@ const Feedbacks = () => {
                   placeholder="Type your message..."
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  onKeyPress={(e) => {
+                  onKeyDown={(e) => {
                     if (e.key === "Enter" && e.ctrlKey) {
+                      e.preventDefault();
                       handleSendReply();
                     }
                   }}
+                  aria-label="Reply message"
                 />
                 <button
+                  type="button"
                   className={styles.sendButton}
                   onClick={handleSendReply}
                   disabled={!replyText.trim()}
@@ -190,31 +211,34 @@ const Feedbacks = () => {
         </div>
       </div>
 
-      <button
-        className={styles.newMessageButton}
-        onClick={() => setShowNewMessageModal(true)}
-      >
-        ➕ New Message
-      </button>
-
       {showNewMessageModal && (
-        <Modal onClose={() => setShowNewMessageModal(false)}>
+        <Modal
+          title="New Message"
+          onClose={() => setShowNewMessageModal(false)}
+          bodyClassName={styles.feedbackModalBody}
+        >
           <div className={styles.modalContent}>
-            <h2>New Message</h2>
             <form>
               <div className={styles.formGroup}>
-                <label>Recipient</label>
-                <select>
+                <label htmlFor="new-message-recipient">Recipient</label>
+                <select id="new-message-recipient">
                   <option>Select FSM...</option>
                 </select>
               </div>
               <div className={styles.formGroup}>
-                <label>Subject</label>
-                <input type="text" placeholder="Enter subject..." />
+                <label htmlFor="new-message-subject">Subject</label>
+                <input
+                  id="new-message-subject"
+                  type="text"
+                  placeholder="Enter subject..."
+                />
               </div>
               <div className={styles.formGroup}>
-                <label>Message</label>
-                <textarea placeholder="Enter your message..."></textarea>
+                <label htmlFor="new-message-body">Message</label>
+                <textarea
+                  id="new-message-body"
+                  placeholder="Enter your message..."
+                />
               </div>
               <div className={styles.modalActions}>
                 <button

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getAllFireDrills } from "../../services/fireDrillService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const fallbackDrills = [
   {
@@ -196,8 +197,8 @@ const FireDrillReports = () => {
               </span>
             </div>
 
-            <div style={{ display: "grid", gap: "14px", padding: "8px 0 4px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" }}>
+            <div className="customer-report-summary">
+              <div className="customer-report-summary-grid">
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
                   <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Building</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.buildingName || "—"}</strong>
@@ -236,7 +237,7 @@ const FireDrillReports = () => {
                 </div>
               </div>
               <div className="issues-actions">
-                <select className="form-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={{ minWidth: "180px" }}>
+                <select className="form-input responsive-control" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
                   <option value="">All Status</option>
                   <option value="Completed">Completed</option>
                   <option value="Scheduled">Scheduled</option>
@@ -249,7 +250,10 @@ const FireDrillReports = () => {
             ) : filteredDrills.length === 0 ? (
               <div style={{ color: "#64748b", padding: "12px 0" }}>No fire drill records found.</div>
             ) : (
-              <div className="fire-drill-history-table-wrapper">
+              <ResponsiveTableRegion
+                label="Fire drill reports"
+                className="fire-drill-history-table-wrapper"
+              >
                 <table className="dashboard-table">
                   <thead>
                     <tr>
@@ -277,7 +281,7 @@ const FireDrillReports = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ResponsiveTableRegion>
             )}
           </div>
         </div>

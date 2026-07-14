@@ -16,6 +16,7 @@ import {
 } from "../../services/reportGeneratorService";
 import { getAllUsers } from "../../services/userService";
 import { useAuth } from "../../hooks/useAuth";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -93,13 +94,14 @@ const TABS = [
 ];
 
 const ModalHeader = ({ title, onClose, generating }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-    <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: 0 }}>{title}</h2>
+  <div className="report-modal-header">
+    <h2>{title}</h2>
     <button
       type="button"
-      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#6b7280" }}
+      className="report-modal-close"
       onClick={onClose}
       disabled={generating}
+      aria-label={`Close ${title}`}
     >
       ✕
     </button>
@@ -107,7 +109,7 @@ const ModalHeader = ({ title, onClose, generating }) => (
 );
 
 const ModalActions = ({ onCancel, onSubmit, generating, submitLabel = "Generate & Download" }) => (
-  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
+  <div className="report-modal-actions">
     <button type="button" className="secondary-btn" onClick={onCancel} disabled={generating}>
       Cancel
     </button>
@@ -420,7 +422,7 @@ const AdminReports = () => {
               Global view of finalized inspections, monthly summaries, and annual audits.
             </p>
           </div>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <div className="report-page-actions">
             <button type="button" className="secondary-btn" onClick={openMonthlyModal}>
               Generate Monthly Report
             </button>
@@ -436,7 +438,7 @@ const AdminReports = () => {
 
       {/* Tabs + table */}
       <div className="dashboard-card">
-        <div style={{ display: "flex", gap: "4px", borderBottom: "1px solid #e5e7eb", marginBottom: "20px" }}>
+        <div className="report-tabs" aria-label="Report categories">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -456,7 +458,7 @@ const AdminReports = () => {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap" }}>
+        <div className="report-toolbar">
           <div className="search-box" style={{ flex: 1, maxWidth: "400px" }}>
             <span className="search-icon">🔍</span>
             <input
@@ -482,7 +484,10 @@ const AdminReports = () => {
         ) : error ? (
           <div className="error-state">{error}</div>
         ) : (
-          <div className="fire-drill-history-table-wrapper">
+          <ResponsiveTableRegion
+            label="Generated reports"
+            className="fire-drill-history-table-wrapper"
+          >
             <table className="dashboard-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
@@ -549,7 +554,7 @@ const AdminReports = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTableRegion>
         )}
       </div>
 
@@ -610,7 +615,7 @@ const AdminReports = () => {
             <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
               Select the month, year, and optionally a specific building.
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div className="report-modal-grid">
               <div className="form-field">
                 <label className="form-label">Month</label>
                 <select className="form-input" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
@@ -634,7 +639,7 @@ const AdminReports = () => {
               </select>
             </div>
             {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px", flexWrap: "wrap" }}>
+            <div className="report-modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setShowMonthlyModal(false)} disabled={generating}>
                 Cancel
               </button>
@@ -673,8 +678,8 @@ const AdminReports = () => {
       {showCustomModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowCustomModal(false)}>
           <div
-            className="issue-ticket-modal"
-            style={{ width: "min(680px, 100%)", maxHeight: "90vh", overflowY: "auto" }}
+            className="issue-ticket-modal report-custom-modal"
+            style={{ width: "min(680px, 100%)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <ModalHeader title="Custom Report" onClose={() => setShowCustomModal(false)} generating={generating} />
@@ -682,7 +687,7 @@ const AdminReports = () => {
             {/* Report type */}
             <div className="form-field">
               <label className="form-label">Report Type</label>
-              <div style={{ display: "flex", gap: "10px" }}>
+              <div className="report-type-options">
                 {["Monthly", "Annual", "DateRange"].map((type) => (
                   <button
                     key={type}
@@ -704,7 +709,7 @@ const AdminReports = () => {
 
             {/* Time scope inputs */}
             {customReportType === "Monthly" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div className="report-modal-grid">
                 <div className="form-field">
                   <label className="form-label">Month</label>
                   <select className="form-input" value={customMonth} onChange={(e) => setCustomMonth(Number(e.target.value))}>
@@ -730,7 +735,7 @@ const AdminReports = () => {
             )}
 
             {customReportType === "DateRange" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div className="report-modal-grid">
                 <div className="form-field">
                   <label className="form-label">From Date</label>
                   <input type="date" className="form-input" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} />
@@ -789,7 +794,7 @@ const AdminReports = () => {
             {/* Section toggles */}
             <div className="form-field">
               <label className="form-label">Sections to Include</label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", marginTop: "8px" }}>
+              <div className="report-section-grid">
                 {Object.entries(sectionDefs).map(([key, { label }]) => (
                   <label
                     key={key}

@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import AdminNavbar from "../components/admin/AdminNavbar";
 import AdminSidebar from "../components/admin/AdminSidebar";
+import PortalShell from "../components/common/PortalShell";
 
 const AdminLayout = ({ children }) => {
   const location = useLocation();
@@ -37,15 +38,14 @@ const AdminLayout = ({ children }) => {
   };
 
   return (
-    <div className="app-shell">
-      <div className="app-body">
-        <AdminSidebar profile={sidebarProfile} />
-        <div className="app-main">
-          <AdminNavbar pageTitle={pageTitle} />
-          <main className="main-content">{children}</main>
-        </div>
-      </div>
-    </div>
+    <PortalShell
+      pageTitle={pageTitle}
+      profile={sidebarProfile}
+      NavbarComponent={AdminNavbar}
+      SidebarComponent={AdminSidebar}
+    >
+      {children}
+    </PortalShell>
   );
 };
 

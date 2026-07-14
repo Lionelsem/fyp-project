@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ROLES } from "../../constants/roles";
 import { getAllBuildings, updateBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const FsmAssignment = () => {
   const [buildings, setBuildings] = useState([]);
@@ -213,7 +214,8 @@ const FsmAssignment = () => {
             <div className="card-header-row">
               <h2 className="section-title">Assignment History</h2>
             </div>
-            <table className="dashboard-table">
+            <ResponsiveTableRegion label="FSM assignment history">
+              <table className="dashboard-table">
               <thead>
                 <tr>
                   <th>DATE</th>
@@ -252,7 +254,8 @@ const FsmAssignment = () => {
                   ))
                 )}
               </tbody>
-            </table>
+              </table>
+            </ResponsiveTableRegion>
           </div>
         </div>
       </div>

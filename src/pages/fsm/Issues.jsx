@@ -9,6 +9,7 @@ import {
   upsertIssue
 } from "../../services/issueService";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const emptyIssueForm = {
   issueKey: "",
@@ -1337,7 +1338,10 @@ const Issues = ({ verifyClosureMode = false }) => {
             />
           </div>
 
-          <div className="issue-ticket-table-wrapper">
+          <ResponsiveTableRegion
+            label="Issue tickets"
+            className="issue-ticket-table-wrapper"
+          >
             <table className="dashboard-table issue-ticket-table">
               <thead>
                 <tr>
@@ -1376,7 +1380,7 @@ const Issues = ({ verifyClosureMode = false }) => {
                 No issue tickets match the current filters.
               </div>
             )}
-          </div>
+          </ResponsiveTableRegion>
         </section>
       </div>
 

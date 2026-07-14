@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const mockReports = [
   {
@@ -123,10 +124,9 @@ const InspectionReports = () => {
           </div>
           <div className="issues-actions">
             <select
-              className="form-input"
+              className="form-input responsive-control"
               value={yearFilter}
               onChange={(event) => setYearFilter(event.target.value)}
-              style={{ minWidth: "200px" }}
             >
               <option value="">Filter Year</option>
               {years.map((year) => (
@@ -140,7 +140,10 @@ const InspectionReports = () => {
       </div>
 
       <div className="dashboard-card">
-        <div className="fire-drill-history-table-wrapper">
+        <ResponsiveTableRegion
+          label="Inspection reports"
+          className="fire-drill-history-table-wrapper"
+        >
           <table className="dashboard-table">
             <thead>
               <tr>
@@ -223,7 +226,7 @@ const InspectionReports = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTableRegion>
       </div>
     </div>
   );

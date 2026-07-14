@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getAllFireDrills } from "../../services/fireDrillService";
 import { getAllBuildings } from "../../services/buildingService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const toDate = (value) => {
   if (!value) return null;
@@ -181,7 +182,10 @@ const AdminFireDrill = () => {
           <h2 className="section-title">Drill History</h2>
         </div>
         {historyDrills.length > 0 ? (
-          <div className="fire-drill-history-table-wrapper">
+          <ResponsiveTableRegion
+            label="Fire drill history"
+            className="fire-drill-history-table-wrapper"
+          >
             <table className="dashboard-table fire-drill-history-table">
               <thead>
                 <tr>
@@ -209,7 +213,7 @@ const AdminFireDrill = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTableRegion>
         ) : (
           <div className="empty-state">No fire drill history available.</div>
         )}

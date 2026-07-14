@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { getAllReports } from "../../services/reportService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const fallbackReports = [
   {
@@ -197,8 +198,8 @@ const AnnualReports = () => {
               </span>
             </div>
 
-            <div style={{ display: "grid", gap: "14px", padding: "8px 0 4px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" }}>
+            <div className="customer-report-summary">
+              <div className="customer-report-summary-grid">
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
                   <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Report ID</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.reportId || "—"}</strong>
@@ -240,7 +241,7 @@ const AnnualReports = () => {
                 </div>
               </div>
               <div className="issues-actions">
-                <select className="form-input" value={yearFilter} onChange={(event) => setYearFilter(event.target.value)} style={{ minWidth: "180px" }}>
+                <select className="form-input responsive-control" value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}>
                   <option value="">Filter Year</option>
                   {years.map((year) => (
                     <option key={year} value={year}>
@@ -256,7 +257,10 @@ const AnnualReports = () => {
             ) : filteredReports.length === 0 ? (
               <div style={{ color: "#64748b", padding: "12px 0" }}>No annual reports found.</div>
             ) : (
-              <div className="fire-drill-history-table-wrapper">
+              <ResponsiveTableRegion
+                label="Annual reports"
+                className="fire-drill-history-table-wrapper"
+              >
                 <table className="dashboard-table">
                   <thead>
                     <tr>
@@ -284,7 +288,7 @@ const AnnualReports = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ResponsiveTableRegion>
             )}
           </div>
         </div>

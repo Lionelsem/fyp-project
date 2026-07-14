@@ -12,7 +12,11 @@ const menuItems = [
   { path: "/reports", label: "Reports", icon: "📋" }
 ];
 
-const AdminSidebar = ({ profile }) => {
+const AdminSidebar = ({
+  profile,
+  onClose,
+  onNavigate = () => {}
+}) => {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -31,6 +35,7 @@ const AdminSidebar = ({ profile }) => {
     try {
       setIsLoggingOut(true);
       await logout();
+      onNavigate();
       navigate("/login");
     } catch (error) {
       console.error("Logout failed", error);
@@ -38,8 +43,21 @@ const AdminSidebar = ({ profile }) => {
     }
   };
 
+  const handleProfileNavigation = () => {
+    onNavigate();
+    navigate("/profile");
+  };
+
   return (
-    <aside className="admin-sidebar">
+    <aside className="admin-sidebar" aria-label="Admin navigation">
+      <button
+        type="button"
+        className="portal-sidebar-close"
+        aria-label="Close navigation menu"
+        onClick={onClose}
+      >
+        <span aria-hidden="true">×</span>
+      </button>
       <div className="sidebar-logo">
         <span className="logo-text">CBRE</span>
       </div>
@@ -61,6 +79,7 @@ const AdminSidebar = ({ profile }) => {
                 className={({ isActive }) =>
                   isActive ? "menu-item active" : "menu-item"
                 }
+                onClick={onNavigate}
               >
                 <span className="menu-icon">{item.icon}</span>
                 <span className="menu-label">{item.label}</span>
@@ -71,7 +90,7 @@ const AdminSidebar = ({ profile }) => {
       </nav>
 
       <div className="sidebar-footer">
-        <button type="button" className="sidebar-btn profile-btn" onClick={() => navigate("/profile")}>
+        <button type="button" className="sidebar-btn profile-btn" onClick={handleProfileNavigation}>
           👤 Profile
         </button>
         <button

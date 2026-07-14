@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllBuildings, deleteBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const statusStyles = {
   Compliant: { backgroundColor: "#dcfce7", color: "#166534" },
@@ -77,8 +78,7 @@ const ManageBuildings = () => {
           </div>
           <button
             type="button"
-            className="primary-btn"
-            style={{ minWidth: "180px" }}
+            className="primary-btn responsive-control"
             onClick={() => navigate("/buildings/create")}
           >
             + Add Building
@@ -90,15 +90,15 @@ const ManageBuildings = () => {
         <div className="card-header-row" style={{ marginBottom: "20px" }}>
           <input
             type="text"
-            className="form-input"
+            className="form-input responsive-search-control"
             placeholder="Search buildings..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", maxWidth: "360px" }}
           />
         </div>
 
-        <table className="dashboard-table" style={{ width: "100%" }}>
+        <ResponsiveTableRegion label="Buildings">
+          <table className="dashboard-table" style={{ width: "100%" }}>
           <thead>
             <tr>
               <th>BUILDING ID</th>
@@ -185,7 +185,8 @@ const ManageBuildings = () => {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </ResponsiveTableRegion>
       </div>
     </div>
   );

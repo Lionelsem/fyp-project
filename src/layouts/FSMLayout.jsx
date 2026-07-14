@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import FSMNavbar from "../components/fsm/FSMNavbar";
 import FSMSidebar from "../components/fsm/FSMSidebar";
+import PortalShell from "../components/common/PortalShell";
 
 const FSMLayout = ({ children }) => {
   const location = useLocation();
@@ -37,15 +38,16 @@ const FSMLayout = ({ children }) => {
   };
 
   return (
-    <div className="app-shell fsm-shell">
-      <div className="app-body">
-        <FSMSidebar profile={sidebarProfile} />
-        <div className="app-main">
-          <FSMNavbar pageTitle={pageTitle} />
-          <main className="main-content fsm-main-content">{children}</main>
-        </div>
-      </div>
-    </div>
+    <PortalShell
+      pageTitle={pageTitle}
+      profile={sidebarProfile}
+      NavbarComponent={FSMNavbar}
+      SidebarComponent={FSMSidebar}
+      shellClassName="fsm-shell"
+      contentClassName="fsm-main-content"
+    >
+      {children}
+    </PortalShell>
   );
 };
 

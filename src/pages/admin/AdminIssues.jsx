@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getAllBuildings } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
 import { getIssues } from "../../services/issueService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const getStatusStyle = (status) => {
   const normalized = String(status || "").trim().toLowerCase();
@@ -124,10 +125,9 @@ const AdminIssues = () => {
           </div>
           <div className="issues-actions">
             <select
-              className="form-input"
+              className="form-input responsive-control"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              style={{ minWidth: "220px" }}
             >
               <option value="">All statuses</option>
               {uniqueStatuses.map((status) => (
@@ -141,7 +141,10 @@ const AdminIssues = () => {
       </div>
 
       <div className="dashboard-card">
-        <div className="fire-drill-history-table-wrapper">
+        <ResponsiveTableRegion
+          label="Issues and defects"
+          className="fire-drill-history-table-wrapper"
+        >
           <table className="dashboard-table">
             <thead>
               <tr>
@@ -184,7 +187,7 @@ const AdminIssues = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTableRegion>
       </div>
     </div>
   );

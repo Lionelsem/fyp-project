@@ -15,6 +15,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
 import { upsertReport } from "../../services/reportService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const initialChecklist = [
   {
@@ -1247,7 +1248,10 @@ const AppendixTable = ({ entries }) => (
       <p className="overline">Appendix A</p>
       <h3>Findings & Rectification</h3>
     </div>
-    <div className="appendix-table-wrapper">
+    <ResponsiveTableRegion
+      label="Inspection findings and rectification appendix"
+      className="appendix-table-wrapper"
+    >
       <table className="appendix-table">
         <thead>
           <tr>
@@ -1268,7 +1272,7 @@ const AppendixTable = ({ entries }) => (
           ))}
         </tbody>
       </table>
-    </div>
+    </ResponsiveTableRegion>
   </section>
 );
 
@@ -2813,7 +2817,12 @@ const Inspections = () => {
                   {category.expanded && (
                     <div className="category-body">
                       {category.id === "encroachment" ? (
-                        <div className="encroachment-table-wrapper">
+                        <div
+                          className="encroachment-table-wrapper"
+                          role="region"
+                          aria-label="Encroachment inspection checklist"
+                          tabIndex={0}
+                        >
                           <div className="encroachment-header-row">
                             <span>Storey</span>
                             <span>General Condition</span>

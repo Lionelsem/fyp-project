@@ -6,6 +6,7 @@ import { getIssues } from "../../services/issueService";
 import { getAllReports } from "../../services/reportService";
 import { getAllUsers } from "../../services/userService";
 import { ROLES } from "../../constants/roles";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const CIRCUMFERENCE = 2 * Math.PI * 72;
 
@@ -171,7 +172,11 @@ const AdminDashboard = () => {
             {recentIssues.length === 0 ? (
               <p style={{ color: "#9ca3af", fontSize: "14px" }}>No issues recorded.</p>
             ) : (
-              <table className="dashboard-table">
+              <ResponsiveTableRegion
+                label="Recent issues"
+                className="responsive-table-region--cards"
+              >
+                <table className="dashboard-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>ISSUE ID</th>
@@ -183,10 +188,10 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentIssues.map((issue) => (
                     <tr key={issue.id}>
-                      <td className="id-cell">{issue.issueId || issue.id}</td>
-                      <td>{buildingMap.get(issue.buildingId) || issue.buildingId || "-"}</td>
-                      <td>{issue.issueTitle || issue.issueDescription || "-"}</td>
-                      <td>
+                      <td className="id-cell" data-label="Issue ID">{issue.issueId || issue.id}</td>
+                      <td data-label="Building">{buildingMap.get(issue.buildingId) || issue.buildingId || "-"}</td>
+                      <td data-label="Finding">{issue.issueTitle || issue.issueDescription || "-"}</td>
+                      <td data-label="Status">
                         <span className="status-badge" style={statusStyle(issue.status)}>
                           {issue.status || "-"}
                         </span>
@@ -194,7 +199,8 @@ const AdminDashboard = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </ResponsiveTableRegion>
             )}
           </div>
 
@@ -207,7 +213,11 @@ const AdminDashboard = () => {
             {recentDrills.length === 0 ? (
               <p style={{ color: "#9ca3af", fontSize: "14px" }}>No fire drills recorded.</p>
             ) : (
-              <table className="dashboard-table">
+              <ResponsiveTableRegion
+                label="Recent fire drill records"
+                className="responsive-table-region--cards"
+              >
+                <table className="dashboard-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>DATE</th>
@@ -219,10 +229,10 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentDrills.map((drill) => (
                     <tr key={drill.id}>
-                      <td>{drill.conductedDate || drill.actualDate || drill.drillDate || "-"}</td>
-                      <td>{buildingMap.get(drill.buildingId) || drill.buildingName || "-"}</td>
-                      <td>{drill.totalEvacuationTime || drill.evacuationTime || "-"}</td>
-                      <td>
+                      <td data-label="Date">{drill.conductedDate || drill.actualDate || drill.drillDate || "-"}</td>
+                      <td data-label="Building">{buildingMap.get(drill.buildingId) || drill.buildingName || "-"}</td>
+                      <td data-label="Evacuation time">{drill.totalEvacuationTime || drill.evacuationTime || "-"}</td>
+                      <td data-label="Result">
                         <span className="result-badge" style={drillResultStyle(drill)}>
                           {drill.performanceStatus || drill.status || "-"}
                         </span>
@@ -230,7 +240,8 @@ const AdminDashboard = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </ResponsiveTableRegion>
             )}
           </div>
 
@@ -243,7 +254,11 @@ const AdminDashboard = () => {
             {recentReports.length === 0 ? (
               <p style={{ color: "#9ca3af", fontSize: "14px" }}>No reports generated yet.</p>
             ) : (
-              <table className="dashboard-table">
+              <ResponsiveTableRegion
+                label="Recent submitted reports"
+                className="responsive-table-region--cards"
+              >
+                <table className="dashboard-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>REPORT TYPE</th>
@@ -254,13 +269,14 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentReports.map((report) => (
                     <tr key={report.id}>
-                      <td>{report.reportTitle || report.reportType || "-"}</td>
-                      <td>{buildingMap.get(report.buildingId) || "All Buildings"}</td>
-                      <td>{fmtDate(report.generatedDate || report.createdAt)}</td>
+                      <td data-label="Report type">{report.reportTitle || report.reportType || "-"}</td>
+                      <td data-label="Building">{buildingMap.get(report.buildingId) || "All Buildings"}</td>
+                      <td data-label="Date">{fmtDate(report.generatedDate || report.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </ResponsiveTableRegion>
             )}
           </div>
         </div>

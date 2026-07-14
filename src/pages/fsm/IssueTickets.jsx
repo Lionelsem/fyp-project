@@ -5,6 +5,7 @@ import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { deleteIssue } from "../../services/issueService";
 import { buildIssuePeriodSnapshot, getMonthBounds, parseReportDate } from "../../utils/issueReporting";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const getFsmLookupIds = (user) => [
   user?.uid,
@@ -198,7 +199,10 @@ const IssueTickets = () => {
         {loading ? (
           <div className="loading-state">Loading issue tickets...</div>
         ) : (
-          <div className="issue-ticket-table-wrapper">
+          <ResponsiveTableRegion
+            label="Issue ticket overview"
+            className="issue-ticket-table-wrapper"
+          >
             <table className="dashboard-table issue-overview-table">
               <thead>
                 <tr>
@@ -260,7 +264,7 @@ const IssueTickets = () => {
               </tbody>
             </table>
             {visibleIssues.length === 0 && <div className="issue-ticket-empty">No issue tickets match the selected filters.</div>}
-          </div>
+          </ResponsiveTableRegion>
         )}
       </section>
     </main>

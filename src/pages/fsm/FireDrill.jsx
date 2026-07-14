@@ -8,6 +8,7 @@ import {
   updateScheduledFireDrill
 } from "../../services/fireDrillService";
 import { uploadFile } from "../../services/storageService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const emptyScheduleForm = {
   buildingId: "",
@@ -1054,7 +1055,10 @@ const FireDrill = () => {
           )}
         </div>
         {visibleHistory.length > 0 ? (
-          <div className="fire-drill-history-table-wrapper">
+          <ResponsiveTableRegion
+            label="Fire drill history"
+            className="fire-drill-history-table-wrapper"
+          >
             <table className="dashboard-table fire-drill-history-table">
               <thead>
                 <tr>
@@ -1091,7 +1095,7 @@ const FireDrill = () => {
                 })}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTableRegion>
         ) : (
           <div className="fire-drill-empty-card-space" />
         )}

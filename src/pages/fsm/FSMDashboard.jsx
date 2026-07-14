@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const CHART_SERIES = [
   { key: "passed", label: "Resolved", color: "#009c83" },
@@ -205,8 +206,11 @@ const EmptyTableRow = ({ loading }) => (
 );
 
 const RecentIssueTable = ({ reports, loading }) => (
-  <div className="fsm-reports-table-wrap">
-    <table className="fsm-reports-table">
+  <ResponsiveTableRegion
+    label="Recent issue reports"
+    className="fsm-reports-table-wrap responsive-table-region--cards"
+  >
+    <table className="fsm-reports-table responsive-card-table">
       <caption className="sr-only">Recent issue reports</caption>
       <colgroup>
         <col style={{ width: "23%" }} />
@@ -230,20 +234,20 @@ const RecentIssueTable = ({ reports, loading }) => (
         ) : (
           reports.map((report) => (
             <tr key={report.id}>
-              <td>
+              <td data-label="Building">
                 <span className="fsm-building-cell" title={report.building}>
                   <span className="fsm-building-icon"><BuildingIcon /></span>
                   <span>{report.building}</span>
                 </span>
               </td>
-              <td className="fsm-issue-cell" title={report.issue}>{report.issue}</td>
-              <td>{report.date}</td>
-              <td>
+              <td className="fsm-issue-cell" title={report.issue} data-label="Issue">{report.issue}</td>
+              <td data-label="Date">{report.date}</td>
+              <td data-label="Status">
                 <span className={`fsm-table-badge fsm-table-badge--${getBadgeTone(report.status, "status")}`}>
                   {report.status}
                 </span>
               </td>
-              <td>
+              <td data-label="Priority">
                 <span className={`fsm-table-badge fsm-table-badge--${getBadgeTone(report.priority, "priority")}`}>
                   {report.priority}
                 </span>
@@ -253,7 +257,7 @@ const RecentIssueTable = ({ reports, loading }) => (
         )}
       </tbody>
     </table>
-  </div>
+  </ResponsiveTableRegion>
 );
 
 const UpcomingActivities = ({ activities, loading }) => {

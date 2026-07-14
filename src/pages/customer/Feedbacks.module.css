@@ -1,15 +1,24 @@
 .feedbacksContainer {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
   background-color: #f5f5f5;
-  position: relative;
 }
 
 .header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
   padding: 20px 30px;
   background-color: white;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.headerCopy {
+  min-width: 0;
 }
 
 .header h1 {
@@ -26,14 +35,16 @@
 }
 
 .contentWrapper {
-  display: flex;
-  flex: 1;
-  gap: 0;
+  display: grid;
+  grid-template-columns: minmax(16rem, 28%) minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  min-height: 36rem;
   overflow: hidden;
 }
 
 .messagesPanel {
-  width: 28%;
+  min-width: 0;
   background-color: white;
   border-right: 1px solid #e0e0e0;
   display: flex;
@@ -67,8 +78,15 @@
 }
 
 .messageItem {
+  display: block;
+  width: 100%;
   padding: 12px 16px;
+  border: 0;
   border-left: 3px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 1px solid #f0f0f0;
@@ -84,7 +102,15 @@
   border-left-color: #17a2b8;
 }
 
-.messageItem h4 {
+.messageItem:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(23, 162, 184, 0.3);
+  outline-offset: -3px;
+}
+
+.messageTitle {
+  display: block;
   margin: 0 0 6px 0;
   font-size: 14px;
   font-weight: 600;
@@ -105,13 +131,15 @@
 }
 
 .messageItem .timestamp {
+  display: block;
   margin: 0;
   font-size: 12px;
   color: #999;
 }
 
 .conversationPanel {
-  flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background-color: #fafafa;
@@ -172,7 +200,8 @@
 }
 
 .messageContent {
-  max-width: 70%;
+  min-width: 0;
+  max-width: min(70%, 44rem);
   padding: 12px 14px;
   border-radius: 8px;
   word-wrap: break-word;
@@ -240,6 +269,7 @@
 
 .inputArea textarea {
   flex: 1;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -257,6 +287,7 @@
 }
 
 .sendButton {
+  min-height: 44px;
   padding: 10px 20px;
   background-color: #1ba098;
   color: white;
@@ -288,9 +319,8 @@
 }
 
 .newMessageButton {
-  position: absolute;
-  top: 20px;
-  right: 30px;
+  flex: 0 0 auto;
+  min-height: 44px;
   padding: 10px 18px;
   background-color: #1ba098;
   color: white;
@@ -300,7 +330,14 @@
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  z-index: 10;
+}
+
+.newMessageButton:focus-visible,
+.sendButton:focus-visible,
+.cancelButton:focus-visible,
+.submitButton:focus-visible {
+  outline: 3px solid rgba(23, 162, 184, 0.28);
+  outline-offset: 2px;
 }
 
 .newMessageButton:hover {
@@ -309,14 +346,11 @@
 
 .modalContent {
   padding: 24px;
-  max-width: 500px;
+  width: 100%;
 }
 
-.modalContent h2 {
-  margin: 0 0 20px 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
+:global(.modal-body).feedbackModalBody {
+  padding: 0;
 }
 
 .formGroup {
@@ -364,6 +398,7 @@
 
 .cancelButton,
 .submitButton {
+  min-height: 44px;
   padding: 10px 20px;
   border: none;
   border-radius: 6px;
@@ -391,6 +426,105 @@
   background-color: #169083;
 }
 
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:global(.modal-backdrop) {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  background: rgba(15, 23, 42, 0.58);
+  overscroll-behavior: contain;
+}
+
+:global(.modal) {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 36rem);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+}
+
+:global(.modal:focus) {
+  outline: none;
+}
+
+:global(.modal-header) {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 16px 12px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+:global(.modal-header h2) {
+  min-width: 0;
+  margin: 0;
+  color: #1f2937;
+  font-size: 20px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+:global(.modal-close-button) {
+  display: inline-flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+:global(.modal-close-button:hover) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+:global(.modal-close-button:focus-visible) {
+  outline: 3px solid rgba(23, 162, 184, 0.28);
+  outline-offset: 1px;
+}
+
+:global(.modal-body) {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Scrollbar styling */
 .messagesList::-webkit-scrollbar,
 .messagesThread::-webkit-scrollbar {
@@ -413,28 +547,145 @@
   background: #555;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .contentWrapper {
+    grid-template-columns: minmax(15rem, 36%) minmax(0, 1fr);
+  }
+
+  .header {
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
     flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 18px 16px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+  }
+
+  .newMessageButton {
+    width: 100%;
+  }
+
+  .contentWrapper {
+    display: block;
+    min-height: 0;
+    overflow: visible;
   }
 
   .messagesPanel {
     width: 100%;
-    border-right: none;
+    max-height: none;
+    border-right: 0;
     border-bottom: 1px solid #e0e0e0;
-    max-height: 35%;
+    overflow: visible;
+  }
+
+  .messagesList {
+    max-height: 16rem;
   }
 
   .conversationPanel {
-    flex: 1;
+    min-height: 30rem;
+    overflow: visible;
   }
 
-  .newMessageButton {
-    top: 16px;
-    right: 16px;
+  .conversationHeader,
+  .messagesThread,
+  .inputArea {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .messagesThread {
+    min-height: 18rem;
+    max-height: 36rem;
   }
 
   .messageContent {
-    max-width: 100%;
+    max-width: 90%;
+  }
+
+  .inputArea {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inputArea textarea {
+    min-height: 88px;
+    max-height: 180px;
+  }
+
+  .sendButton {
+    width: 100%;
+  }
+
+  .searchBox input,
+  .inputArea textarea,
+  .formGroup input,
+  .formGroup select,
+  .formGroup textarea {
+    font-size: 16px;
+  }
+
+  :global(.modal-backdrop) {
+    align-items: flex-end;
+    padding: max(12px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+  }
+
+  :global(.modal) {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 14px 14px 10px 10px;
+  }
+
+  :global(.modal-header) {
+    padding: 10px 10px 10px 16px;
+  }
+
+  .modalContent {
+    padding: 18px 16px;
+  }
+
+  .modalActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cancelButton,
+  .submitButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .conversationHeader h2 {
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+
+  .senderInfo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+
+  .messageContent {
+    max-width: 94%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message {
+    animation: none;
   }
 }

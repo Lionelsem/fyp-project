@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const summaryCards = [
   {
@@ -149,7 +150,11 @@ const CustomerDashboard = () => {
                 View all →
               </button>
             </div>
-            <table className="dashboard-table">
+            <ResponsiveTableRegion
+              label="Recent issue updates"
+              className="responsive-table-region--cards"
+            >
+              <table className="dashboard-table responsive-card-table">
               <thead>
                 <tr>
                   <th>LOCATION</th>
@@ -161,9 +166,9 @@ const CustomerDashboard = () => {
               <tbody>
                 {recentIssues.map((issue, index) => (
                   <tr key={index}>
-                    <td>{issue.location}</td>
-                    <td>{issue.finding}</td>
-                    <td>
+                    <td data-label="Location">{issue.location}</td>
+                    <td data-label="Finding">{issue.finding}</td>
+                    <td data-label="Status">
                       <span
                         className="status-badge"
                         style={{ color: issue.statusColor }}
@@ -171,11 +176,12 @@ const CustomerDashboard = () => {
                         {issue.status}
                       </span>
                     </td>
-                    <td>{issue.updated}</td>
+                    <td data-label="Updated">{issue.updated}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </ResponsiveTableRegion>
           </div>
         </div>
 

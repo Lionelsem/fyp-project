@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useAuthContext } from "../../context/AuthContext";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const mockIssues = [
   {
@@ -165,7 +166,10 @@ const IssueProgress = () => {
       </div>
 
       <div className="dashboard-card">
-        <div className="fire-drill-history-table-wrapper">
+        <ResponsiveTableRegion
+          label="Issue progress"
+          className="fire-drill-history-table-wrapper"
+        >
           <table className="dashboard-table">
             <thead>
               <tr>
@@ -228,23 +232,14 @@ const IssueProgress = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTableRegion>
 
         {filteredIssues.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "20px",
-              paddingTop: "16px",
-              borderTop: "1px solid #e5e7eb"
-            }}
-          >
+          <div className="responsive-pagination">
             <span style={{ fontSize: "13px", color: "#6b7280" }}>
               Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredIssues.length)} of {filteredIssues.length} Issues
             </span>
-            <div style={{ display: "flex", gap: "12px" }}>
+            <div className="pagination-actions">
               <button
                 type="button"
                 onClick={handlePrevious}

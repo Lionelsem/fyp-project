@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllUsers, deleteUser } from "../../services/userService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
@@ -34,8 +35,7 @@ const ManageUsers = () => {
           </div>
           <button
             type="button"
-            className="primary-btn"
-            style={{ minWidth: "160px" }}
+            className="primary-btn responsive-control"
             onClick={() => navigate("/users/create")}
           >
             + Add User
@@ -44,7 +44,8 @@ const ManageUsers = () => {
       </div>
 
       <div className="dashboard-card">
-        <table className="dashboard-table" style={{ width: "100%" }}>
+        <ResponsiveTableRegion label="Users">
+          <table className="dashboard-table" style={{ width: "100%" }}>
           <thead>
             <tr>
               <th>USER ID</th>
@@ -115,7 +116,8 @@ const ManageUsers = () => {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </ResponsiveTableRegion>
       </div>
     </div>
   );
