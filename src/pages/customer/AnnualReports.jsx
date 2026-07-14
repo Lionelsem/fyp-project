@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { getAllReports, updateReport } from "../../services/reportService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const fallbackReports = [
   {

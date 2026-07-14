@@ -25,7 +25,7 @@ const CustomerSidebar = ({
 }) => {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState({});
+  const [expandedMenus, setExpandedMenus] = useState({ Reports: true });
 
   const displayName = profile?.name || "Customer";
   const roleLabel = profile?.role || "Customer";
@@ -50,11 +50,9 @@ const CustomerSidebar = ({
     }
   };
 
-  const toggleMenu = (label) => {
-    setExpandedMenus((prev) => ({
-      ...prev,
-      [label]: !prev[label]
-    }));
+    const handleProfileNavigation = () => {
+    onNavigate();
+    navigate("/profile");
   };
 
   return (
@@ -82,13 +80,19 @@ const CustomerSidebar = ({
       <nav className="sidebar-menu">
         <ul className="sidebar-list">
           {menuItems.map((item) => (
-            <li key={item.label || item.path}>
+            <li key={item.label}>
               {item.submenu ? (
-                <div>
+                <>
                   <button
                     type="button"
-                    className="menu-item menu-toggle"
-                    onClick={() => toggleMenu(item.label)}
+                    className={`menu-item menu-toggle ${expandedMenus[item.label] ? "active" : ""}`}
+                    onClick={() =>
+                      setExpandedMenus((prev) => ({
+                        ...prev,
+                        [item.label]: !prev[item.label]
+                      }))
+                    }
+                    aria-expanded={!!expandedMenus[item.label]}
                   >
                     <span className="menu-icon">{item.icon}</span>
                     <span className="menu-label">{item.label}</span>
@@ -105,6 +109,7 @@ const CustomerSidebar = ({
                             className={({ isActive }) =>
                               isActive ? "menu-item active" : "menu-item"
                             }
+                            onClick={onNavigate}
                           >
                             <span className="menu-icon">{subitem.icon}</span>
                             <span className="menu-label">{subitem.label}</span>
@@ -113,13 +118,14 @@ const CustomerSidebar = ({
                       ))}
                     </ul>
                   )}
-                </div>
+                </>
               ) : (
                 <NavLink
                   to={item.path}
                   className={({ isActive }) =>
                     isActive ? "menu-item active" : "menu-item"
                   }
+                  onClick={onNavigate}
                 >
                   <span className="menu-icon">{item.icon}</span>
                   <span className="menu-label">{item.label}</span>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getAllFireDrills, updateFireDrill } from "../../services/fireDrillService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const fallbackDrills = [
   {

@@ -522,17 +522,22 @@ button {
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
 .menu-arrow {
-  font-size: 12px;
-  transition: transform 0.25s ease;
-  display: inline-block;
+  font-size: 14px;
+  width: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a7f3d0;
+  transition: color 0.25s ease;
 }
 
 .menu-arrow.expanded {
-  transform: rotate(180deg);
+  color: #ffffff;
 }
 
 .sidebar-footer {
