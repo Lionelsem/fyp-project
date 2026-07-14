@@ -1193,12 +1193,12 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                     return photoUrl ? (
                       <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
                         <img className="issue-photo-preview" src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
-                        {index >= savedPhotoUrls.length && (
+                        {isIssueEditing && !isVerifyMode && !readOnly && (
                           <button
                             type="button"
                             className="photo-remove-btn issue-remove-btn"
-                            onClick={() => onRemovePhoto(categoryId, item.id, index - savedPhotoUrls.length)}
-                            aria-label="Remove selected defect photo"
+                            onClick={() => onRemovePhoto(categoryId, item.id, index)}
+                            aria-label={index < savedPhotoUrls.length ? "Remove submitted defect photo" : "Remove selected defect photo"}
                           >
                             &times;
                           </button>
@@ -1604,7 +1604,13 @@ const Inspections = () => {
       setIssueEditSnapshot({
         categoryId: matchedCategory.id,
         itemId: matchedItem.id,
-        issue: { ...matchedItem.issue }
+        item: {
+          ...matchedItem,
+          issue: { ...matchedItem.issue },
+          defectPhotoUrls: [...(matchedItem.defectPhotoUrls || [])],
+          photoFiles: [...(matchedItem.photoFiles || [])],
+          photoPreviews: [...(matchedItem.photoPreviews || [])]
+        }
       });
       setEditingIssueRowKey(`${matchedCategory.id}:${matchedItem.id}`);
     }
@@ -1824,10 +1830,26 @@ const Inspections = () => {
           ...category,
           items: category.items.map((item) => {
             if (item.id !== itemId) return item;
+
+            const savedPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]);
+            if (photoIndex < savedPhotoUrls.length) {
+              const retainedPhotoUrls = savedPhotoUrls.filter((_, index) => index !== photoIndex);
+              return {
+                ...item,
+                photo: retainedPhotoUrls[0] || "",
+                defectPhotoUrl: retainedPhotoUrls[0] || "",
+                defectPhotoUrls: retainedPhotoUrls,
+                defectPhotoStoragePath: retainedPhotoUrls.length ? item.defectPhotoStoragePath || "" : "",
+                defectPhotoUploadedAt: retainedPhotoUrls.length ? item.defectPhotoUploadedAt || null : null,
+                defectPhotoUploadedBy: retainedPhotoUrls.length ? item.defectPhotoUploadedBy || "" : ""
+              };
+            }
+
+            const pendingPhotoIndex = photoIndex - savedPhotoUrls.length;
             return {
               ...item,
-              photoFiles: (item.photoFiles || []).filter((_, index) => index !== photoIndex),
-              photoPreviews: (item.photoPreviews || []).filter((_, index) => index !== photoIndex),
+              photoFiles: (item.photoFiles || []).filter((_, index) => index !== pendingPhotoIndex),
+              photoPreviews: (item.photoPreviews || []).filter((_, index) => index !== pendingPhotoIndex),
               photoPreview: "",
               photoFile: null
             };
@@ -1886,7 +1908,17 @@ const Inspections = () => {
     const item = checklist
       .find((category) => category.id === categoryId)
       ?.items.find((entry) => entry.id === itemId);
-    setIssueEditSnapshot(item ? { categoryId, itemId, issue: { ...item.issue } } : null);
+    setIssueEditSnapshot(item ? {
+      categoryId,
+      itemId,
+      item: {
+        ...item,
+        issue: { ...item.issue },
+        defectPhotoUrls: [...(item.defectPhotoUrls || [])],
+        photoFiles: [...(item.photoFiles || [])],
+        photoPreviews: [...(item.photoPreviews || [])]
+      }
+    } : null);
     setEditingIssueRowKey(`${categoryId}:${itemId}`);
   };
 
@@ -1899,7 +1931,7 @@ const Inspections = () => {
               ...category,
               items: category.items.map((item) =>
                 item.id === issueEditSnapshot.itemId
-                  ? { ...item, issue: issueEditSnapshot.issue }
+                  ? issueEditSnapshot.item
                   : item
               )
             }
@@ -2102,6 +2134,58 @@ const Inspections = () => {
 
       setInspectionSubmitting(true);
       const statusChanged = String(existingIssue.status || "") !== String(item.issue.status || "");
+      const previouslySavedPhotoUrls = getDefectPhotoUrls(existingIssue);
+      let defectPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
+      let defectPhotoStoragePath = item.defectPhotoStoragePath || existingIssue.defectPhotoStoragePath || "";
+      let defectPhotoUploadedAt = item.defectPhotoUploadedAt || existingIssue.defectPhotoUploadedAt || null;
+      let defectPhotoUploadedBy = item.defectPhotoUploadedBy || existingIssue.defectPhotoUploadedBy || "";
+      const selectedPhotoFiles = [
+        ...(item.photoFiles || []),
+        ...(item.photoFile ? [item.photoFile] : [])
+      ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
+      const uploadedPhotos = [];
+
+      for (const file of selectedPhotoFiles) {
+        const uploaded = await uploadFile(
+          file,
+          getInspectionDefectPhotoFolder({ inspectionKey, categoryId, itemId })
+        );
+        if (uploaded?.url) uploadedPhotos.push(uploaded);
+      }
+
+      if (uploadedPhotos.length) {
+        defectPhotoUrls = uniqueValues([
+          ...defectPhotoUrls,
+          ...uploadedPhotos.map((photo) => photo.url)
+        ]).slice(0, PHOTO_LIMIT);
+        defectPhotoStoragePath = uploadedPhotos[uploadedPhotos.length - 1].path || "";
+        defectPhotoUploadedAt = new Date();
+        defectPhotoUploadedBy = fsmId;
+      } else if (defectPhotoUrls.length === 0) {
+        defectPhotoStoragePath = "";
+        defectPhotoUploadedAt = null;
+        defectPhotoUploadedBy = "";
+      }
+
+      const removedPhotoCount = previouslySavedPhotoUrls.filter((url) => !defectPhotoUrls.includes(url)).length;
+      const photoHistoryEntries = [
+        removedPhotoCount > 0
+          ? createAuditEntry({
+              status: item.issue.status || ISSUE_STATUS.OPEN,
+              note: `${removedPhotoCount} defect photo(s) removed`,
+              updatedBy: fsmId,
+              eventType: "photos_removed"
+            })
+          : null,
+        uploadedPhotos.length > 0
+          ? createAuditEntry({
+              status: item.issue.status || ISSUE_STATUS.OPEN,
+              note: `${uploadedPhotos.length} defect photo(s) uploaded`,
+              updatedBy: fsmId,
+              eventType: "photos_uploaded"
+            })
+          : null
+      ];
       const updatedIssue = {
         ...existingIssue,
         issueKey,
@@ -2111,14 +2195,21 @@ const Inspections = () => {
         priority: item.issue.priority || existingIssue.priority || "Medium",
         status: item.issue.status || ISSUE_STATUS.OPEN,
         reportedBy: existingIssue.reportedBy || fsmId,
-        history: statusChanged
-          ? appendHistory(existingIssue, [createAuditEntry({
+        issuePhotoUrl: defectPhotoUrls[0] || "",
+        defectPhotoUrl: defectPhotoUrls[0] || "",
+        defectPhotoUrls,
+        defectPhotoStoragePath,
+        defectPhotoUploadedAt,
+        defectPhotoUploadedBy,
+        history: appendHistory(existingIssue, [
+          statusChanged ? createAuditEntry({
               status: item.issue.status || ISSUE_STATUS.OPEN,
               note: item.issue.rectification || item.issue.description || "Updated from inspection checklist",
               updatedBy: fsmId,
               eventType: "status_update"
-            })])
-          : existingIssue.history || []
+            }) : null,
+          ...photoHistoryEntries
+        ])
       };
 
       await upsertIssue(updatedIssue);
@@ -2128,11 +2219,42 @@ const Inspections = () => {
           issueDescription: updatedIssue.issueDescription,
           rectification: updatedIssue.rectification,
           priority: updatedIssue.priority,
-          issueStatus: updatedIssue.status
+          issueStatus: updatedIssue.status,
+          photoUrl: updatedIssue.defectPhotoUrl,
+          defectPhotoUrl: updatedIssue.defectPhotoUrl,
+          defectPhotoUrls: updatedIssue.defectPhotoUrls,
+          defectPhotoStoragePath: updatedIssue.defectPhotoStoragePath,
+          defectPhotoUploadedAt: updatedIssue.defectPhotoUploadedAt,
+          defectPhotoUploadedBy: updatedIssue.defectPhotoUploadedBy
         });
       }
       if (isChecklistReviewMode) setVerificationIssue(updatedIssue);
-      setChecklistForSelectedLevel((current) => applyIssueFocusToChecklist(current, updatedIssue));
+      setChecklistForSelectedLevel((current) =>
+        applyIssueFocusToChecklist(current, updatedIssue).map((currentCategory) =>
+          currentCategory.id !== categoryId
+            ? currentCategory
+            : {
+                ...currentCategory,
+                items: currentCategory.items.map((currentItem) =>
+                  currentItem.id !== itemId
+                    ? currentItem
+                    : {
+                        ...currentItem,
+                        photo: updatedIssue.defectPhotoUrl,
+                        defectPhotoUrl: updatedIssue.defectPhotoUrl,
+                        defectPhotoUrls: updatedIssue.defectPhotoUrls,
+                        defectPhotoStoragePath: updatedIssue.defectPhotoStoragePath,
+                        defectPhotoUploadedAt: updatedIssue.defectPhotoUploadedAt,
+                        defectPhotoUploadedBy: updatedIssue.defectPhotoUploadedBy,
+                        photoFile: null,
+                        photoFiles: [],
+                        photoPreview: "",
+                        photoPreviews: []
+                      }
+                )
+              }
+        )
+      );
       setEditingIssueRowKey("");
       setIssueEditSnapshot(null);
       setInspectionSubmitSuccess("Issue updated from the inspection checklist.");
