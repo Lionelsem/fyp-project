@@ -1572,6 +1572,8 @@ button {
   border: 1px solid #d1d5db;
   display: grid;
   gap: 16px;
+  container-name: issue-panel;
+  container-type: inline-size;
 }
 
 .issue-panel h4 {
@@ -1593,8 +1595,12 @@ button {
 
 .issue-fields-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.issue-fields-row > * {
+  min-width: 0;
 }
 
 .issue-status-field {
@@ -1604,6 +1610,7 @@ button {
 }
 
 .checklist-verify-button {
+  grid-column: 2;
   justify-self: start;
   min-height: 34px;
   padding: 7px 12px;
@@ -1829,6 +1836,36 @@ button {
 .issue-photo-wrapper {
   position: relative;
   display: inline-flex;
+}
+
+.issue-photo-wrapper.issue-photo-wrapper--grid {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+}
+
+.issue-photo-overflow-button {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+  place-items: center;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.68);
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.issue-photo-overflow-button:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.5);
+  outline-offset: -4px;
+}
+
+.issue-photo-gallery .issue-remove-btn {
+  z-index: 2;
 }
 
 .issue-remove-btn {
@@ -2174,6 +2211,24 @@ button {
     min-height: 42px;
     padding: 8px 10px;
     text-align: left;
+  }
+}
+
+/* Keep issue detail card padding and make action buttons wrap nicely on small screens */
+@media (max-width: 600px) {
+  .issue-ticket-detail {
+    padding-right: 16px; /* ensure some right padding remains */
+  }
+
+  .issue-ticket-detail .issue-ticket-actions {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .issue-ticket-detail .issue-ticket-actions button {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 10px;
   }
 }
 
@@ -5908,6 +5963,55 @@ select.responsive-control {
   .responsive-table-region--cards .responsive-card-table td {
     grid-template-columns: minmax(80px, 0.75fr) minmax(0, 1.25fr);
     gap: 8px;
+  }
+}
+
+/* Keep issue evidence compact whenever the card itself has mobile-sized space. */
+@media (max-width: 900px) {
+  .issue-panel .issue-photo-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .issue-panel .issue-photo-gallery:not(.issue-photo-gallery--expanded) > :nth-child(n + 3) {
+    display: none;
+  }
+
+  .issue-panel .issue-photo-gallery .issue-photo-preview {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  .issue-panel .issue-photo-overflow-button {
+    display: grid;
+  }
+
+  .issue-fields-row > .checklist-verify-button {
+    grid-column: 1 / -1;
+  }
+}
+
+@container issue-panel (max-width: 48rem) {
+  .issue-panel .issue-photo-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .issue-panel .issue-photo-gallery:not(.issue-photo-gallery--expanded) > :nth-child(n + 3) {
+    display: none;
+  }
+
+  .issue-panel .issue-photo-gallery .issue-photo-preview {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+  }
+
+  .issue-panel .issue-photo-overflow-button {
+    display: grid;
+  }
+
+  .issue-fields-row > .checklist-verify-button {
+    grid-column: 1 / -1;
   }
 }
 

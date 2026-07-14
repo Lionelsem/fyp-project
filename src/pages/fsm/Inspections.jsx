@@ -608,6 +608,7 @@ const getFixPhotoUrl = (source) =>
   getFixPhotoUrls(source)[0] || "";
 
 const PHOTO_LIMIT = 3;
+const COMPACT_PHOTO_LIMIT = 2;
 
 const uniqueValues = (values) =>
   Array.from(new Set((values || []).filter(Boolean)));
@@ -1048,13 +1049,20 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
 };
 
 const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, isIssueEditing = false, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onVerifyClosure, onStartIssueEdit, onCancelIssueEdit, onSaveIssue }) => {
+  const [expandedPhotoGroups, setExpandedPhotoGroups] = useState({ before: false, after: false });
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
   const savedPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]);
   const photoUrls = uniqueValues([...savedPhotoUrls, ...(item.photoPreviews || []), item.photoPreview]).slice(0, PHOTO_LIMIT);
   const afterPhotoUrls = getFixPhotoUrls(item);
+  const hiddenBeforePhotoCount = Math.max(photoUrls.length - COMPACT_PHOTO_LIMIT, 0);
+  const hiddenAfterPhotoCount = Math.max(afterPhotoUrls.length - COMPACT_PHOTO_LIMIT, 0);
   const isClosedIssue = String(item.issue?.status || "").trim().toLowerCase() === ISSUE_STATUS.CLOSED.toLowerCase();
+
+  const expandPhotoGroup = (group) => {
+    setExpandedPhotoGroups((current) => ({ ...current, [group]: true }));
+  };
 
   return (
     <div
@@ -1162,16 +1170,16 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   <option value={ISSUE_STATUS.RESOLVED}>{ISSUE_STATUS.RESOLVED}</option>
                   <option value={ISSUE_STATUS.CLOSED} disabled>{ISSUE_STATUS.CLOSED}</option>
                 </select>
-                {item.issue.status === ISSUE_STATUS.RESOLVED && (
-                  <button
-                    type="button"
-                    className="primary-button checklist-verify-button"
-                    onClick={() => onVerifyClosure(categoryId, item)}
-                  >
-                    Verify Closure
-                  </button>
-                )}
               </label>
+              {item.issue.status === ISSUE_STATUS.RESOLVED && (
+                <button
+                  type="button"
+                  className="primary-button checklist-verify-button"
+                  onClick={() => onVerifyClosure(categoryId, item)}
+                >
+                  Verify Closure
+                </button>
+              )}
             </div>
             <div className="issue-evidence-sections">
               <section className="issue-evidence-section" aria-label="Fault Photos Before">
@@ -1188,12 +1196,22 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   />
                 </label>
                 )}
-                <div className="issue-photo-wrapper issue-photo-wrapper--grid">
+                <div className={`issue-photo-wrapper issue-photo-wrapper--grid issue-photo-gallery${expandedPhotoGroups.before ? " issue-photo-gallery--expanded" : ""}`}>
                   {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
                     const photoUrl = photoUrls[index];
                     return photoUrl ? (
                       <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
                         <img className="issue-photo-preview" src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
+                        {index === COMPACT_PHOTO_LIMIT - 1 && hiddenBeforePhotoCount > 0 && !expandedPhotoGroups.before && (
+                          <button
+                            type="button"
+                            className="issue-photo-overflow-button"
+                            onClick={() => expandPhotoGroup("before")}
+                            aria-label={`Show ${hiddenBeforePhotoCount} more fault ${hiddenBeforePhotoCount === 1 ? "photo" : "photos"}`}
+                          >
+                            +{hiddenBeforePhotoCount}
+                          </button>
+                        )}
                         {isIssueEditing && !isVerifyMode && !readOnly && (
                           <button
                             type="button"
@@ -1213,12 +1231,22 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
               </section>
               <section className="issue-evidence-section" aria-label="After-Repair Photos">
                 <h5>After-Repair Photos</h5>
-                <div className="issue-photo-wrapper issue-photo-wrapper--grid">
+                <div className={`issue-photo-wrapper issue-photo-wrapper--grid issue-photo-gallery${expandedPhotoGroups.after ? " issue-photo-gallery--expanded" : ""}`}>
                   {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
                     const photoUrl = afterPhotoUrls[index];
                     return photoUrl ? (
                       <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
                         <img className="issue-photo-preview" src={photoUrl} alt={`After-repair evidence ${index + 1}`} />
+                        {index === COMPACT_PHOTO_LIMIT - 1 && hiddenAfterPhotoCount > 0 && !expandedPhotoGroups.after && (
+                          <button
+                            type="button"
+                            className="issue-photo-overflow-button"
+                            onClick={() => expandPhotoGroup("after")}
+                            aria-label={`Show ${hiddenAfterPhotoCount} more after-repair ${hiddenAfterPhotoCount === 1 ? "photo" : "photos"}`}
+                          >
+                            +{hiddenAfterPhotoCount}
+                          </button>
+                        )}
                       </figure>
                     ) : (
                       <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`After-repair photo slot ${index + 1}`} />
