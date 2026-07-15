@@ -5206,6 +5206,18 @@ textarea {
   overscroll-behavior: contain;
 }
 
+/* Keep the longer customer navigation scrollable without showing a scrollbar. */
+.customer-sidebar,
+.customer-sidebar .sidebar-menu {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.customer-sidebar::-webkit-scrollbar,
+.customer-sidebar .sidebar-menu::-webkit-scrollbar {
+  display: none;
+}
+
 .user-name,
 .user-role {
   overflow: hidden;

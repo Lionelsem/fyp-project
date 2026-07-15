@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 
 const menuItems = [
-  { path: "/dashboard", label: "Dashboard", icon: "🏠" },
+  { path: "/dashboard", label: "Dashboard", icon: "📊" },
   { path: "/issue-progress", label: "Issue Progress", icon: "📝" },
   {
     label: "Reports",
@@ -56,7 +56,7 @@ const CustomerSidebar = ({
   };
 
   return (
-    <aside className="admin-sidebar" aria-label="Customer navigation">
+    <aside className="admin-sidebar customer-sidebar" aria-label="Customer navigation">
       <button
         type="button"
         className="portal-sidebar-close"
