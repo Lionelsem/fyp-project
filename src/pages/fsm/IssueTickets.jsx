@@ -136,6 +136,11 @@ const IssueTickets = () => {
 
   return (
     <main className="dashboard-container issue-overview-page">
+      <nav className="page-breadcrumb" aria-label="Breadcrumb">
+        <button type="button" onClick={() => navigate("/fsm/inspections")}>Inspections</button>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Issue Tickets</span>
+      </nav>
       <div className="page-header">
         <div>
           <h1>Issue Tickets</h1>

@@ -567,6 +567,12 @@ const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) 
         defectPhotoStoragePath: savedResult.defectPhotoStoragePath || "",
         defectPhotoUploadedAt: savedResult.defectPhotoUploadedAt || null,
         defectPhotoUploadedBy: savedResult.defectPhotoUploadedBy || "",
+        fixPhotoUrls: getFixPhotoUrls(savedResult),
+        fixPhotoStoragePath: savedResult.fixPhotoStoragePath || "",
+        fixPhotoUploadedAt: savedResult.fixPhotoUploadedAt || null,
+        fixPhotoUploadedBy: savedResult.fixPhotoUploadedBy || "",
+        fixPhotoFiles: [],
+        fixPhotoPreviews: [],
         photoPreview: "",
         photoFiles: [],
         photoPreviews: [],
@@ -608,7 +614,7 @@ const getFixPhotoUrl = (source) =>
   getFixPhotoUrls(source)[0] || "";
 
 const PHOTO_LIMIT = 3;
-const COMPACT_PHOTO_LIMIT = 2;
+const COMPACT_PHOTO_LIMIT = PHOTO_LIMIT;
 
 const uniqueValues = (values) =>
   Array.from(new Set((values || []).filter(Boolean)));
@@ -677,7 +683,10 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue) => {
                 history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
               },
               defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
-              fixPhotoUrls: getFixPhotoUrls(issue)
+              fixPhotoUrls: getFixPhotoUrls(issue),
+              fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
+              fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
+              fixPhotoUploadedBy: issue.fixPhotoUploadedBy || ""
             }
           : item
       )
@@ -703,7 +712,10 @@ const mergeIssueTicketsIntoChecklist = (sourceChecklist, issues = []) =>
           history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
         },
         defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
-        fixPhotoUrls: getFixPhotoUrls(issue)
+        fixPhotoUrls: getFixPhotoUrls(issue),
+        fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
+        fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
+        fixPhotoUploadedBy: issue.fixPhotoUploadedBy || ""
       };
     })
   }));
@@ -817,8 +829,10 @@ const InspectionOverview = ({
 const IssueSummary = ({ openCount, inProgressCount, resolvedCount }) => (
   <section className="inspection-card issue-summary-card">
     <div className="card-title-row">
-      <p className="overline">Issue Summary</p>
-      <button className="summary-toggle">Show issues & defects</button>
+      <div>
+        <p className="overline">Issue Summary</p>
+        <h3>Issues &amp; Defects</h3>
+      </div>
     </div>
     <div className="issue-summary-grid">
       <div className="issue-pill open">
@@ -884,7 +898,6 @@ const IssueHistoryTimeline = ({ history = [] }) => {
     const secondTime = toDate(second.updatedAt)?.getTime() || 0;
     return secondTime - firstTime;
   });
-
   return (
     <div className="issue-history-panel issue-history-panel--compact">
       <div className="card-header-row">
@@ -1048,14 +1061,17 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
   );
 };
 
-const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, isIssueEditing = false, onUpdate, onPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onVerifyClosure, onStartIssueEdit, onCancelIssueEdit, onSaveIssue }) => {
+const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, isIssueEditing = false, onUpdate, onPhotoChange, onFixPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onRemoveFixPhoto, onStartIssueEdit, onCancelIssueEdit }) => {
   const [expandedPhotoGroups, setExpandedPhotoGroups] = useState({ before: false, after: false });
   const hasIssue = item.condition === "Faulty";
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
   const savedPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]);
   const photoUrls = uniqueValues([...savedPhotoUrls, ...(item.photoPreviews || []), item.photoPreview]).slice(0, PHOTO_LIMIT);
-  const afterPhotoUrls = getFixPhotoUrls(item);
+  const afterPhotoUrls = uniqueValues([
+    ...getFixPhotoUrls(item),
+    ...(item.fixPhotoPreviews || [])
+  ]).slice(0, PHOTO_LIMIT);
   const hiddenBeforePhotoCount = Math.max(photoUrls.length - COMPACT_PHOTO_LIMIT, 0);
   const hiddenAfterPhotoCount = Math.max(afterPhotoUrls.length - COMPACT_PHOTO_LIMIT, 0);
   const isClosedIssue = String(item.issue?.status || "").trim().toLowerCase() === ISSUE_STATUS.CLOSED.toLowerCase();
@@ -1112,15 +1128,15 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
           <div className="issue-panel">
             <div className="issue-panel-heading">
               <h4>Issue Details <span className="issue-badge">Linked to checklist item</span></h4>
-              {!isVerifyMode && !isIssueEditing && (
+              {!isVerifyMode && (
                 <button
                   type="button"
                   className="secondary-button compact-action-button"
-                  onClick={() => onStartIssueEdit(categoryId, item.id)}
-                  disabled={isClosedIssue}
-                  title={isClosedIssue ? "Closed issues cannot be edited" : "Edit issue"}
+                  onClick={() => isIssueEditing ? onCancelIssueEdit() : onStartIssueEdit(categoryId, item.id)}
+                  disabled={isClosedIssue && !isIssueEditing}
+                  title={isClosedIssue && !isIssueEditing ? "Closed issues cannot be edited" : isIssueEditing ? "Cancel changes" : "Edit issue"}
                 >
-                  Edit
+                  {isIssueEditing ? "Cancel" : "Edit"}
                 </button>
               )}
             </div>
@@ -1168,34 +1184,13 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   <option value={ISSUE_STATUS.OPEN}>{ISSUE_STATUS.OPEN}</option>
                   <option value={ISSUE_STATUS.IN_PROGRESS}>{ISSUE_STATUS.IN_PROGRESS}</option>
                   <option value={ISSUE_STATUS.RESOLVED}>{ISSUE_STATUS.RESOLVED}</option>
-                  <option value={ISSUE_STATUS.CLOSED} disabled>{ISSUE_STATUS.CLOSED}</option>
+                  <option value={ISSUE_STATUS.CLOSED}>{ISSUE_STATUS.CLOSED}</option>
                 </select>
               </label>
-              {item.issue.status === ISSUE_STATUS.RESOLVED && (
-                <button
-                  type="button"
-                  className="primary-button checklist-verify-button"
-                  onClick={() => onVerifyClosure(categoryId, item)}
-                >
-                  Verify Closure
-                </button>
-              )}
             </div>
             <div className="issue-evidence-sections">
               <section className="issue-evidence-section" aria-label="Fault Photos Before">
                 <h5>Fault Photos (Before)</h5>
-                {!isVerifyMode && isIssueEditing && !readOnly && (
-                <label className="issue-photo-upload">
-                  <span>Defect photos (max 3)</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    disabled={photoUrls.length >= PHOTO_LIMIT}
-                    onChange={(e) => onPhotoChange(categoryId, item.id, e.target.files)}
-                  />
-                </label>
-                )}
                 <div className={`issue-photo-wrapper issue-photo-wrapper--grid issue-photo-gallery${expandedPhotoGroups.before ? " issue-photo-gallery--expanded" : ""}`}>
                   {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
                     const photoUrl = photoUrls[index];
@@ -1223,6 +1218,16 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                           </button>
                         )}
                       </figure>
+                    ) : isIssueEditing && !isVerifyMode ? (
+                      <label key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-upload-box">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(event) => onPhotoChange(categoryId, item.id, event.target.files)}
+                        />
+                        <span>Upload Image</span>
+                      </label>
                     ) : (
                       <div key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`Defect photo slot ${index + 1}`} />
                     );
@@ -1237,6 +1242,16 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                     return photoUrl ? (
                       <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
                         <img className="issue-photo-preview" src={photoUrl} alt={`After-repair evidence ${index + 1}`} />
+                        {isIssueEditing && (
+                          <button
+                            type="button"
+                            className="photo-remove-btn issue-remove-btn"
+                            onClick={() => onRemoveFixPhoto(categoryId, item.id, index)}
+                            aria-label={`Remove after-repair photo ${index + 1}`}
+                          >
+                            &times;
+                          </button>
+                        )}
                         {index === COMPACT_PHOTO_LIMIT - 1 && hiddenAfterPhotoCount > 0 && !expandedPhotoGroups.after && (
                           <button
                             type="button"
@@ -1248,20 +1263,24 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                           </button>
                         )}
                       </figure>
+                    ) : isIssueEditing ? (
+                      <label key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-upload-box">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(event) => onFixPhotoChange(categoryId, item.id, event.target.files)}
+                        />
+                        <span>Upload Image</span>
+                      </label>
                     ) : (
                       <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`After-repair photo slot ${index + 1}`} />
                     );
                   })}
                 </div>
-                <p className="hint-text">After-repair evidence is added during Verify Closure.</p>
+                <p className="hint-text">After-repair evidence is required before changing the status to Closed.</p>
               </section>
             </div>
-            {isIssueEditing && !isVerifyMode && (
-              <div className="issue-update-actions">
-                <button type="button" className="secondary-button" onClick={onCancelIssueEdit}>Cancel</button>
-                <button type="button" className="primary-button" onClick={() => onSaveIssue(categoryId, item.id)}>Submit Issue Update</button>
-              </div>
-            )}
             <IssueHistoryTimeline history={item.issue?.history || []} />
           </div>
         </div>
@@ -1309,6 +1328,7 @@ const Inspections = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const categoryListRef = useRef(null);
+  const checklistCardRef = useRef(null);
   const [isChecklistVisible, setIsChecklistVisible] = useState(false);
   const isVerifyMode = location.pathname.includes("/verify");
 
@@ -1323,6 +1343,28 @@ const Inspections = () => {
 
     observer.observe(categoryList);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let animationFrame = null;
+    const updateFloatingControls = () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        const card = checklistCardRef.current;
+        if (!card) return;
+        const rect = card.getBoundingClientRect();
+        setIsChecklistVisible(rect.top <= 84 && rect.bottom >= 84);
+      });
+    };
+
+    updateFloatingControls();
+    window.addEventListener("scroll", updateFloatingControls, { passive: true });
+    window.addEventListener("resize", updateFloatingControls);
+    return () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("scroll", updateFloatingControls);
+      window.removeEventListener("resize", updateFloatingControls);
+    };
   }, []);
   const issueIdFromQuery = useMemo(
     () => new URLSearchParams(location.search).get("issueId") || "",
@@ -1867,6 +1909,38 @@ const Inspections = () => {
     );
   };
 
+  const jumpToCategory = (categoryId) => {
+    document.getElementById(`inspection-category-${sanitizeKeyPart(categoryId)}`)
+      ?.scrollIntoView({ behavior: "auto", block: "start" });
+  };
+
+  const handleFixPhotoChange = (categoryId, itemId, files) => {
+    const selectedFiles = Array.from(files || []);
+    if (!selectedFiles.length) return;
+
+    setChecklistForSelectedLevel((current) => current.map((category) =>
+      category.id !== categoryId
+        ? category
+        : {
+            ...category,
+            items: category.items.map((item) => {
+              if (item.id !== itemId) return item;
+              const existingFiles = item.fixPhotoFiles || [];
+              const remaining = Math.max(PHOTO_LIMIT - getFixPhotoUrls(item).length - existingFiles.length, 0);
+              const acceptedFiles = selectedFiles.slice(0, remaining);
+              return {
+                ...item,
+                fixPhotoFiles: [...existingFiles, ...acceptedFiles],
+                fixPhotoPreviews: [
+                  ...(item.fixPhotoPreviews || []),
+                  ...acceptedFiles.map((file) => URL.createObjectURL(file))
+                ]
+              };
+            })
+          }
+    ));
+  };
+
   const removePhoto = (categoryId, itemId, photoIndex = 0) => {
     if (isChecklistReviewMode) return;
 
@@ -2181,6 +2255,13 @@ const Inspections = () => {
 
       setInspectionSubmitting(true);
       const statusChanged = String(existingIssue.status || "") !== String(item.issue.status || "");
+      const isClosing = item.issue.status === ISSUE_STATUS.CLOSED;
+      const pendingFixPhotoFiles = item.fixPhotoFiles || [];
+      if (isClosing && getFixPhotoUrls(existingIssue).length === 0 && pendingFixPhotoFiles.length === 0) {
+        setInspectionSubmitError("Please upload after-repair evidence before closing this issue.");
+        setInspectionSubmitting(false);
+        return;
+      }
       const previouslySavedPhotoUrls = getDefectPhotoUrls(existingIssue);
       let defectPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
       let defectPhotoStoragePath = item.defectPhotoStoragePath || existingIssue.defectPhotoStoragePath || "";
@@ -2212,6 +2293,22 @@ const Inspections = () => {
         defectPhotoStoragePath = "";
         defectPhotoUploadedAt = null;
         defectPhotoUploadedBy = "";
+      }
+
+      let fixPhotoUrls = getFixPhotoUrls(existingIssue);
+      let fixPhotoStoragePath = existingIssue.fixPhotoStoragePath || "";
+      let fixPhotoUploadedAt = existingIssue.fixPhotoUploadedAt || null;
+      let fixPhotoUploadedBy = existingIssue.fixPhotoUploadedBy || "";
+      const uploadedFixPhotos = [];
+      for (const file of pendingFixPhotoFiles.slice(0, Math.max(PHOTO_LIMIT - fixPhotoUrls.length, 0))) {
+        const uploaded = await uploadFile(file, `closure-verifications/${issueKey}`);
+        if (uploaded?.url) uploadedFixPhotos.push(uploaded);
+      }
+      if (uploadedFixPhotos.length) {
+        fixPhotoUrls = uniqueValues([...fixPhotoUrls, ...uploadedFixPhotos.map((photo) => photo.url)]).slice(0, PHOTO_LIMIT);
+        fixPhotoStoragePath = uploadedFixPhotos[uploadedFixPhotos.length - 1].path || "";
+        fixPhotoUploadedAt = new Date();
+        fixPhotoUploadedBy = fsmId;
       }
 
       const removedPhotoCount = previouslySavedPhotoUrls.filter((url) => !defectPhotoUrls.includes(url)).length;
@@ -2248,6 +2345,11 @@ const Inspections = () => {
         defectPhotoStoragePath,
         defectPhotoUploadedAt,
         defectPhotoUploadedBy,
+        fixPhotoUrl: fixPhotoUrls[0] || "",
+        fixPhotoUrls,
+        fixPhotoStoragePath,
+        fixPhotoUploadedAt,
+        fixPhotoUploadedBy,
         history: appendHistory(existingIssue, [
           statusChanged ? createAuditEntry({
               status: item.issue.status || ISSUE_STATUS.OPEN,
@@ -2255,9 +2357,35 @@ const Inspections = () => {
               updatedBy: fsmId,
               eventType: "status_update"
             }) : null,
-          ...photoHistoryEntries
+          ...photoHistoryEntries,
+          uploadedFixPhotos.length ? createAuditEntry({
+            status: item.issue.status || existingIssue.status || ISSUE_STATUS.OPEN,
+            note: `${uploadedFixPhotos.length} after-repair photo(s) uploaded`,
+            updatedBy: fsmId,
+            eventType: "photos_uploaded"
+          }) : null
         ])
       };
+
+      if (isClosing && statusChanged) {
+        await addClosureVerification({
+          verificationId: `closure-${issueKey}-${Date.now()}`,
+          issueId: issueKey,
+          resultId: existingIssue.resultId || existingIssue.resultKey || "",
+          verifiedBy: fixPhotoUploadedBy || fsmId,
+          beforePhotoUrl: defectPhotoUrls[0] || "",
+          afterPhotoUrl: fixPhotoUrls[0] || "",
+          defectPhotoUrl: defectPhotoUrls[0] || "",
+          defectPhotoUrls,
+          fixPhotoUrl: fixPhotoUrls[0] || "",
+          fixPhotoUrls,
+          fixPhotoStoragePath,
+          fixPhotoUploadedAt,
+          fixPhotoUploadedBy,
+          verificationComments: item.issue.rectification || "Closed from inspection checklist",
+          approvalStatus: APPROVAL_STATUS.APPROVED
+        });
+      }
 
       await upsertIssue(updatedIssue);
       const resultDocumentId = existingIssue.resultKey || existingIssue.resultId;
@@ -2272,7 +2400,12 @@ const Inspections = () => {
           defectPhotoUrls: updatedIssue.defectPhotoUrls,
           defectPhotoStoragePath: updatedIssue.defectPhotoStoragePath,
           defectPhotoUploadedAt: updatedIssue.defectPhotoUploadedAt,
-          defectPhotoUploadedBy: updatedIssue.defectPhotoUploadedBy
+          defectPhotoUploadedBy: updatedIssue.defectPhotoUploadedBy,
+          fixPhotoUrl: updatedIssue.fixPhotoUrl,
+          fixPhotoUrls: updatedIssue.fixPhotoUrls,
+          fixPhotoStoragePath: updatedIssue.fixPhotoStoragePath,
+          fixPhotoUploadedAt: updatedIssue.fixPhotoUploadedAt,
+          fixPhotoUploadedBy: updatedIssue.fixPhotoUploadedBy
         });
       }
       if (isChecklistReviewMode) setVerificationIssue(updatedIssue);
@@ -2296,7 +2429,10 @@ const Inspections = () => {
                         photoFile: null,
                         photoFiles: [],
                         photoPreview: "",
-                        photoPreviews: []
+                        photoPreviews: [],
+                        fixPhotoUrls: updatedIssue.fixPhotoUrls,
+                        fixPhotoFiles: [],
+                        fixPhotoPreviews: []
                       }
                 )
               }
@@ -2312,11 +2448,39 @@ const Inspections = () => {
     }
   };
 
-  const openChecklistIssueVerification = async (categoryId, item) => {
-    const issueKey = buildRecordKey(inspectionKey, categoryId, item.id);
-    await saveChecklistItem(categoryId, item.id);
-    navigate(`/fsm/inspections/verify?issueId=${encodeURIComponent(issueKey)}`);
+  const removeFixPhoto = (categoryId, itemId, photoIndex = 0) => {
+    setChecklistForSelectedLevel((current) => current.map((category) =>
+      category.id !== categoryId
+        ? category
+        : {
+            ...category,
+            items: category.items.map((item) => {
+              if (item.id !== itemId) return item;
+              const savedPhotoUrls = getFixPhotoUrls(item);
+              if (photoIndex < savedPhotoUrls.length) {
+                const retainedPhotoUrls = savedPhotoUrls.filter((_, index) => index !== photoIndex);
+                return {
+                  ...item,
+                  fixPhotoUrl: retainedPhotoUrls[0] || "",
+                  fixPhotoUrls: retainedPhotoUrls,
+                  fixPhotoStoragePath: retainedPhotoUrls.length ? item.fixPhotoStoragePath || "" : "",
+                  fixPhotoUploadedAt: retainedPhotoUrls.length ? item.fixPhotoUploadedAt || null : null,
+                  fixPhotoUploadedBy: retainedPhotoUrls.length ? item.fixPhotoUploadedBy || "" : ""
+                };
+              }
+
+              const pendingIndex = photoIndex - savedPhotoUrls.length;
+              return {
+                ...item,
+                fixPhotoFiles: (item.fixPhotoFiles || []).filter((_, index) => index !== pendingIndex),
+                fixPhotoPreviews: (item.fixPhotoPreviews || []).filter((_, index) => index !== pendingIndex)
+              };
+            })
+          }
+    ));
   };
+
+  void saveIssueFromChecklist;
 
   const resolveVerificationIssue = async () => {
     if (!verificationIssue || inspectionSubmitting) return;
@@ -2462,6 +2626,26 @@ const Inspections = () => {
       return;
     }
 
+    const closingWithoutEvidence = checklist
+      .flatMap((category) => category.items.map((item) => ({ category, item })))
+      .find(({ item }) =>
+        item.condition === "Faulty" &&
+        item.issue?.status === ISSUE_STATUS.CLOSED &&
+        getFixPhotoUrls(item).length === 0 &&
+        (item.fixPhotoFiles || []).length === 0
+      );
+    if (status === "Submitted" && closingWithoutEvidence) {
+      setInspectionSubmitError("Please upload at least one after-repair image before closing an issue.");
+      setChecklistForSelectedLevel((current) => current.map((category) => ({
+        ...category,
+        expanded: category.id === closingWithoutEvidence.category.id ? true : category.expanded,
+        items: category.items.map((item) =>
+          item.id === closingWithoutEvidence.item.id ? { ...item, expanded: true } : item
+        )
+      })));
+      return;
+    }
+
     if (status === "Submitted") {
       if (!window.confirm("Submit this inspection checklist? This will save the inspection results and defect evidence.")) {
         return;
@@ -2531,6 +2715,29 @@ const Inspections = () => {
             });
           }
 
+          let fixPhotoUrls = getFixPhotoUrls(item);
+          let fixPhotoStoragePath = item.fixPhotoStoragePath || "";
+          let fixPhotoUploadedAt = item.fixPhotoUploadedAt || null;
+          let fixPhotoUploadedBy = item.fixPhotoUploadedBy || "";
+          const selectedFixPhotoFiles = (item.fixPhotoFiles || [])
+            .slice(0, Math.max(PHOTO_LIMIT - fixPhotoUrls.length, 0));
+          const uploadedFixPhotos = [];
+          if (selectedFixPhotoFiles.length > 0 && isFaultyItem) {
+            for (const file of selectedFixPhotoFiles) {
+              const uploaded = await uploadFile(file, `closure-verifications/${issueKey}`);
+              if (uploaded?.url) uploadedFixPhotos.push(uploaded);
+            }
+            if (uploadedFixPhotos.length) {
+              fixPhotoUrls = uniqueValues([
+                ...fixPhotoUrls,
+                ...uploadedFixPhotos.map((photo) => photo.url)
+              ]).slice(0, PHOTO_LIMIT);
+              fixPhotoStoragePath = uploadedFixPhotos[uploadedFixPhotos.length - 1].path || "";
+              fixPhotoUploadedAt = new Date();
+              fixPhotoUploadedBy = fsmId;
+            }
+          }
+
           const defectPhotoUrl = photoUrl;
 
           const result = await upsertInspectionResult({
@@ -2559,6 +2766,11 @@ const Inspections = () => {
             defectPhotoStoragePath,
             defectPhotoUploadedAt,
             defectPhotoUploadedBy,
+            fixPhotoUrl: fixPhotoUrls[0] || "",
+            fixPhotoUrls,
+            fixPhotoStoragePath,
+            fixPhotoUploadedAt,
+            fixPhotoUploadedBy,
             issueDescription: item.issue?.description || "",
             rectification: item.issue?.rectification || "",
             priority: item.issue?.priority || "",
@@ -2609,6 +2821,36 @@ const Inspections = () => {
                 eventType: "photos_uploaded"
               }));
             }
+            if (uploadedFixPhotos.length > 0) {
+              historyEntries.push(createAuditEntry({
+                status: item.issue?.status || ISSUE_STATUS.OPEN,
+                note: `${uploadedFixPhotos.length} after-repair photo(s) uploaded`,
+                updatedBy: fsmId,
+                eventType: "photos_uploaded"
+              }));
+            }
+            const isNewClosure =
+              item.issue?.status === ISSUE_STATUS.CLOSED &&
+              String(existingIssue?.status || "") !== ISSUE_STATUS.CLOSED;
+            if (isNewClosure) {
+              await addClosureVerification({
+                verificationId: `closure-${issueKey}-${Date.now()}`,
+                issueId: issueKey,
+                resultId: result.id || resultKey,
+                verifiedBy: fixPhotoUploadedBy || fsmId,
+                beforePhotoUrl: defectPhotoUrl,
+                afterPhotoUrl: fixPhotoUrls[0] || "",
+                defectPhotoUrl,
+                defectPhotoUrls,
+                fixPhotoUrl: fixPhotoUrls[0] || "",
+                fixPhotoUrls,
+                fixPhotoStoragePath,
+                fixPhotoUploadedAt,
+                fixPhotoUploadedBy,
+                verificationComments: item.issue?.rectification || "Closed from inspection checklist",
+                approvalStatus: APPROVAL_STATUS.APPROVED
+              });
+            }
             await upsertIssue({
               issueKey,
               issueId: issueKey,
@@ -2638,11 +2880,11 @@ const Inspections = () => {
               defectPhotoStoragePath,
               defectPhotoUploadedAt,
               defectPhotoUploadedBy,
-              fixPhotoUrl: verificationIssue?.fixPhotoUrl || "",
-              fixPhotoUrls: getFixPhotoUrls(verificationIssue),
-              fixPhotoStoragePath: verificationIssue?.fixPhotoStoragePath || "",
-              fixPhotoUploadedAt: verificationIssue?.fixPhotoUploadedAt || null,
-              fixPhotoUploadedBy: verificationIssue?.fixPhotoUploadedBy || "",
+              fixPhotoUrl: fixPhotoUrls[0] || "",
+              fixPhotoUrls,
+              fixPhotoStoragePath,
+              fixPhotoUploadedAt,
+              fixPhotoUploadedBy,
               aiRecommendation: "",
               ...(historyEntries.length ? { history: appendHistory(existingIssue, historyEntries) } : {})
             });
@@ -2678,6 +2920,8 @@ const Inspections = () => {
           ? "Inspection checklist submitted and monthly report record created successfully."
           : "Inspection checklist saved successfully."
       );
+      setEditingIssueRowKey("");
+      setIssueEditSnapshot(null);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`${status} inspection failed`, err);
@@ -2700,6 +2944,13 @@ const Inspections = () => {
 
   return (
     <main className="inspection-page">
+      <nav className="page-breadcrumb" aria-label="Breadcrumb">
+        <span aria-current="page">Inspections</span>
+        <span aria-hidden="true">/</span>
+        <button type="button" onClick={() => navigate("/fsm/issues")}>Issue Tickets</button>
+        <span aria-hidden="true">/</span>
+        <button type="button" onClick={() => navigate("/fsm/inspections/verify")}>Verify Closure</button>
+      </nav>
       <section className="page-header">
         <div>
           <h1>{isVerifyMode ? "Verify Issue Resolution" : "Monthly inspection report"}</h1>
@@ -2788,16 +3039,6 @@ const Inspections = () => {
               )}
             </section>
           )}
-          {inspectionSubmitError && (
-            <div className="error-state" style={{ marginBottom: "18px" }}>
-              {inspectionSubmitError}
-            </div>
-          )}
-          {inspectionSubmitSuccess && (
-            <div className="success-state" style={{ marginBottom: "18px" }}>
-              {inspectionSubmitSuccess}
-            </div>
-          )}
           <InspectionOverview
             completedCount={completedCount}
             totalRows={totalRows}
@@ -2819,7 +3060,7 @@ const Inspections = () => {
             resolvedCount={issueCounts.resolved}
           />
 
-          <section className={`inspection-card checklist-card${isChecklistVisible ? " checklist-card--active" : ""}`}>
+          <section ref={checklistCardRef} className={`inspection-card checklist-card${isChecklistVisible ? " checklist-card--active" : ""}`}>
             <div className="card-title-row">
               <div>
                 <p className="overline">Checklist</p>
@@ -2829,6 +3070,7 @@ const Inspections = () => {
             </div>
             {!isVerifyMode && !isChecklistReviewMode && (
               <div className="checklist-floating-submit" role="complementary" aria-label="Inspection submit action">
+                <div className="checklist-submit-action">
                 <span>{completedCount} / {totalRows} completed</span>
                 <button
                   type="button"
@@ -2838,11 +3080,39 @@ const Inspections = () => {
                 >
                   {inspectionSubmitting ? "Submitting..." : "Submit Inspection"}
                 </button>
+                </div>
               </div>
             )}
             <div ref={categoryListRef} className="category-list">
+              <nav
+                className="checklist-section-navigator checklist-section-navigator--active"
+                aria-label="Checklist sections"
+              >
+                {checklist.map((category, index) => {
+                  const answeredCount = category.items.filter((item) => validConditionValues.has(item.condition)).length;
+                  const faultyCount = category.items.filter((item) => item.condition === "Faulty").length;
+                  const completionState = answeredCount === category.items.length
+                    ? "complete"
+                    : answeredCount > 0
+                      ? "partial"
+                      : "incomplete";
+                  const sectionLabel = String(category.title || "").match(/^([A-Z])\./)?.[1] || String(index + 1);
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={`checklist-section-dot checklist-section-dot--${completionState}${faultyCount > 0 ? " checklist-section-dot--fault" : ""}`}
+                      onClick={() => jumpToCategory(category.id)}
+                      title={`${category.title}: ${answeredCount} of ${category.items.length} completed${faultyCount > 0 ? `, ${faultyCount} faulty` : ""}`}
+                      aria-label={`Go to ${category.title}, ${completionState}, ${answeredCount} of ${category.items.length} completed${faultyCount > 0 ? `, ${faultyCount} faulty` : ""}`}
+                    >
+                      {sectionLabel}
+                    </button>
+                  );
+                })}
+              </nav>
               {checklist.map((category) => (
-                <div className="category-card" key={category.id}>
+                <div className="category-card" id={`inspection-category-${sanitizeKeyPart(category.id)}`} key={category.id}>
                   <button
                     type="button"
                     className="category-header"
@@ -2853,9 +3123,17 @@ const Inspections = () => {
                       <p className="category-title">{category.title}</p>
                       <p className="category-description">{category.description}</p>
                     </div>
-                    <span className="category-count">
-                      {category.items.filter((item) => item.condition).length} / {category.items.length}
-                    </span>
+                    <div className="category-header-status">
+                      {category.items.some((item) => item.condition === "Faulty") && (
+                        <span className="category-fault-indicator">
+                          <span aria-hidden="true">!</span>
+                          {category.items.filter((item) => item.condition === "Faulty").length} faulty
+                        </span>
+                      )}
+                      <span className="category-count">
+                        {category.items.filter((item) => item.condition).length} / {category.items.length}
+                      </span>
+                    </div>
                   </button>
                   {category.expanded && (
                     <div className="category-body">
@@ -2913,13 +3191,13 @@ const Inspections = () => {
                             isIssueEditing={editingIssueRowKey === `${category.id}:${item.id}`}
                             onUpdate={updateChecklistItem}
                             onPhotoChange={handlePhotoChange}
+                            onFixPhotoChange={handleFixPhotoChange}
                             onIssueUpdate={handleIssueUpdate}
                             onToggle={toggleRow}
                             onRemovePhoto={removePhoto}
-                            onVerifyClosure={openChecklistIssueVerification}
+                            onRemoveFixPhoto={removeFixPhoto}
                             onStartIssueEdit={startIssueEdit}
                             onCancelIssueEdit={cancelIssueEdit}
-                            onSaveIssue={saveIssueFromChecklist}
                           />
                         ))
                       )}
@@ -2971,6 +3249,25 @@ const Inspections = () => {
           </section>
         </div>
       </div>
+      {(inspectionSubmitError || inspectionSubmitSuccess) && (
+        <div className="issue-ticket-modal-backdrop" role="presentation">
+          <div className="issue-ticket-modal" role="alertdialog" aria-modal="true" aria-labelledby="inspection-notification-title">
+            <h2 id="inspection-notification-title">
+              {inspectionSubmitError ? "Unable to submit" : "Submitted successfully"}
+            </h2>
+            <p>{inspectionSubmitError || inspectionSubmitSuccess}</p>
+            <div className="issue-ticket-modal-actions">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => { setInspectionSubmitError(""); setInspectionSubmitSuccess(""); }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

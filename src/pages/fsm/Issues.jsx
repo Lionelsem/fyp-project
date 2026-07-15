@@ -64,7 +64,6 @@ const issueTicketStatuses = [
 ];
 
 const verifyClosureStatuses = [
-  ISSUE_STATUS.RESOLVED,
   ISSUE_STATUS.CLOSED
 ];
 
@@ -225,7 +224,6 @@ const IssueHistoryTimeline = ({ issue }) => {
     const secondTime = toDate(second.updatedAt)?.getTime() || 0;
     return secondTime - firstTime;
   });
-
   return (
     <div className="issue-history-panel">
       <div className="card-header-row">
@@ -582,12 +580,12 @@ const VerifyClosePanel = ({
   </section>
 );
 
-const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onViewChecklist }) => (
+const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onViewChecklist, historyOnly = false }) => (
   <aside className="dashboard-card issue-ticket-detail">
     <div className="card-header-row">
       <div>
         <p className="overline">Issue Detail</p>
-        <h2 className="section-title">{issue.issueTitle || "Untitled issue"}</h2>
+        <h2 id={historyOnly ? "closed-issue-title" : undefined} className="section-title">{issue.issueTitle || "Untitled issue"}</h2>
       </div>
       <span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span>
     </div>
@@ -642,7 +640,7 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onV
       />
     </div>
     <IssueHistoryTimeline issue={issue} />
-    <div className="issue-ticket-actions">
+    {!historyOnly && <div className="issue-ticket-actions">
       <button
         type="button"
         className="secondary-button issue-icon-action"
@@ -667,7 +665,7 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onV
       <button type="button" className="danger-button" onClick={() => onDelete(issue)}>
         Delete
       </button>
-    </div>
+    </div>}
   </aside>
 );
 
@@ -742,13 +740,13 @@ const Issues = ({ verifyClosureMode = false }) => {
   const activeIssue =
     visibleIssues.find((issue) => getIssueKey(issue) === issueIdFromQuery || issue.issueId === issueIdFromQuery) ||
     visibleIssues.find((issue) => issue.id === activeIssueId) ||
-    visibleIssues[0] ||
+    (verifyClosureMode ? null : visibleIssues[0]) ||
     null;
 
   useEffect(() => {
     if (!verifyClosureMode || !activeIssue) return;
     setVerificationForm(createVerificationFormFromIssue(activeIssue));
-    setActiveForm("review");
+    setActiveForm(null);
   }, [activeIssue, verifyClosureMode]);
 
   const handleFilterChange = (field, value) => {
@@ -1089,6 +1087,8 @@ const Issues = ({ verifyClosureMode = false }) => {
     }
   };
 
+  // Retained for compatibility with older deep links while closure editing now lives in Inspections.
+  // eslint-disable-next-line no-unused-vars
   const handleCloseReviewedIssue = async (event) => {
     event.preventDefault();
     if (!activeIssue || saving) return;
@@ -1223,19 +1223,29 @@ const Issues = ({ verifyClosureMode = false }) => {
     }
   };
 
+  void handleCloseReviewedIssue;
+
   return (
     <div className="dashboard-container issue-ticket-page">
       {error && <div className="error-state">{error}</div>}
       {loading && <div className="loading-state">Loading issue tickets...</div>}
-      {formError && <div className="error-state">{formError}</div>}
-      {formSuccess && <div className="success-state">{formSuccess}</div>}
+
+      {verifyClosureMode && (
+        <nav className="page-breadcrumb" aria-label="Breadcrumb">
+          <button type="button" onClick={() => navigate("/fsm/inspections")}>Inspections</button>
+          <span aria-hidden="true">/</span>
+          <button type="button" onClick={() => navigate("/fsm/issues")}>Issue Tickets</button>
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">Verify Closure</span>
+        </nav>
+      )}
 
       <div className="issue-ticket-header">
         <div>
           <h1>{verifyClosureMode ? "Verify Closure" : "Issue Management"}</h1>
           <p>
             {verifyClosureMode
-              ? "Review resolved issue tickets before final closure."
+              ? "View the history and evidence for issues closed from the inspection checklist."
               : "Create, manage, verify, and close fire safety issue tickets."}
           </p>
         </div>
@@ -1246,8 +1256,8 @@ const Issues = ({ verifyClosureMode = false }) => {
         )}
       </div>
 
-      <div className="issue-ticket-layout">
-        {activeForm === "create" || activeForm === "edit" ? (
+      <div className={`issue-ticket-layout${verifyClosureMode ? " issue-ticket-layout--history" : ""}`}>
+        {!verifyClosureMode && (activeForm === "create" || activeForm === "edit" ? (
           <IssueForm
             buildings={buildings}
             form={issueForm}
@@ -1266,26 +1276,6 @@ const Issues = ({ verifyClosureMode = false }) => {
             onCancel={closePanels}
             onSubmit={handleVerifyClose}
           />
-        ) : verifyClosureMode && activeIssue && normalizeText(activeIssue.status) !== normalizeText(ISSUE_STATUS.CLOSED) ? (
-          <VerifyClosePanel
-            issue={activeIssue}
-            form={verificationForm}
-            saving={saving}
-            mode="close"
-            onChange={handleVerificationChange}
-            onCancel={closePanels}
-            onSubmit={handleCloseReviewedIssue}
-          />
-        ) : verifyClosureMode && activeIssue ? (
-          <IssueDetail
-            issue={activeIssue}
-            buildingName={activeIssue.buildingName}
-            onEdit={openEditForm}
-            onDelete={setDeleteTarget}
-            onVerifyClose={openVerifyClose}
-            onViewChecklist={openChecklistItem}
-            saving={saving}
-          />
         ) : activeIssue ? (
           <IssueDetail
             issue={activeIssue}
@@ -1302,11 +1292,11 @@ const Issues = ({ verifyClosureMode = false }) => {
             <h2 className="section-title">No issue selected</h2>
             <p className="hint-text">Select an issue from the list or create a new ticket.</p>
           </aside>
-        )}
+        ))}
 
         <section className="dashboard-card issue-ticket-list-card">
           <div className="card-header-row">
-            <h2 className="section-title">{verifyClosureMode ? "Resolved Tickets Ready for Review" : "Fire Safety Issue Tickets"}</h2>
+            <h2 className="section-title">{verifyClosureMode ? "Closed Issue History" : "Fire Safety Issue Tickets"}</h2>
             <span className="hint-text">{visibleIssues.length} shown</span>
           </div>
 
@@ -1342,7 +1332,7 @@ const Issues = ({ verifyClosureMode = false }) => {
             label="Issue tickets"
             className="issue-ticket-table-wrapper"
           >
-            <table className="dashboard-table issue-ticket-table">
+            <table className={`dashboard-table issue-ticket-table${verifyClosureMode ? " issue-ticket-table--history" : ""}`}>
               <thead>
                 <tr>
                   <th>Level / Location</th>
@@ -1351,6 +1341,7 @@ const Issues = ({ verifyClosureMode = false }) => {
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Updated</th>
+                  {verifyClosureMode && <th aria-label="Actions">View</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1362,7 +1353,7 @@ const Issues = ({ verifyClosureMode = false }) => {
                     <tr
                       key={issue.id}
                       className={activeIssue?.id === issue.id ? "issue-ticket-row-active" : ""}
-                      onClick={() => setActiveIssueId(issue.id)}
+                      onClick={() => { if (!verifyClosureMode) setActiveIssueId(issue.id); }}
                     >
                       <td title={locationLabel}>{locationLabel}</td>
                       <td title={issue.issueTitle || ""}>{issue.issueTitle || "-"}</td>
@@ -1370,6 +1361,19 @@ const Issues = ({ verifyClosureMode = false }) => {
                       <td><span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span></td>
                       <td><span className={priorityClassName(issue.priority)}>{issue.priority || PRIORITY.MEDIUM}</span></td>
                       <td title={issueUpdatedAt}>{issueUpdatedAt}</td>
+                      {verifyClosureMode && (
+                        <td>
+                          <button
+                            type="button"
+                            className="issue-overview-action issue-overview-action--view"
+                            onClick={(event) => { event.stopPropagation(); setActiveIssueId(issue.id); }}
+                            aria-label={`View closed issue ${issue.issueTitle || issue.issueId || "details"}`}
+                            title="View closed issue"
+                          >
+                            <span aria-hidden="true">{"\uD83D\uDC41"}</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -1384,6 +1388,23 @@ const Issues = ({ verifyClosureMode = false }) => {
         </section>
       </div>
 
+      {verifyClosureMode && activeIssue && (
+        <div className="issue-ticket-modal-backdrop" role="presentation" onMouseDown={() => setActiveIssueId("")}>
+          <div className="closed-issue-history-modal" role="dialog" aria-modal="true" aria-labelledby="closed-issue-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button type="button" className="modal-close-button" onClick={() => setActiveIssueId("")} aria-label="Close issue history">&times;</button>
+            <IssueDetail
+              issue={activeIssue}
+              buildingName={activeIssue.buildingName}
+              onEdit={openEditForm}
+              onDelete={setDeleteTarget}
+              onVerifyClose={openVerifyClose}
+              onViewChecklist={openChecklistItem}
+              historyOnly
+            />
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
         <DeleteModal
           issue={deleteTarget}
@@ -1391,6 +1412,17 @@ const Issues = ({ verifyClosureMode = false }) => {
           onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDeleteIssue}
         />
+      )}
+      {(formError || formSuccess) && (
+        <div className="issue-ticket-modal-backdrop" role="presentation">
+          <div className="issue-ticket-modal" role="alertdialog" aria-modal="true" aria-labelledby="issue-notification-title">
+            <h2 id="issue-notification-title">{formError ? "Unable to submit" : "Submitted successfully"}</h2>
+            <p>{formError || formSuccess}</p>
+            <div className="issue-ticket-modal-actions">
+              <button type="button" className="primary-button" onClick={() => { setFormError(""); setFormSuccess(""); }}>OK</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

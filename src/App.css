@@ -971,8 +971,10 @@ button {
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  margin: 0 0 16px;
-  padding: 10px 12px;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 16px auto;
+  padding: 6px 8px;
   border: 1px solid #d1d5db;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.95);
@@ -988,10 +990,30 @@ button {
 }
 
 .checklist-floating-submit .primary-button {
-  min-height: 36px;
-  padding: 8px 14px;
+  min-height: 32px;
+  padding: 6px 11px;
   border-radius: 10px;
   font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .inspection-page .checklist-card--active .checklist-floating-submit {
+    left: auto;
+    width: max-content;
+    max-width: calc(100vw - 28px);
+    padding: 6px;
+  }
+
+  .inspection-page .checklist-card--active .checklist-floating-submit span {
+    display: none;
+  }
+
+  .inspection-page .checklist-card--active .checklist-floating-submit .primary-button {
+    width: auto;
+    min-width: 0;
+    min-height: 32px;
+    padding: 6px 10px;
+  }
 }
 
 .page-header {
@@ -1418,6 +1440,7 @@ button {
   border: 1px solid #d1d5db;
   border-radius: 20px;
   overflow: hidden;
+  scroll-margin-top: 88px;
 }
 
 .category-header {
@@ -1448,6 +1471,125 @@ button {
 .category-count {
   color: #0f172a;
   font-weight: 700;
+}
+
+.category-header-status {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.checklist-section-navigator {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 285;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  overflow-x: auto;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(12px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+  backdrop-filter: blur(8px);
+  scrollbar-width: none;
+}
+
+.checklist-section-navigator--active {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.checklist-card--active .category-list {
+  padding-bottom: 64px;
+}
+
+.checklist-section-navigator::-webkit-scrollbar {
+  display: none;
+}
+
+.checklist-section-dot {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.checklist-section-dot:hover,
+.checklist-section-dot:focus-visible {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.12);
+  outline: none;
+}
+
+.checklist-section-dot--complete { background: #16a34a; }
+.checklist-section-dot--partial { background: #eab308; }
+.checklist-section-dot--incomplete { background: #dc2626; }
+
+.checklist-section-dot--fault::after {
+  content: "!";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #b91c1c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.category-fault-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.category-fault-indicator > span {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #ffffff;
+  line-height: 1;
 }
 
 .category-body {
@@ -1641,6 +1783,19 @@ button {
   min-width: 0;
 }
 
+.issue-fields-row > label {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  align-content: stretch;
+}
+
+.issue-fields-row > label select {
+  width: 100%;
+  min-height: 52px;
+  margin: 0;
+}
+
 .issue-status-field {
   display: grid;
   gap: 8px;
@@ -1659,6 +1814,39 @@ button {
 
 .issue-photo-upload input {
   margin-top: 8px;
+}
+
+.inspection-photo-upload-box {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  cursor: pointer;
+  text-align: center;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inspection-photo-upload-box input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.inspection-photo-upload-box span {
+  position: relative;
+  z-index: 1;
+  max-width: 90px;
+  margin-top: 48px;
+}
+
+.inspection-photo-upload-box:hover,
+.inspection-photo-upload-box:focus-within {
+  border-color: #10b981;
+  background: #ecfdf5;
 }
 
 .fault-proof-row {
@@ -3232,6 +3420,53 @@ button {
   cursor: pointer;
 }
 
+.issue-ticket-table--history th:nth-child(1),
+.issue-ticket-table--history td:nth-child(1) { width: 15%; }
+
+.issue-ticket-table--history th:nth-child(2),
+.issue-ticket-table--history td:nth-child(2) { width: 22%; }
+
+.issue-ticket-table--history th:nth-child(3),
+.issue-ticket-table--history td:nth-child(3) { width: 20%; }
+
+.issue-ticket-table--history th:nth-child(4),
+.issue-ticket-table--history td:nth-child(4),
+.issue-ticket-table--history th:nth-child(5),
+.issue-ticket-table--history td:nth-child(5) { width: 12%; }
+
+.issue-ticket-table--history th:nth-child(6),
+.issue-ticket-table--history td:nth-child(6) { width: 13%; }
+
+.issue-ticket-table--history th:nth-child(7),
+.issue-ticket-table--history td:nth-child(7) {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  width: 6%;
+  min-width: 64px;
+  overflow: visible;
+  text-align: center;
+  background: #ffffff;
+  box-shadow: -8px 0 12px -12px rgba(15, 23, 42, 0.45);
+}
+
+.issue-ticket-table--history thead th:nth-child(7) {
+  z-index: 2;
+  background: #ffffff;
+}
+
+.issue-ticket-table--history tbody tr:hover td:nth-child(7),
+.issue-ticket-table--history tbody tr.issue-ticket-row-active td:nth-child(7) {
+  background: #ecfdf5;
+}
+
+.issue-ticket-table--history td:nth-child(7) .issue-overview-action {
+  display: inline-grid;
+  flex: none;
+  min-width: 34px;
+  margin: 0 auto;
+}
+
 .issue-ticket-row-active {
   background: #ecfdf5;
 }
@@ -3523,6 +3758,81 @@ button {
 .issue-ticket-modal p {
   color: #64748b;
   line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .category-header-status {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .issue-history-panel--compact .card-header-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 900px) {
+  .checklist-section-dot {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+}
+
+.issue-ticket-layout--history {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.closed-issue-history-modal {
+  position: relative;
+  width: min(900px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.closed-issue-history-modal > .modal-close-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+}
+
+.closed-issue-history-modal .issue-ticket-detail {
+  border: 0;
+  box-shadow: none;
+}
+
+.issue-ticket-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.page-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.page-breadcrumb button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #047857;
+  font: inherit;
+  cursor: pointer;
+}
+
+.page-breadcrumb button:hover {
+  text-decoration: underline;
 }
 
 .compliance-chart {
@@ -4299,7 +4609,7 @@ button {
 }
 
 @media (max-width: 640px) {
-  .checklist-floating-submit {
+.checklist-floating-submit {
     justify-content: space-between;
     align-items: stretch;
   }
@@ -4510,7 +4820,7 @@ button {
 
 .fsm-card-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   margin-top: auto;
   padding-top: 7px;
 }
@@ -6115,11 +6425,7 @@ select.responsive-control {
 /* Keep issue evidence compact whenever the card itself has mobile-sized space. */
 @media (max-width: 900px) {
   .issue-panel .issue-photo-gallery {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .issue-panel .issue-photo-gallery:not(.issue-photo-gallery--expanded) > :nth-child(n + 3) {
-    display: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .issue-panel .issue-photo-gallery .issue-photo-preview {
@@ -6139,11 +6445,7 @@ select.responsive-control {
 
 @container issue-panel (max-width: 48rem) {
   .issue-panel .issue-photo-gallery {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .issue-panel .issue-photo-gallery:not(.issue-photo-gallery--expanded) > :nth-child(n + 3) {
-    display: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .issue-panel .issue-photo-gallery .issue-photo-preview {
@@ -6244,9 +6546,9 @@ select.responsive-control {
     right: auto;
     bottom: auto;
     z-index: 100;
-    width: 100%;
-    max-width: 100%;
-    margin: 0 0 16px;
+    width: max-content;
+    max-width: calc(100vw - 28px);
+    margin: 0 0 16px auto;
     flex-direction: row;
     align-items: center;
     justify-content: flex-end;
@@ -6269,12 +6571,12 @@ select.responsive-control {
 
 @media (max-width: 430px) {
   .inspection-page .checklist-floating-submit {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
   }
 
   .inspection-page .checklist-floating-submit .primary-button {
-    width: 100%;
+    width: auto;
   }
 }
 
@@ -6290,16 +6592,32 @@ select.responsive-control {
     position: fixed;
     top: max(12px, env(safe-area-inset-top));
     right: max(14px, env(safe-area-inset-right));
-    left: max(14px, env(safe-area-inset-left));
+    left: auto;
     z-index: 290;
-    width: auto;
-    max-width: none;
+    width: max-content;
+    max-width: calc(100vw - 28px);
     margin: 0;
   }
 
   .inspection-page .checklist-card--active .checklist-floating-submit + .category-list {
-    padding-top: 92px;
+    padding-top: 64px;
   }
+
+  .inspection-page .checklist-card--active .checklist-floating-submit span {
+    display: none;
+  }
+
+  .inspection-page .checklist-card--active .checklist-floating-submit .primary-button {
+    width: auto;
+    min-width: 0;
+  }
+}
+
+.checklist-submit-action {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Keep Admin building and assignment tables contained on desktop. */
