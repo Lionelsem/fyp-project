@@ -164,7 +164,6 @@ const FireDrillReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <div className="eyebrow">Customer Fire Drill Report</div>
           <h1 style={{ margin: "0 0 8px", fontSize: "30px" }}>Fire Drill Reports</h1>
           <p className="page-subtitle">
             Review drill schedules, outcomes, response times, and follow-up actions for your facility.

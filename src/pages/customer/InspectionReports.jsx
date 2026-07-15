@@ -125,7 +125,6 @@ const InspectionReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <div className="eyebrow">Customer Inspection Report</div>
           <h1 style={{ margin: "0 0 8px", fontSize: "30px" }}>Inspection Reports</h1>
           <p className="page-subtitle">
             Review monthly safety inspections, findings, and corrective actions for your building.

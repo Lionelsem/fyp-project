@@ -164,7 +164,6 @@ const AnnualReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <div className="eyebrow">Customer Annual Report</div>
           <h1 style={{ margin: "0 0 8px", fontSize: "30px" }}>Annual Reports</h1>
           <p className="page-subtitle">
             Review your building’s yearly compliance summary, inspection outcomes, and key fire safety highlights in one place.
