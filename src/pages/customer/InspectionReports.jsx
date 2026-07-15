@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useAuthContext } from "../../context/AuthContext";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const mockReports = [
   {
@@ -40,18 +40,6 @@ const mockReports = [
   }
 ];
 
-const getFindingsBadgeStyle = (count) => {
-  if (count === 0) {
-    return { color: "#047857", backgroundColor: "#ecfdf5" };
-  }
-  return { color: "#b91c1c", backgroundColor: "#fee2e2" };
-};
-
-const getFindingsLabel = (count) => {
-  if (count === 0) return "All Clear";
-  return `${count} ${count === 1 ? "Defect" : "Defects"}`;
-};
-
 const parseReportYear = (dateString) => {
   return parseInt(dateString?.split(",")[1]?.trim() || "", 10);
 };
@@ -66,7 +54,6 @@ const InspectionReports = () => {
   const [yearFilter, setYearFilter] = useState("");
   const [reports, setReports] = useState(mockReports);
   const [loading] = useState(false);
-  const [error] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
   const [remarksSavedMessage, setRemarksSavedMessage] = useState("");
@@ -93,6 +80,8 @@ const InspectionReports = () => {
   useEffect(() => {
     setRemarks(latestReport?.customerComments || "");
     setRemarksSavedMessage("");
+    // Comments are edited by this form; resync only when the selected report changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestReport?.id]);
 
   const years = useMemo(() => {
@@ -202,7 +191,7 @@ const InspectionReports = () => {
             </div>
 
             <div style={{ display: "grid", gap: "14px", padding: "8px 0 4px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" }}>
+              <div className="responsive-info-grid">
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
                   <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Report ID</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.reportId || "—"}</strong>
@@ -230,8 +219,8 @@ const InspectionReports = () => {
                   placeholder="Add comments or feedback for this inspection report..."
                   style={{ minHeight: "140px" }}
                 />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", gap: "12px" }}>
-                  <small style={{ color: "#64748b" }}>
+                <div className="responsive-form-actions">
+                  <small className="overflow-safe" style={{ color: "#64748b" }}>
                     This note is saved to the selected inspection report in the current session.
                   </small>
                   <button
@@ -239,7 +228,6 @@ const InspectionReports = () => {
                     className="primary-btn"
                     onClick={handleSaveRemarks}
                     disabled={isSavingRemarks || !latestReport?.id}
-                    style={{ minWidth: "140px" }}
                   >
                     {isSavingRemarks ? "Saving..." : "Save Feedback"}
                   </button>
@@ -272,7 +260,7 @@ const InspectionReports = () => {
                 </div>
               </div>
               <div className="issues-actions">
-                <select className="form-input" value={yearFilter} onChange={(event) => setYearFilter(event.target.value)} style={{ minWidth: "180px" }}>
+                <select className="form-input responsive-control" value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}>
                   <option value="">All Years</option>
                   {years.map((year) => (
                     <option key={year} value={year}>
@@ -288,8 +276,11 @@ const InspectionReports = () => {
             ) : filteredReports.length === 0 ? (
               <div style={{ color: "#64748b", padding: "12px 0" }}>No inspection records found.</div>
             ) : (
-              <div className="fire-drill-history-table-wrapper">
-                <table className="dashboard-table">
+              <ResponsiveTableRegion
+                label="Inspection history"
+                className="fire-drill-history-table-wrapper responsive-table-region--cards"
+              >
+                <table className="dashboard-table responsive-card-table">
                   <thead>
                     <tr>
                       <th>REPORT</th>
@@ -301,13 +292,13 @@ const InspectionReports = () => {
                   <tbody>
                     {filteredReports.map((report) => (
                       <tr key={report.id}>
-                        <td>
+                        <td data-label="Report">
                           <div className="id-cell">{report.reportId}</div>
                           <div style={{ color: "#64748b", fontSize: "12px" }}>{report.fsmInCharge}</div>
                         </td>
-                        <td>{report.inspectionMonth}</td>
-                        <td>{report.inspectionDate}</td>
-                        <td>
+                        <td data-label="Month">{report.inspectionMonth}</td>
+                        <td data-label="Date">{report.inspectionDate}</td>
+                        <td data-label="Status">
                           <span className="status-badge" style={{ color: "#047857", backgroundColor: "#ecfdf5" }}>
                             {report.status}
                           </span>
@@ -316,7 +307,7 @@ const InspectionReports = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ResponsiveTableRegion>
             )}
           </div>
         </div>

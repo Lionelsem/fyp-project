@@ -354,9 +354,18 @@ const FSMDashboard = () => {
     <div className="dashboard-container fsm-dashboard-page" aria-busy={loading}>
       {error && <div className="fsm-dashboard-alert" role="alert">{error}</div>}
 
-      <div className="summary-grid" aria-label="Issue summary">
+      <div
+        className="summary-grid compact-summary-grid"
+        role="list"
+        aria-label="FSM issue summary"
+      >
         {summaryCards.map((card) => (
-          <div key={card.label} className="summary-card">
+          <div
+            key={card.label}
+            className="summary-card"
+            role="listitem"
+            aria-label={`${card.label}: ${card.value}`}
+          >
             <div className="card-top">
               <div
                 className="card-icon"

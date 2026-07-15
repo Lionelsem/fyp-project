@@ -147,11 +147,24 @@ const AdminDashboard = () => {
   return (
     <div className="dashboard-container admin-dashboard-page role-dashboard-page">
       {/* Summary cards */}
-      <div className="summary-grid">
+      <div
+        className="summary-grid compact-summary-grid"
+        role="list"
+        aria-label="Admin status summary"
+      >
         {summaryCards.map((card) => (
-          <div key={card.label} className="summary-card">
+          <div
+            key={card.label}
+            className="summary-card"
+            role="listitem"
+            aria-label={`${card.label}: ${card.value}`}
+          >
             <div className="card-top">
-              <div className="card-icon" style={{ backgroundColor: card.iconBg, color: card.iconColor }}>
+              <div
+                className="card-icon"
+                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
+                aria-hidden="true"
+              >
                 {card.icon}
               </div>
               <div className="card-label">{card.label}</div>

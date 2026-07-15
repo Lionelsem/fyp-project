@@ -110,11 +110,6 @@ const IssueProgress = () => {
     setCurrentPage(1);
   };
 
-  const clearStatusFilter = () => {
-    setStatusFilter("");
-    setCurrentPage(1);
-  };
-
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedIssues = filteredIssues.slice(startIndex, startIndex + itemsPerPage);
@@ -167,20 +162,12 @@ const IssueProgress = () => {
             </div>
           </div>
           <div className="issues-actions">
-            <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "#6b7280" }}>
+            <label className="form-field responsive-filter-field">
               <span>Filter</span>
               <select
+                className="form-input responsive-control"
                 value={statusFilter}
                 onChange={handleStatusChange}
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  padding: "9px 12px",
-                  minWidth: "150px",
-                  backgroundColor: "#ffffff",
-                  color: "#374151",
-                  fontSize: "13px"
-                }}
               >
                 {statusOptions.map((option) => (
                   <option key={option.value || "all"} value={option.value}>
@@ -196,9 +183,9 @@ const IssueProgress = () => {
       <div className="dashboard-card">
         <ResponsiveTableRegion
           label="Issue progress"
-          className="fire-drill-history-table-wrapper"
+          className="fire-drill-history-table-wrapper responsive-table-region--cards"
         >
-          <table className="dashboard-table">
+          <table className="dashboard-table responsive-card-table">
             <thead>
               <tr>
                 <th>LOCATION</th>
@@ -225,29 +212,19 @@ const IssueProgress = () => {
               ) : (
                 paginatedIssues.map((issue) => (
                   <tr key={issue.id}>
-                    <td>{issue.location}</td>
-                    <td>{issue.finding}</td>
-                    <td>{issue.proposedRectification}</td>
-                    <td>
+                    <td data-label="Location">{issue.location}</td>
+                    <td data-label="Finding">{issue.finding}</td>
+                    <td data-label="Rectification">{issue.proposedRectification}</td>
+                    <td data-label="Status">
                       <span className="status-badge" style={getStatusStyle(issue.status)}>
                         {issue.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: "13px", color: "#6b7280" }}>{issue.lastUpdated}</td>
-                    <td>
+                    <td data-label="Last updated" style={{ fontSize: "13px", color: "#6b7280" }}>{issue.lastUpdated}</td>
+                    <td data-label="Action">
                       <button
                         type="button"
-                        style={{
-                          border: "none",
-                          background: "none",
-                          color: "#6b7280",
-                          cursor: "pointer",
-                          fontSize: "13px",
-                          padding: "4px 8px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}
+                        className="table-action-button"
                         title="View"
                       >
                         👁️ View

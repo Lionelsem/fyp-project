@@ -5142,6 +5142,102 @@ button {
 }
 
 /* Shared responsive layout system */
+.page-layout {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.portal-page-layout {
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.page-layout--standalone {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.centered-page-state {
+  display: grid;
+  min-height: 100%;
+  place-content: center;
+  gap: 8px;
+  padding: clamp(24px, 6vw, 48px);
+  text-align: center;
+}
+
+.centered-page-state h2,
+.centered-page-state p {
+  margin: 0;
+}
+
+.responsive-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.responsive-form-actions,
+.compact-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.responsive-form-actions {
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.responsive-form-actions > :last-child {
+  flex: 0 0 auto;
+  min-width: 140px;
+}
+
+.compact-row-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.responsive-filter-field {
+  gap: 4px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.table-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.table-action-button:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.table-action-button:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.3);
+  outline-offset: 2px;
+}
+
+.overflow-safe {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 html,
 body,
 #root,
@@ -5572,7 +5668,7 @@ select.responsive-control {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 767px) {
   .login-page {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -6074,7 +6170,7 @@ select.responsive-control {
 
 /* Make Inspections match the contained, single-column mobile Dashboard layout. */
 @media (max-width: 1120px) {
-  .fsm-main-content > .inspection-page {
+  .fsm-main-content > .portal-page-layout > .inspection-page {
     width: 100%;
     max-width: 100%;
     margin: 0;
@@ -6509,7 +6605,7 @@ select.responsive-control {
   -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 767px) {
   .portal-shell .portal-shell__body {
     display: block;
     height: 100%;
@@ -6526,7 +6622,7 @@ select.responsive-control {
   }
 
   .portal-shell .main-content {
-    padding: 14px;
+    padding: 16px;
   }
 
   .portal-shell .dashboard-container,
@@ -6559,5 +6655,104 @@ select.responsive-control {
     width: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .responsive-info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .responsive-form-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .responsive-form-actions > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .compact-row-actions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 374px) {
+  .portal-shell .main-content {
+    padding: 12px;
+  }
+
+  .admin-navbar {
+    max-width: calc(100% - 12px);
+    margin: 6px 6px 0;
+  }
+}
+
+/* Compact dashboard summaries keep the most useful status data above the fold. */
+@media (max-width: 767px) {
+  .portal-shell .compact-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .portal-shell .compact-summary-grid > .summary-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    justify-items: center;
+    align-content: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 112px;
+    padding: 10px 6px;
+    border-radius: 14px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+
+  .portal-shell .compact-summary-grid > .summary-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    width: calc((100% - 8px) / 2);
+    justify-self: center;
+  }
+
+  .portal-shell .compact-summary-grid .card-top {
+    display: contents;
+  }
+
+  .portal-shell .compact-summary-grid .card-icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
+  .portal-shell .compact-summary-grid .card-value {
+    grid-column: 1;
+    grid-row: 2;
+    max-width: 100%;
+    font-size: clamp(21px, 6vw, 26px);
+    line-height: 1;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-shell .compact-summary-grid .card-label {
+    grid-column: 1;
+    grid-row: 3;
+    max-width: 100%;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-shell .compact-summary-grid .card-trend {
+    display: none;
   }
 }

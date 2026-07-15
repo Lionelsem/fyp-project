@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getAllReports, updateReport } from "../../services/reportService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
-import { useAuthContext } from "../../context/AuthContext";
 
 const fallbackReports = [
   {
@@ -129,6 +128,8 @@ const AnnualReports = () => {
   useEffect(() => {
     setRemarks(latestReport.customerComments || "");
     setRemarksSavedMessage("");
+    // Comments are edited by this form; resync only when the selected report changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestReport.id]);
 
   const totalReports = reports.length;
@@ -281,8 +282,8 @@ const AnnualReports = () => {
                   placeholder="Add comments or feedback for this annual report..."
                   style={{ minHeight: "140px" }}
                 />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", gap: "12px" }}>
-                  <small style={{ color: "#64748b" }}>
+                <div className="responsive-form-actions">
+                  <small className="overflow-safe" style={{ color: "#64748b" }}>
                     This feedback is saved to the selected annual report.
                   </small>
                   <button
@@ -290,7 +291,6 @@ const AnnualReports = () => {
                     className="primary-btn"
                     onClick={handleSaveRemarks}
                     disabled={isSavingRemarks || !latestReport?.id}
-                    style={{ minWidth: "140px" }}
                   >
                     {isSavingRemarks ? "Saving..." : "Save Feedback"}
                   </button>

@@ -47,7 +47,9 @@ test("opens and closes the navigation drawer with accessible state", async () =>
 
   const menuButton = screen.getByRole("button", { name: /open navigation menu/i });
   const drawer = document.querySelector(".portal-sidebar-drawer");
+  const pageLayout = document.querySelector(".portal-page-layout");
 
+  expect(pageLayout).toContainElement(screen.getByTestId("location"));
   expect(menuButton).toHaveAttribute("aria-expanded", "false");
   expect(menuButton).toHaveAttribute("aria-controls", drawer.id);
 

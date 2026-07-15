@@ -125,6 +125,8 @@ const FireDrillReports = () => {
   useEffect(() => {
     setDrillComment(latestDrill.customerComments || "");
     setDrillCommentMessage("");
+    // Comments are edited by this form; resync only when the selected drill changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestDrill.id]);
 
   const completedCount = drills.filter((drill) => String(drill.status || "").toLowerCase() === "completed").length;
@@ -280,8 +282,8 @@ const FireDrillReports = () => {
                   placeholder="Add comments or feedback for this fire drill report..."
                   style={{ minHeight: "140px" }}
                 />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", gap: "12px" }}>
-                  <small style={{ color: "#64748b" }}>
+                <div className="responsive-form-actions">
+                  <small className="overflow-safe" style={{ color: "#64748b" }}>
                     This feedback is saved to the current drill record.
                   </small>
                   <button
@@ -289,7 +291,6 @@ const FireDrillReports = () => {
                     className="primary-btn"
                     onClick={handleSaveDrillComment}
                     disabled={isSavingDrillComment || !latestDrill?.id}
-                    style={{ minWidth: "140px" }}
                   >
                     {isSavingDrillComment ? "Saving..." : "Save Feedback"}
                   </button>

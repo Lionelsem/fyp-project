@@ -44,8 +44,8 @@ const ManageUsers = () => {
       </div>
 
       <div className="dashboard-card">
-        <ResponsiveTableRegion label="Users">
-          <table className="dashboard-table" style={{ width: "100%" }}>
+        <ResponsiveTableRegion label="Users" className="responsive-table-region--cards">
+          <table className="dashboard-table responsive-card-table">
           <thead>
             <tr>
               <th>NAME</th>
@@ -59,26 +59,26 @@ const ManageUsers = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
+                <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                   Loading users...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
+                <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                   No users found.
                 </td>
               </tr>
             ) : (
               users.map((user) => (
                 <tr key={user.uid}>
-                  <td>{user.fullName || "-"}</td>
-                  <td>{user.role || "-"}</td>
-                  <td>{user.assignedBuilding || "-"}</td>
-                  <td>{user.email || "-"}</td>
-                  <td>{user.status || "Active"}</td>
-                  <td>
-                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <td data-label="Name">{user.fullName || "-"}</td>
+                  <td data-label="Role">{user.role || "-"}</td>
+                  <td data-label="Assigned building">{user.assignedBuilding || "-"}</td>
+                  <td data-label="Email">{user.email || "-"}</td>
+                  <td data-label="Status">{user.status || "Active"}</td>
+                  <td data-label="Action">
+                    <div className="compact-row-actions">
                       <button
                         type="button"
                         className="secondary-btn action-icon-btn"

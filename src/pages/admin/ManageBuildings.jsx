@@ -160,7 +160,7 @@ const ManageBuildings = () => {
                     </span>
                   </td>
                   <td data-label="Action">
-                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                    <div className="compact-row-actions">
                       <button
                         type="button"
                         className="secondary-btn action-icon-btn"

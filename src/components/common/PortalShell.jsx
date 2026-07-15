@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import PageLayout from "./PageLayout";
 
 const focusableSelector = [
   "a[href]",
@@ -106,7 +107,7 @@ const PortalShell = ({
       return undefined;
     }
 
-    const mobileQuery = window.matchMedia("(max-width: 900px)");
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
     const handleViewportChange = (event) => {
       if (!event.matches) {
         closeMenu();
@@ -174,7 +175,9 @@ const PortalShell = ({
             menuControlsId={drawerId}
             onMenuToggle={toggleMenu}
           />
-          <main className={mainContentClasses}>{children}</main>
+          <main className={mainContentClasses}>
+            <PageLayout className="portal-page-layout">{children}</PageLayout>
+          </main>
         </div>
       </div>
     </div>

@@ -11,25 +11,34 @@ import AdminRoutes from './routes/AdminRoutes';
 import CustomerRoutes from './routes/CustomerRoutes';
 import FSMRoutes from './routes/FSMRoutes';
 import { ROLES } from './constants/roles';
+import PageLayout from './components/common/PageLayout';
+
+const StandalonePage = ({ children }) => (
+  <PageLayout className="page-layout--standalone">{children}</PageLayout>
+);
 
 function AppContent() {
   const { user, loading } = useAuthContext();
   const location = useLocation();
 
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: '20px' }}>Loading authentication...</div>;
+    return (
+      <StandalonePage>
+        <div className="centered-page-state" role="status">Loading authentication...</div>
+      </StandalonePage>
+    );
   }
 
   if (location.pathname === ROUTES.ADMIN_CONTACT) {
-    return <AdminContact />;
+    return <StandalonePage><AdminContact /></StandalonePage>;
   }
 
   // If not logged in, show login or register based on URL
   if (!user) {
     if (location.pathname === ROUTES.REGISTER) {
-      return <Register />;
+      return <StandalonePage><Register /></StandalonePage>;
     }
-    return <Login />;
+    return <StandalonePage><Login /></StandalonePage>;
   }
 
   const roleRoutes = {
@@ -39,7 +48,13 @@ function AppContent() {
   };
 
   if (!roleRoutes[user.role]) {
-    return <div style={{ textAlign: 'center', padding: '20px' }}>Invalid role. Please contact administrator.</div>;
+    return (
+      <StandalonePage>
+        <div className="centered-page-state" role="alert">
+          Invalid role. Please contact administrator.
+        </div>
+      </StandalonePage>
+    );
   }
 
   return roleRoutes[user.role];
