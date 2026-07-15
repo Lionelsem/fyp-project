@@ -71,6 +71,64 @@ const getStatusStyle = (status) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
+const escapePdfText = (value) => {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+};
+
+const buildFireDrillPdf = (drill) => {
+  const title = "Latest Fire Drill Report";
+  const lines = [
+    title,
+    "",
+    `Drill ID: ${drill?.id || "—"}`,
+    `Drill Type: ${drill?.drillType || "—"}`,
+    `Building: ${drill?.buildingName || "—"}`,
+    `Drill Date: ${formatDate(drill?.actualDate || drill?.drillDate)}`,
+    `Status: ${drill?.status || "Pending"}`,
+    `Performance Status: ${drill?.performanceStatus || "—"}`,
+    `Evacuation Time: ${drill?.totalEvacuationTime || "—"}`,
+    `Observations: ${drill?.observations || "No observations recorded."}`,
+    `Recommendations: ${drill?.recommendations || "No recommendations recorded."}`,
+    `Customer Feedback: ${drill?.customerComments || "No feedback added."}`,
+  ];
+
+  const contentStream = lines
+    .map((line, index) => {
+      const y = 760 - index * 14;
+      return `BT /F1 11 Tf 50 ${y} Td (${escapePdfText(line)}) Tj ET`;
+    })
+    .join("\n");
+
+  const contentStreamLength = contentStream.length;
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+    `4 0 obj\n<< /Length ${contentStreamLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`,
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object) => {
+    offsets.push(pdf.length);
+    pdf += object;
+  });
+
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+  pdf += `startxref\n${xrefStart}\n%%EOF\n`;
+  return pdf;
+};
+
 const FireDrillReports = () => {
   const [drills, setDrills] = useState([]);
   const [search, setSearch] = useState("");
@@ -121,6 +179,7 @@ const FireDrillReports = () => {
   const [drillComment, setDrillComment] = useState(latestDrill.customerComments || "");
   const [isSavingDrillComment, setIsSavingDrillComment] = useState(false);
   const [drillCommentMessage, setDrillCommentMessage] = useState("");
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     setDrillComment(latestDrill.customerComments || "");
@@ -162,6 +221,32 @@ const FireDrillReports = () => {
     }
   };
 
+  const handleDownloadLatestDrillPdf = () => {
+    if (!latestDrill) {
+      alert("No fire drill report is selected.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      const pdf = buildFireDrillPdf(latestDrill);
+      const blob = new Blob([pdf], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${latestDrill.id || "fire-drill-report"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export fire drill report to PDF", error);
+      alert("Unable to download the fire drill report PDF right now.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
@@ -175,26 +260,10 @@ const FireDrillReports = () => {
           <button
             type="button"
             className="primary-btn"
-            onClick={() => {
-              const url = latestDrill?.reportFileUrl || latestDrill?.reportUrl || null;
-              if (!url) {
-                alert("No downloadable report file is available for the latest drill.");
-                return;
-              }
-              try {
-                const a = document.createElement("a");
-                a.href = url;
-                a.target = "_blank";
-                a.download = (latestDrill?.id || "drill-report") + ".pdf";
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-              } catch (err) {
-                window.open(url, "_blank");
-              }
-            }}
+            onClick={handleDownloadLatestDrillPdf}
+            disabled={isDownloadingPdf}
           >
-            Download Latest Drill Report
+            {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Drill Report"}
           </button>
         </div>
       </div>

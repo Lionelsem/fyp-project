@@ -4,7 +4,8 @@ import { ROLES } from "../constants/roles";
 import { getAllBuildings } from "../services/buildingService";
 import { getUserProfile } from "../services/userService";
 
-const getDisplayName = (profile) =>
+const getDisplayName = (profile, overrideDisplayName) =>
+  overrideDisplayName ||
   profile?.fullName ||
   profile?.displayName ||
   profile?.userId ||
@@ -126,7 +127,7 @@ const notificationSettings = [
   ["systemAnnouncements", "System announcements", "Receive platform maintenance and policy notices."]
 ];
 
-const Profile = () => {
+const Profile = ({ overrideDisplayName, overrideRoleLabel }) => {
   const { user } = useAuthContext();
   const [profile, setProfile] = useState(user);
   const [activeSection, setActiveSection] = useState("profile");
@@ -200,12 +201,17 @@ const Profile = () => {
     };
   }, []);
 
-  const displayName = useMemo(() => getDisplayName(profile), [profile]);
+  const displayName = useMemo(() => {
+    const profileName = getDisplayName(profile);
+    if (overrideDisplayName) return overrideDisplayName;
+    if (profile?.role === ROLES.CUSTOMER && !profileName) return "John Lee";
+    return profileName;
+  }, [profile, overrideDisplayName]);
   const initials = useMemo(
     () => getInitials(displayName, profile?.email),
     [displayName, profile?.email]
   );
-  const roleLabel = getRoleLabel(profile?.role);
+  const roleLabel = overrideRoleLabel || getRoleLabel(profile?.role);
   const phoneNumber =
     profile?.phoneNumber ||
     profile?.phone ||

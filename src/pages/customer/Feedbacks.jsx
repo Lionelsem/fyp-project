@@ -69,35 +69,85 @@ const Feedbacks = () => {
 
   const [replyText, setReplyText] = useState("");
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [showEditReplyModal, setShowEditReplyModal] = useState(false);
+  const [editingReply, setEditingReply] = useState(null);
+  const [editedReplyText, setEditedReplyText] = useState("");
+
+  const updateThreadReplies = (threadId, updater) => {
+    setMessages((prevMessages) => {
+      const nextMessages = prevMessages.map((message) => {
+        if (message.id === threadId) {
+          const nextReplies = updater(message.replies);
+          return { ...message, replies: nextReplies };
+        }
+        return message;
+      });
+
+      const updatedThread = nextMessages.find((message) => message.id === threadId);
+      if (selectedMessage?.id === threadId) {
+        setSelectedMessage((currentMessage) =>
+          currentMessage?.id === threadId
+            ? { ...currentMessage, replies: updatedThread?.replies ?? [] }
+            : currentMessage
+        );
+      }
+
+      return nextMessages;
+    });
+  };
 
   const handleSendReply = () => {
     if (replyText.trim() && selectedMessage) {
-      const updatedMessages = messages.map((msg) => {
-        if (msg.id === selectedMessage.id) {
-          return {
-            ...msg,
-            replies: [
-              ...msg.replies,
-              {
-                id: msg.replies.length + 1,
-                sender: "You",
-                role: "Customer",
-                time: new Date().toLocaleString(),
-                message: replyText,
-                isOwn: true,
-              },
-            ],
-          };
-        }
-        return msg;
-      });
-      setMessages(updatedMessages);
-      setSelectedMessage({
-        ...selectedMessage,
-        replies: updatedMessages.find((m) => m.id === selectedMessage.id).replies,
-      });
+      updateThreadReplies(selectedMessage.id, (replies) => [
+        ...replies,
+        {
+          id: replies.length + 1,
+          sender: "You",
+          role: "Customer",
+          time: new Date().toLocaleString(),
+          message: replyText,
+          isOwn: true,
+        },
+      ]);
       setReplyText("");
     }
+  };
+
+  const handleEditReply = (reply) => {
+    setEditingReply(reply);
+    setEditedReplyText(reply.message);
+    setShowEditReplyModal(true);
+  };
+
+  const handleSaveEditedReply = () => {
+    if (!selectedMessage || !editingReply || !editedReplyText.trim()) {
+      return;
+    }
+
+    updateThreadReplies(selectedMessage.id, (replies) =>
+      replies.map((reply) =>
+        reply.id === editingReply.id ? { ...reply, message: editedReplyText.trim() } : reply
+      )
+    );
+
+    setShowEditReplyModal(false);
+    setEditingReply(null);
+    setEditedReplyText("");
+  };
+
+  const handleDeleteReply = (replyId) => {
+    if (!selectedMessage) {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this message?");
+    if (!confirmed) {
+      return;
+    }
+
+    updateThreadReplies(selectedMessage.id, (replies) =>
+      replies.filter((reply) => reply.id !== replyId)
+    );
   };
 
   return (
@@ -171,8 +221,30 @@ const Feedbacks = () => {
                   >
                     <div className={styles.messageContent}>
                       <div className={styles.senderInfo}>
-                        <strong>{reply.sender}</strong>
-                        <span className={styles.time}>{reply.time}</span>
+                        <div className={styles.senderIdentity}>
+                          <strong>{reply.sender}</strong>
+                          <span className={styles.time}>{reply.time}</span>
+                        </div>
+                        {reply.isOwn && (
+                          <div className={styles.messageActions}>
+                            <button
+                              type="button"
+                              className={styles.messageActionButton}
+                              onClick={() => handleEditReply(reply)}
+                              aria-label={`Edit message from ${reply.sender}`}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.messageActionButton}
+                              onClick={() => handleDeleteReply(reply.id)}
+                              aria-label={`Delete message from ${reply.sender}`}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <p className={styles.messageText}>{reply.message}</p>
                     </div>
@@ -253,6 +325,51 @@ const Feedbacks = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </Modal>
+      )}
+
+      {showEditReplyModal && editingReply && (
+        <Modal
+          title="Edit Message"
+          onClose={() => {
+            setShowEditReplyModal(false);
+            setEditingReply(null);
+            setEditedReplyText("");
+          }}
+          bodyClassName={styles.feedbackModalBody}
+        >
+          <div className={styles.modalContent}>
+            <div className={styles.formGroup}>
+              <label htmlFor="edit-reply-text">Message</label>
+              <textarea
+                id="edit-reply-text"
+                value={editedReplyText}
+                onChange={(event) => setEditedReplyText(event.target.value)}
+                placeholder="Enter your message..."
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditReplyModal(false);
+                  setEditingReply(null);
+                  setEditedReplyText("");
+                }}
+                className={styles.cancelButton}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.submitButton}
+                onClick={handleSaveEditedReply}
+                disabled={!editedReplyText.trim()}
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </Modal>
       )}

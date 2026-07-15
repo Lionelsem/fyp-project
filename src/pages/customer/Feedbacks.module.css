@@ -220,9 +220,16 @@
 .senderInfo {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 6px;
   font-size: 12px;
+}
+
+.senderIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .otherMessage .senderInfo {
@@ -249,6 +256,37 @@
 .time {
   font-size: 11px;
   opacity: 0.7;
+}
+
+.messageActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.messageActionButton {
+  border: 0;
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.messageActionButton:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.otherMessage .messageActionButton {
+  color: #1ba098;
+}
+
+.otherMessage .messageActionButton:hover {
+  background-color: rgba(27, 160, 152, 0.08);
 }
 
 .messageText {

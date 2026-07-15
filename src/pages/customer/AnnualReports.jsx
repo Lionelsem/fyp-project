@@ -65,6 +65,61 @@ const getStatusStyle = (status) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
+const escapePdfText = (value) => {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+};
+
+const buildAnnualReportPdf = (report) => {
+  const title = "Latest Annual Report";
+  const lines = [
+    title,
+    "",
+    `Report ID: ${report?.reportId || "—"}`,
+    `Report Title: ${report?.reportTitle || "—"}`,
+    `Period: ${report?.period || "—"}`,
+    `Generated Date: ${formatDate(report?.generatedDate)}`,
+    `Status: ${report?.status || "Pending"}`,
+    `Priority: ${report?.priority || "—"}`,
+    `Customer Feedback: ${report?.customerComments || "No feedback added."}`,
+  ];
+
+  const contentStream = lines
+    .map((line, index) => {
+      const y = 760 - index * 14;
+      return `BT /F1 11 Tf 50 ${y} Td (${escapePdfText(line)}) Tj ET`;
+    })
+    .join("\n");
+
+  const contentStreamLength = contentStream.length;
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+    `4 0 obj\n<< /Length ${contentStreamLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`,
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object) => {
+    offsets.push(pdf.length);
+    pdf += object;
+  });
+
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+  pdf += `startxref\n${xrefStart}\n%%EOF\n`;
+  return pdf;
+};
+
 const AnnualReports = () => {
   const [reports, setReports] = useState([]);
   const [search, setSearch] = useState("");
@@ -124,6 +179,7 @@ const AnnualReports = () => {
   const [remarks, setRemarks] = useState(latestReport.customerComments || "");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
   const [remarksSavedMessage, setRemarksSavedMessage] = useState("");
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     setRemarks(latestReport.customerComments || "");
@@ -161,6 +217,32 @@ const AnnualReports = () => {
     }
   };
 
+  const handleDownloadLatestAnnualPdf = () => {
+    if (!latestReport) {
+      alert("No annual report is selected.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      const pdf = buildAnnualReportPdf(latestReport);
+      const blob = new Blob([pdf], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${latestReport.reportId || "annual-report"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export annual report to PDF", error);
+      alert("Unable to download the annual report PDF right now.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
@@ -174,29 +256,10 @@ const AnnualReports = () => {
           <button
             type="button"
             className="primary-btn"
-            onClick={() => {
-              const url = latestReport?.reportFileUrl || latestReport?.reportUrl || null;
-              if (!url) {
-                alert("No downloadable report file is available for the latest report.");
-                return;
-              }
-              // create a temporary anchor to download or open file
-              try {
-                const a = document.createElement("a");
-                a.href = url;
-                a.target = "_blank";
-                // attempt to set a filename when same-origin
-                const filename = (latestReport?.reportId || "report") + ".pdf";
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-              } catch (err) {
-                window.open(url, "_blank");
-              }
-            }}
+            onClick={handleDownloadLatestAnnualPdf}
+            disabled={isDownloadingPdf}
           >
-            Download Latest Report
+            {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Report"}
           </button>
         </div>
       </div>

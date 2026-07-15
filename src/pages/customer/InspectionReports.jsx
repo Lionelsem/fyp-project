@@ -49,6 +49,63 @@ const formatInspectionMonth = (monthString) => {
   return String(monthString).replace(/\s+\d{4}$/, "");
 };
 
+const escapePdfText = (value) => {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+};
+
+const buildInspectionOverviewPdf = (report) => {
+  const title = "Latest Inspection Overview";
+  const lines = [
+    title,
+    "",
+    `Report ID: ${report?.reportId || "—"}`,
+    `Inspection Month: ${formatInspectionMonth(report?.inspectionMonth) || "—"}`,
+    `Inspection Date: ${report?.inspectionDate || "—"}`,
+    `FSM In-Charge: ${report?.fsmInCharge || "—"}`,
+    `Status: ${report?.status || "Pending"}`,
+    `Total Findings: ${report?.totalFindings ?? "—"}`,
+    `Summary: ${report?.summary || "No summary available."}`,
+    `Customer Feedback: ${report?.customerComments || "No feedback added."}`,
+  ];
+
+  const contentStream = lines
+    .map((line, index) => {
+      const y = 760 - index * 14;
+      return `BT /F1 11 Tf 50 ${y} Td (${escapePdfText(line)}) Tj ET`;
+    })
+    .join("\n");
+
+  const contentStreamLength = contentStream.length;
+
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+    `4 0 obj\n<< /Length ${contentStreamLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`,
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object) => {
+    offsets.push(pdf.length);
+    pdf += object;
+  });
+
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+  pdf += `startxref\n${xrefStart}\n%%EOF\n`;
+  return pdf;
+};
+
 const InspectionReports = () => {
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -57,6 +114,7 @@ const InspectionReports = () => {
   const [remarks, setRemarks] = useState("");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
   const [remarksSavedMessage, setRemarksSavedMessage] = useState("");
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const filteredReports = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -110,6 +168,33 @@ const InspectionReports = () => {
     }, 300);
   };
 
+  const handleDownloadLatestInspectionPdf = () => {
+    if (!latestReport) {
+      alert("No inspection report is selected.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+
+    try {
+      const pdf = buildInspectionOverviewPdf(latestReport);
+      const blob = new Blob([pdf], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${latestReport.reportId || "inspection-overview"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export inspection overview to PDF", error);
+      alert("Unable to download the inspection overview PDF right now.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
@@ -123,15 +208,10 @@ const InspectionReports = () => {
           <button
             type="button"
             className="primary-btn"
-            onClick={() => {
-              if (!latestReport) {
-                alert("No inspection report is selected.");
-                return;
-              }
-              alert("Download not available for mock inspection data.");
-            }}
+            onClick={handleDownloadLatestInspectionPdf}
+            disabled={isDownloadingPdf}
           >
-            Download Latest Report
+            {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Report"}
           </button>
         </div>
       </div>

@@ -27,7 +27,7 @@ const CustomerSidebar = ({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({ Reports: true });
 
-  const displayName = profile?.name || "Customer";
+  const displayName = profile?.name || "John Lee";
   const roleLabel = profile?.role || "Customer";
   const initials =
     profile?.initials ||
