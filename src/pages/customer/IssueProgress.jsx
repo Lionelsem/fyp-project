@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { ISSUE_STATUS } from "../../constants/status";
 
 const mockIssues = [
   {
@@ -66,6 +67,14 @@ const getStatusStyle = (status) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
+const statusOptions = [
+  { label: "All Statuses", value: "" },
+  { label: ISSUE_STATUS.OPEN, value: ISSUE_STATUS.OPEN },
+  { label: ISSUE_STATUS.IN_PROGRESS, value: ISSUE_STATUS.IN_PROGRESS },
+  { label: ISSUE_STATUS.CLOSED, value: ISSUE_STATUS.CLOSED },
+  { label: ISSUE_STATUS.RESOLVED, value: ISSUE_STATUS.RESOLVED }
+];
+
 const IssueProgress = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -95,6 +104,16 @@ const IssueProgress = () => {
       return matchesSearch && matchesStatus;
     });
   }, [issues, search, statusFilter]);
+
+  const handleStatusChange = (event) => {
+    setStatusFilter(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const clearStatusFilter = () => {
+    setStatusFilter("");
+    setCurrentPage(1);
+  };
 
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -140,19 +159,36 @@ const IssueProgress = () => {
                 className="search-input"
                 placeholder="Search issues..."
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </div>
           <div className="issues-actions">
-            <button
-              type="button"
-              className="primary-button"
-              style={{ padding: "10px 16px", fontSize: "13px" }}
-              onClick={() => setStatusFilter("")}
-            >
-              🔽 Filter
-            </button>
+            <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "#6b7280" }}>
+              <span>Filter</span>
+              <select
+                value={statusFilter}
+                onChange={handleStatusChange}
+                style={{
+                  border: "1px solid #d1d5db",
+                  borderRadius: "8px",
+                  padding: "9px 12px",
+                  minWidth: "150px",
+                  backgroundColor: "#ffffff",
+                  color: "#374151",
+                  fontSize: "13px"
+                }}
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value || "all"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
       </div>

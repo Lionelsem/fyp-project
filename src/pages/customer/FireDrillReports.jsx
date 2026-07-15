@@ -192,7 +192,7 @@ const FireDrillReports = () => {
               }
             }}
           >
-            Download Report
+            Download Latest Drill Report
           </button>
         </div>
       </div>

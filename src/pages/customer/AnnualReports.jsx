@@ -166,7 +166,7 @@ const AnnualReports = () => {
         <div>
           <h1 style={{ margin: "0 0 8px", fontSize: "30px" }}>Annual Reports</h1>
           <p className="page-subtitle">
-            Review your building’s yearly compliance summary, inspection outcomes, and key fire safety highlights in one place.
+            Review your building's yearly compliance summary, inspection outcomes, and key fire safety highlights in one place.
           </p>
         </div>
         <div className="header-actions">
