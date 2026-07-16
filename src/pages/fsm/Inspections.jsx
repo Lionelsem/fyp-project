@@ -1333,37 +1333,36 @@ const Inspections = () => {
   const isVerifyMode = location.pathname.includes("/verify");
 
   useEffect(() => {
-    const categoryList = categoryListRef.current;
-    if (!categoryList || typeof IntersectionObserver === "undefined") return undefined;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsChecklistVisible(entry.isIntersecting),
-      { threshold: 0 }
-    );
-
-    observer.observe(categoryList);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
     let animationFrame = null;
+    const card = checklistCardRef.current;
+    const scrollContainer = card?.closest(".fsm-main-content");
+
+    if (!card) return undefined;
+
     const updateFloatingControls = () => {
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
       animationFrame = window.requestAnimationFrame(() => {
-        const card = checklistCardRef.current;
-        if (!card) return;
-        const rect = card.getBoundingClientRect();
-        setIsChecklistVisible(rect.top <= 84 && rect.bottom >= 84);
+        const cardRect = card.getBoundingClientRect();
+        const viewportTop = scrollContainer?.getBoundingClientRect().top || 0;
+        const activationLine = viewportTop + 84;
+        setIsChecklistVisible(cardRect.top <= activationLine && cardRect.bottom >= activationLine);
       });
     };
 
     updateFloatingControls();
-    window.addEventListener("scroll", updateFloatingControls, { passive: true });
+    const scrollTarget = scrollContainer || window;
+    scrollTarget.addEventListener("scroll", updateFloatingControls, { passive: true });
     window.addEventListener("resize", updateFloatingControls);
+    const resizeObserver = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(updateFloatingControls);
+    resizeObserver?.observe(card);
+
     return () => {
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("scroll", updateFloatingControls);
+      scrollTarget.removeEventListener("scroll", updateFloatingControls);
       window.removeEventListener("resize", updateFloatingControls);
+      resizeObserver?.disconnect();
     };
   }, []);
   const issueIdFromQuery = useMemo(
@@ -1910,8 +1909,19 @@ const Inspections = () => {
   };
 
   const jumpToCategory = (categoryId) => {
-    document.getElementById(`inspection-category-${sanitizeKeyPart(categoryId)}`)
-      ?.scrollIntoView({ behavior: "auto", block: "start" });
+    const target = document.getElementById(`inspection-category-${sanitizeKeyPart(categoryId)}`);
+    const scrollContainer = target?.closest(".fsm-main-content");
+    if (!target || !scrollContainer) return;
+
+    const targetRect = target.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const scrollMarginTop = Number.parseFloat(window.getComputedStyle(target).scrollMarginTop) || 0;
+    const targetScrollTop = scrollContainer.scrollTop + targetRect.top - containerRect.top - scrollMarginTop;
+
+    scrollContainer.scrollTo({
+      top: Math.max(0, targetScrollTop),
+      behavior: "auto"
+    });
   };
 
   const handleFixPhotoChange = (categoryId, itemId, files) => {
@@ -3085,7 +3095,7 @@ const Inspections = () => {
             )}
             <div ref={categoryListRef} className="category-list">
               <nav
-                className="checklist-section-navigator checklist-section-navigator--active"
+                className={`checklist-section-navigator${isChecklistVisible ? " checklist-section-navigator--active" : ""}`}
                 aria-label="Checklist sections"
               >
                 {checklist.map((category, index) => {

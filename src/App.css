@@ -1513,6 +1513,15 @@ button {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Keep the fixed navigator centred in the FSM content pane, not across the
+   sidebar and content combined. The sidebar becomes an overlay below 768px. */
+@media (min-width: 768px) {
+  .fsm-shell .inspection-page .checklist-section-navigator {
+    left: calc(50% + 120px);
+    max-width: calc(100vw - 264px);
+  }
+}
+
 .checklist-card--active .category-list {
   padding-bottom: 64px;
 }
