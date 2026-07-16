@@ -11,7 +11,7 @@ const FSMLayout = ({ children }) => {
 
   const section = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
   const pageTitleMap = {
-    dashboard: "Dashboard",
+    dashboard: "Fashboard",
     inspections: "Inspections",
     verify: "Verify Inspection",
     issues: "Issues / Defects",
@@ -20,7 +20,7 @@ const FSMLayout = ({ children }) => {
     building: "My Building",
     profile: "Profile"
   };
-  const pageTitle = pageTitleMap[section] || "FSM Dashboard";
+  const pageTitle = pageTitleMap[section] || "Fashboard";
 
   const displayName =
     user?.fullName || user?.displayName || user?.email?.split("@")[0] || "FSM";

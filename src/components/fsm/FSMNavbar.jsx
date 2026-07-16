@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 
 const FSMNavbar = ({
-  pageTitle = "FSM Dashboard",
+  pageTitle = "Fashboard",
   isMenuOpen = false,
   menuButtonRef,
   menuControlsId,
