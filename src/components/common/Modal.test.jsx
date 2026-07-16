@@ -2,6 +2,11 @@ import React, { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Modal from "./Modal";
 
+afterEach(() => {
+  document.body.classList.remove("modal-open");
+  document.body.style.overflow = "";
+});
+
 const ModalHarness = () => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -51,4 +56,16 @@ test("modal closes only when the backdrop itself is clicked", () => {
 
   fireEvent.click(document.querySelector(".modal-backdrop"));
   expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test("renders at document level and marks the background as modal", () => {
+  const { container } = render(
+    <div data-testid="render-container">
+      <Modal title="Portaled dialog" onClose={() => {}}>Content</Modal>
+    </div>
+  );
+
+  expect(container.querySelector(".modal-backdrop")).toBeNull();
+  expect(document.body.querySelector(".modal-backdrop")).toBeInTheDocument();
+  expect(document.body).toHaveClass("modal-open");
 });

@@ -1323,6 +1323,28 @@ const AppendixTable = ({ entries }) => (
   </section>
 );
 
+export const InspectionSubmitAction = ({
+  completedCount,
+  totalRows,
+  onSubmit,
+  disabled,
+  submitting,
+}) => (
+  <div className="checklist-floating-submit" role="complementary" aria-label="Inspection submit action">
+    <div className="checklist-submit-action">
+      <span>{completedCount} / {totalRows} completed</span>
+      <button
+        type="button"
+        className="primary-button"
+        onClick={onSubmit}
+        disabled={disabled || submitting}
+      >
+        {submitting ? "Submitting..." : "Submit Inspection"}
+      </button>
+    </div>
+  </div>
+);
+
 const Inspections = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -3079,19 +3101,13 @@ const Inspections = () => {
               <p className="hint-text">Open any section to review items and capture defects directly on screen.</p>
             </div>
             {!isVerifyMode && !isChecklistReviewMode && (
-              <div className="checklist-floating-submit" role="complementary" aria-label="Inspection submit action">
-                <div className="checklist-submit-action">
-                <span>{completedCount} / {totalRows} completed</span>
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleSubmit}
-                  disabled={!canSaveInspection || inspectionSubmitting}
-                >
-                  {inspectionSubmitting ? "Submitting..." : "Submit Inspection"}
-                </button>
-                </div>
-              </div>
+              <InspectionSubmitAction
+                completedCount={completedCount}
+                totalRows={totalRows}
+                onSubmit={handleSubmit}
+                disabled={!canSaveInspection}
+                submitting={inspectionSubmitting}
+              />
             )}
             <div ref={categoryListRef} className="category-list">
               <nav

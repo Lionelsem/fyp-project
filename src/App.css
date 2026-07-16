@@ -4,6 +4,18 @@
   box-sizing: border-box;
 }
 
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
@@ -3795,24 +3807,34 @@ button {
 }
 
 .closed-issue-history-modal {
-  position: relative;
   width: min(900px, 100%);
-  max-height: calc(100vh - 40px);
-  overflow: auto;
+  overflow: hidden;
   border-radius: 20px;
   background: #ffffff;
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
 }
 
-.closed-issue-history-modal > .modal-close-button {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 2;
+.closed-issue-history-modal__body {
+  padding: 0;
+}
+
+.closed-issue-history-status-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 0;
+}
+
+.closed-issue-history-status-row .overline {
+  min-width: 0;
+  margin: 0;
 }
 
 .closed-issue-history-modal .issue-ticket-detail {
   border: 0;
+  padding-top: 12px;
   box-shadow: none;
 }
 
@@ -5761,10 +5783,17 @@ textarea {
 .modal-backdrop,
 .issue-ticket-modal-backdrop {
   overflow-x: hidden;
-  overflow-y: auto;
   overscroll-behavior: contain;
   padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
     max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+.modal-backdrop {
+  overflow-y: hidden;
+}
+
+.issue-ticket-modal-backdrop {
+  overflow-y: auto;
 }
 
 .modal-backdrop {
@@ -5782,24 +5811,28 @@ textarea {
   max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px);
   overflow-x: hidden;
-  overflow-y: auto;
 }
 
 .modal {
   display: flex;
   flex-direction: column;
+  overflow-y: hidden;
   border-radius: 18px;
   background: #ffffff;
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.2);
 }
 
 .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   padding: 20px 20px 14px;
   border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
 }
 
 .modal-header h3 {
@@ -5832,6 +5865,18 @@ textarea {
   min-height: 0;
   padding: 20px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.issue-ticket-modal {
+  overflow-y: auto;
+}
+
+body.modal-open .portal-shell .main-content,
+body.portal-drawer-open .portal-shell .main-content {
+  overflow-y: hidden;
+  touch-action: none;
 }
 
 .customer-report-summary {
@@ -5997,34 +6042,14 @@ select.responsive-control {
   }
 
   .app-body,
-  .portal-shell .app-body {
-    display: block;
-    min-height: 100vh;
-    min-height: 100dvh;
-    overflow: visible;
-  }
-
+  .portal-shell .app-body,
   .app-main,
-  .portal-shell .app-main {
-    width: 100%;
-    min-height: 100vh;
-    min-height: 100dvh;
-    overflow: visible;
-  }
-
+  .portal-shell .app-main,
   .fsm-shell,
   .fsm-shell .app-body,
   .fsm-shell .app-main {
-    height: auto;
-    min-height: 100vh;
-    min-height: 100dvh;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .fsm-main-content {
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .portal-sidebar-drawer {
@@ -6090,8 +6115,9 @@ select.responsive-control {
 
   .admin-navbar {
     width: auto;
-    max-width: calc(100% - 24px);
-    margin: 12px 12px 0;
+    max-width: none;
+    margin: max(12px, var(--safe-area-top)) max(12px, var(--safe-area-right)) 0
+      max(12px, var(--safe-area-left));
     padding: 12px 14px;
     gap: 12px;
   }
@@ -6120,8 +6146,10 @@ select.responsive-control {
 
   .main-content {
     width: 100%;
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding: clamp(16px, 3vw, 22px);
+    padding-bottom: max(clamp(16px, 3vw, 22px), var(--safe-area-bottom));
   }
 
   .verification-banner-grid,
@@ -6161,8 +6189,9 @@ select.responsive-control {
 
 @media (max-width: 640px) {
   .admin-navbar {
-    max-width: calc(100% - 16px);
-    margin: 8px 8px 0;
+    max-width: none;
+    margin: max(8px, var(--safe-area-top)) max(8px, var(--safe-area-right)) 0
+      max(8px, var(--safe-area-left));
     padding: 10px 12px;
   }
 
@@ -6345,10 +6374,15 @@ select.responsive-control {
     padding: 16px;
   }
 
-  .modal-backdrop,
   .issue-ticket-modal-backdrop {
     align-items: start;
     padding: 8px;
+  }
+
+  .modal-backdrop {
+    align-items: center;
+    padding: max(8px, var(--safe-area-top)) max(8px, var(--safe-area-right))
+      max(8px, var(--safe-area-bottom)) max(8px, var(--safe-area-left));
   }
 
   .modal,
@@ -6589,34 +6623,24 @@ select.responsive-control {
   }
 }
 
-/* Mobile pages scroll at the document level, so pin the action to the viewport. */
+/* Keep the submit action in the checklist's flow and sticky inside the one
+   portal scroll container. This avoids iOS fixed-position viewport bugs. */
 @media (max-width: 900px) {
   .inspection-page .checklist-floating-submit {
-    display: none;
-    position: static;
-  }
-
-  .inspection-page .checklist-card--active .checklist-floating-submit {
     display: flex;
-    position: fixed;
-    top: max(12px, env(safe-area-inset-top));
-    right: max(14px, env(safe-area-inset-right));
-    left: auto;
-    z-index: 290;
+    position: sticky;
+    top: 8px;
+    z-index: 190;
     width: max-content;
-    max-width: calc(100vw - 28px);
-    margin: 0;
+    max-width: 100%;
+    margin: 0 0 16px auto;
   }
 
-  .inspection-page .checklist-card--active .checklist-floating-submit + .category-list {
-    padding-top: 64px;
-  }
-
-  .inspection-page .checklist-card--active .checklist-floating-submit span {
+  .inspection-page .checklist-floating-submit span {
     display: none;
   }
 
-  .inspection-page .checklist-card--active .checklist-floating-submit .primary-button {
+  .inspection-page .checklist-floating-submit .primary-button {
     width: auto;
     min-width: 0;
   }
@@ -6680,10 +6704,10 @@ select.responsive-control {
   }
 }
 
-/* Prevent a second browser scrollbar around portal dashboards. */
+/* The shell remains in normal document flow. iOS Safari handles dynamic
+   browser chrome more reliably when the app root itself is not fixed. */
 .portal-shell {
-  position: fixed;
-  inset: 0;
+  position: relative;
 }
 
 @media (max-width: 900px) {
@@ -6889,20 +6913,14 @@ select.responsive-control {
   }
 }
 
-@media (max-width: 430px) {
-  .inspection-page .checklist-card--active .checklist-floating-submit + .category-list {
-    padding-top: 140px;
-  }
-}
-
-/* All portal roles use a fixed viewport shell; only page content scrolls. */
+/* All portal roles use a viewport-sized shell; only page content scrolls. */
 .portal-shell {
   width: 100%;
   height: 100vh;
+  height: 100svh;
   height: 100dvh;
   min-height: 0;
-  max-height: 100vh;
-  max-height: 100dvh;
+  max-height: none;
   overflow: hidden;
 }
 
@@ -6950,6 +6968,9 @@ select.responsive-control {
 
   .portal-shell .main-content {
     padding: 16px;
+    padding-right: max(16px, var(--safe-area-right));
+    padding-bottom: max(16px, var(--safe-area-bottom));
+    padding-left: max(16px, var(--safe-area-left));
   }
 
   .portal-shell .dashboard-container,
@@ -6985,6 +7006,145 @@ select.responsive-control {
   }
 }
 
+/* Final mobile containment layer. Keep this after page-specific styles so all
+   portal roles share the same iOS/Android overflow guarantees. */
+@media (max-width: 767px) {
+  .portal-shell .portal-page-layout,
+  .portal-shell .dashboard-container,
+  .portal-shell .dashboard-card,
+  .portal-shell .inspection-card,
+  .portal-shell .assignment-card,
+  .portal-shell form,
+  .portal-shell fieldset,
+  .portal-shell table,
+  .portal-shell img,
+  .portal-shell .card-header-row > *,
+  .portal-shell .page-header > *,
+  .portal-shell .issue-ticket-header > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .portal-shell h1,
+  .portal-shell h2,
+  .portal-shell h3,
+  .portal-shell h4,
+  .portal-shell p,
+  .portal-shell strong,
+  .portal-shell a,
+  .portal-shell td,
+  .portal-shell th,
+  .portal-shell label,
+  .portal-shell .hint-text,
+  .modal h2,
+  .modal p,
+  .modal strong {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .portal-shell input,
+  .portal-shell select,
+  .portal-shell textarea,
+  .modal input,
+  .modal select,
+  .modal textarea {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .portal-shell button,
+  .portal-shell [role="button"],
+  .modal button,
+  .modal [role="button"] {
+    min-height: 44px;
+  }
+
+  .portal-shell .responsive-table-region--cards .responsive-card-table,
+  .portal-shell .responsive-table-region .responsive-card-table {
+    min-width: 0;
+  }
+
+  .portal-shell .responsive-card-table td {
+    white-space: normal;
+  }
+
+  .portal-shell .issue-ticket-table--history th:nth-child(7),
+  .portal-shell .issue-ticket-table--history td:nth-child(7) {
+    position: static;
+    right: auto;
+    z-index: auto;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .portal-shell .responsive-card-table .issue-overview-actions,
+  .portal-shell .responsive-card-table .compact-row-actions {
+    width: auto;
+    max-width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .inspection-page .checklist-submit-action {
+    max-width: 100%;
+  }
+
+  .inspection-page .checklist-floating-submit .primary-button {
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .closed-issue-history-modal .modal-header {
+    flex: 0 0 auto;
+  }
+
+  .closed-issue-history-status-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 16px 16px 0;
+  }
+
+  .closed-issue-history-modal .issue-ticket-detail {
+    padding: 12px 16px 18px;
+  }
+}
+
+@media (max-width: 430px) {
+  .portal-shell .card-header-row,
+  .portal-shell .issue-ticket-detail > .card-header-row {
+    align-items: flex-start;
+  }
+
+  .portal-shell .responsive-card-table td {
+    grid-template-columns: minmax(74px, 0.7fr) minmax(0, 1.3fr);
+  }
+
+  .inspection-page .checklist-floating-submit {
+    width: 100%;
+  }
+
+  .inspection-page .checklist-submit-action,
+  .inspection-page .checklist-floating-submit .primary-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .modal {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .modal-header {
+    padding-block: 10px;
+  }
+}
+
 @media (max-width: 767px) {
   .responsive-info-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -7009,11 +7169,15 @@ select.responsive-control {
 @media (max-width: 374px) {
   .portal-shell .main-content {
     padding: 12px;
+    padding-right: max(12px, var(--safe-area-right));
+    padding-bottom: max(12px, var(--safe-area-bottom));
+    padding-left: max(12px, var(--safe-area-left));
   }
 
   .admin-navbar {
-    max-width: calc(100% - 12px);
-    margin: 6px 6px 0;
+    max-width: none;
+    margin: max(6px, var(--safe-area-top)) max(6px, var(--safe-area-right)) 0
+      max(6px, var(--safe-area-left));
   }
 }
 

@@ -1057,9 +1057,9 @@ const FireDrill = () => {
         {visibleHistory.length > 0 ? (
           <ResponsiveTableRegion
             label="Fire drill history"
-            className="fire-drill-history-table-wrapper"
+            className="fire-drill-history-table-wrapper responsive-table-region--cards"
           >
-            <table className="dashboard-table fire-drill-history-table">
+            <table className="dashboard-table responsive-card-table fire-drill-history-table">
               <thead>
                 <tr>
                   <th>TYPE</th>
@@ -1075,10 +1075,10 @@ const FireDrill = () => {
 
                   return (
                     <tr key={drill.id}>
-                      <td>{drill.drillType}</td>
-                      <td>{formatDate(drill.actualDate || drill.conductedDate || drill.drillDate)}</td>
-                      <td>{drill.actualParticipants || drill.participants || "-"}</td>
-                      <td>
+                      <td data-label="Type">{drill.drillType}</td>
+                      <td data-label="Date">{formatDate(drill.actualDate || drill.conductedDate || drill.drillDate)}</td>
+                      <td data-label="Attended">{drill.actualParticipants || drill.participants || "-"}</td>
+                      <td data-label="Status">
                         <span
                           className="fire-drill-status-badge"
                           style={{

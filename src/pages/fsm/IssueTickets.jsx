@@ -206,9 +206,9 @@ const IssueTickets = () => {
         ) : (
           <ResponsiveTableRegion
             label="Issue ticket overview"
-            className="issue-ticket-table-wrapper"
+            className="issue-ticket-table-wrapper responsive-table-region--cards"
           >
-            <table className="dashboard-table issue-overview-table">
+            <table className="dashboard-table responsive-card-table issue-overview-table">
               <thead>
                 <tr>
                   <th>Issue</th>
@@ -223,15 +223,15 @@ const IssueTickets = () => {
               <tbody>
                 {visibleIssues.map(({ issue, statusAtEnd }) => (
                   <tr key={getIssueKey(issue)}>
-                    <td>
+                    <td data-label="Issue">
                       <strong>{issue.issueTitle || issue.issueDescription || "Untitled issue"}</strong>
                     </td>
-                    <td>{issue.itemLabel || issue.itemCode || "-"}</td>
-                    <td>{issue.floorName || issue.location || "-"}</td>
-                    <td><span className={priorityClassName(issue.priority)}>{issue.priority || PRIORITY.MEDIUM}</span></td>
-                    <td><span className={statusClassName(statusAtEnd)}>{statusAtEnd}</span></td>
-                    <td>{formatDate(issue.updatedAt || issue.reportedAt || issue.createdAt)}</td>
-                    <td>
+                    <td data-label="Checklist Item">{issue.itemLabel || issue.itemCode || "-"}</td>
+                    <td data-label="Location">{issue.floorName || issue.location || "-"}</td>
+                    <td data-label="Priority"><span className={priorityClassName(issue.priority)}>{issue.priority || PRIORITY.MEDIUM}</span></td>
+                    <td data-label="Status"><span className={statusClassName(statusAtEnd)}>{statusAtEnd}</span></td>
+                    <td data-label="Updated">{formatDate(issue.updatedAt || issue.reportedAt || issue.createdAt)}</td>
+                    <td data-label="Action">
                       <div className="issue-overview-actions">
                         <button
                           type="button"

@@ -184,9 +184,9 @@ const AdminFireDrill = () => {
         {historyDrills.length > 0 ? (
           <ResponsiveTableRegion
             label="Fire drill history"
-            className="fire-drill-history-table-wrapper"
+            className="fire-drill-history-table-wrapper responsive-table-region--cards"
           >
-            <table className="dashboard-table fire-drill-history-table">
+            <table className="dashboard-table responsive-card-table fire-drill-history-table">
               <thead>
                 <tr>
                   <th>DATE</th>
@@ -198,10 +198,10 @@ const AdminFireDrill = () => {
               <tbody>
                 {historyDrills.map((drill) => (
                   <tr key={drill.id}>
-                    <td>{formatDate(drill.actualDate || drill.drillDate)}</td>
-                    <td>{buildingMap.get(drill.buildingId) || drill.buildingName || "Building TBC"}</td>
-                    <td>{drill.drillType || drill.task || "Fire Drill"}</td>
-                    <td>
+                    <td data-label="Date">{formatDate(drill.actualDate || drill.drillDate)}</td>
+                    <td data-label="Building">{buildingMap.get(drill.buildingId) || drill.buildingName || "Building TBC"}</td>
+                    <td data-label="Type">{drill.drillType || drill.task || "Fire Drill"}</td>
+                    <td data-label="Status">
                       <span
                         className="fire-drill-status-badge"
                         style={getStatusStyle(drill.status || drill.performanceStatus)}

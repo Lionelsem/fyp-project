@@ -10,6 +10,7 @@ import {
 } from "../../services/issueService";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import Modal from "../../components/common/Modal";
 
 const emptyIssueForm = {
   issueKey: "",
@@ -580,15 +581,15 @@ const VerifyClosePanel = ({
   </section>
 );
 
-const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onViewChecklist, historyOnly = false }) => (
+const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onViewChecklist, historyOnly = false, hideHeader = false }) => (
   <aside className="dashboard-card issue-ticket-detail">
-    <div className="card-header-row">
+    {!hideHeader && <div className="card-header-row">
       <div>
         <p className="overline">Issue Detail</p>
         <h2 id={historyOnly ? "closed-issue-title" : undefined} className="section-title">{issue.issueTitle || "Untitled issue"}</h2>
       </div>
       <span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span>
-    </div>
+    </div>}
     <div className="issue-ticket-detail-grid">
       <div>
         <span>Building</span>
@@ -667,6 +668,29 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onV
       </button>
     </div>}
   </aside>
+);
+
+export const ClosedIssueHistoryModal = ({ issue, onClose }) => (
+  <Modal
+    title={issue.issueTitle || "Untitled issue"}
+    onClose={onClose}
+    className="closed-issue-history-modal"
+    bodyClassName="closed-issue-history-modal__body"
+    closeLabel="Close issue history"
+  >
+    <div className="closed-issue-history-status-row">
+      <p className="overline">Issue Detail</p>
+      <span className={statusClassName(issue.status)}>
+        {issue.status || ISSUE_STATUS.CLOSED}
+      </span>
+    </div>
+    <IssueDetail
+      issue={issue}
+      buildingName={issue.buildingName}
+      historyOnly
+      hideHeader
+    />
+  </Modal>
 );
 
 const DeleteModal = ({ issue, saving, onCancel, onConfirm }) => {
@@ -1330,9 +1354,9 @@ const Issues = ({ verifyClosureMode = false }) => {
 
           <ResponsiveTableRegion
             label="Issue tickets"
-            className="issue-ticket-table-wrapper"
+            className="issue-ticket-table-wrapper responsive-table-region--cards"
           >
-            <table className={`dashboard-table issue-ticket-table${verifyClosureMode ? " issue-ticket-table--history" : ""}`}>
+            <table className={`dashboard-table responsive-card-table issue-ticket-table${verifyClosureMode ? " issue-ticket-table--history" : ""}`}>
               <thead>
                 <tr>
                   <th>Level / Location</th>
@@ -1355,14 +1379,14 @@ const Issues = ({ verifyClosureMode = false }) => {
                       className={activeIssue?.id === issue.id ? "issue-ticket-row-active" : ""}
                       onClick={() => { if (!verifyClosureMode) setActiveIssueId(issue.id); }}
                     >
-                      <td title={locationLabel}>{locationLabel}</td>
-                      <td title={issue.issueTitle || ""}>{issue.issueTitle || "-"}</td>
-                      <td title={issue.buildingName || ""}>{issue.buildingName || "-"}</td>
-                      <td><span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span></td>
-                      <td><span className={priorityClassName(issue.priority)}>{issue.priority || PRIORITY.MEDIUM}</span></td>
-                      <td title={issueUpdatedAt}>{issueUpdatedAt}</td>
+                      <td data-label="Level / Location" title={locationLabel}>{locationLabel}</td>
+                      <td data-label="Finding" title={issue.issueTitle || ""}>{issue.issueTitle || "-"}</td>
+                      <td data-label="Building" title={issue.buildingName || ""}>{issue.buildingName || "-"}</td>
+                      <td data-label="Status"><span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span></td>
+                      <td data-label="Priority"><span className={priorityClassName(issue.priority)}>{issue.priority || PRIORITY.MEDIUM}</span></td>
+                      <td data-label="Updated" title={issueUpdatedAt}>{issueUpdatedAt}</td>
                       {verifyClosureMode && (
-                        <td>
+                        <td data-label="View">
                           <button
                             type="button"
                             className="issue-overview-action issue-overview-action--view"
@@ -1389,20 +1413,10 @@ const Issues = ({ verifyClosureMode = false }) => {
       </div>
 
       {verifyClosureMode && activeIssue && (
-        <div className="issue-ticket-modal-backdrop" role="presentation" onMouseDown={() => setActiveIssueId("")}>
-          <div className="closed-issue-history-modal" role="dialog" aria-modal="true" aria-labelledby="closed-issue-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button type="button" className="modal-close-button" onClick={() => setActiveIssueId("")} aria-label="Close issue history">&times;</button>
-            <IssueDetail
-              issue={activeIssue}
-              buildingName={activeIssue.buildingName}
-              onEdit={openEditForm}
-              onDelete={setDeleteTarget}
-              onVerifyClose={openVerifyClose}
-              onViewChecklist={openChecklistItem}
-              historyOnly
-            />
-          </div>
-        </div>
+        <ClosedIssueHistoryModal
+          issue={activeIssue}
+          onClose={() => setActiveIssueId("")}
+        />
       )}
 
       {deleteTarget && (

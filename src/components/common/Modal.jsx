@@ -1,4 +1,8 @@
 import React, { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
+
+let openModalCount = 0;
+let originalBodyOverflow = "";
 
 const FOCUSABLE_ELEMENTS = [
   "a[href]",
@@ -28,8 +32,12 @@ const Modal = ({
 
   useEffect(() => {
     previouslyFocusedElement.current = document.activeElement;
-    const previousBodyOverflow = document.body.style.overflow;
+    if (openModalCount === 0) {
+      originalBodyOverflow = document.body.style.overflow;
+    }
+    openModalCount += 1;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("modal-open");
 
     const dialog = dialogRef.current;
     const firstFocusableElement = dialog?.querySelector(FOCUSABLE_ELEMENTS);
@@ -70,7 +78,11 @@ const Modal = ({
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousBodyOverflow;
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        document.body.style.overflow = originalBodyOverflow;
+        document.body.classList.remove("modal-open");
+      }
       previouslyFocusedElement.current?.focus?.();
     };
   }, [closeOnEscape]);
@@ -86,7 +98,7 @@ const Modal = ({
     .filter(Boolean)
     .join(" ");
 
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onClick={handleBackdropClick}
@@ -114,7 +126,8 @@ const Modal = ({
         </div>
         <div className={modalBodyClassName}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
