@@ -769,8 +769,9 @@ const InspectionOverview = ({
         </div>
         <div>
           <span className="overview-label">Level</span>
-          <label>
+          <label className="overview-level-field">
             <select
+              className="overview-level-select"
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value)}
               disabled={readOnly || levels.length === 0}
