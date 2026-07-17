@@ -3362,7 +3362,6 @@ const Inspections = () => {
             </label>
           </section>
         </div>
-<<<<<<< HEAD
       </div>
       {isSubmitConfirmationOpen && (
         <InspectionSubmitConfirmation
@@ -3374,12 +3373,7 @@ const Inspections = () => {
         />
       )}
       {(inspectionSubmitError || inspectionSubmitSuccess) && (
-        <div className="issue-ticket-modal-backdrop" role="presentation">
-=======
-      </div>
-      {(inspectionSubmitError || inspectionSubmitSuccess) && (
         <div className="issue-ticket-modal-backdrop inspection-notification-backdrop" role="presentation">
->>>>>>> 635b54f32aa7e2dab117b542f15a3e6f729bf4c3
           <div className="issue-ticket-modal" role="alertdialog" aria-modal="true" aria-labelledby="inspection-notification-title">
             <h2 id="inspection-notification-title">
               {inspectionSubmitError ? "Unable to submit" : "Submitted successfully"}
