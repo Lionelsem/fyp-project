@@ -7844,23 +7844,23 @@ select.responsive-control {
   }
 }
 
-/* Tablet Safari can request desktop rendering and stop matching iOS-only
-   feature queries. Keep a visible right gutter throughout tablet landscape
-   widths so cards and action buttons stay clear of the rounded screen edge. */
-@media (min-width: 768px) and (max-width: 1366px) {
-  .fsm-shell .fsm-main-content {
-    padding-right: max(48px, calc(32px + var(--safe-area-right)));
+/* iPad Safari can report a desktop-sized CSS viewport that is wider than the
+   physical screen. Do not use an upper-width limit for this gutter: keep every
+   wide FSM layout visibly clear of the rounded right screen edge. */
+@media (min-width: 768px) {
+  .portal-shell.fsm-shell .main-content.fsm-main-content {
+    padding-right: max(60px, calc(40px + var(--safe-area-right)));
   }
 
-  .issue-ticket-table--history th:nth-child(7),
-  .issue-ticket-table--history td:nth-child(7) {
-    min-width: 88px;
-    padding-right: max(18px, var(--safe-area-right));
-    padding-left: 12px;
+  .portal-shell.fsm-shell .issue-ticket-table--history th:nth-child(7),
+  .portal-shell.fsm-shell .issue-ticket-table--history td:nth-child(7) {
+    min-width: 96px;
+    padding-right: max(24px, var(--safe-area-right));
+    padding-left: 14px;
   }
 
-  .fire-drill-form-card .fire-drill-form-actions {
-    padding-right: max(16px, var(--safe-area-right));
+  .portal-shell.fsm-shell .fire-drill-form-card .fire-drill-form-actions {
+    padding-right: max(24px, var(--safe-area-right));
   }
 }
 
