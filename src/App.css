@@ -7836,26 +7836,31 @@ select.responsive-control {
    right-edge controls too close to the rounded screen edge in landscape. */
 @supports (-webkit-touch-callout: none) {
   @media (min-width: 768px) {
-    .fsm-shell .fsm-main-content {
-      padding-right: max(36px, calc(24px + var(--safe-area-right)));
-    }
-
     .overview-level-select {
       min-height: 46px;
       padding: 11px 44px 11px 16px;
       font-size: 16px;
     }
+  }
+}
 
-    .issue-ticket-table--history th:nth-child(7),
-    .issue-ticket-table--history td:nth-child(7) {
-      min-width: 84px;
-      padding-right: max(16px, var(--safe-area-right));
-      padding-left: 12px;
-    }
+/* Tablet Safari can request desktop rendering and stop matching iOS-only
+   feature queries. Keep a visible right gutter throughout tablet landscape
+   widths so cards and action buttons stay clear of the rounded screen edge. */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .fsm-shell .fsm-main-content {
+    padding-right: max(48px, calc(32px + var(--safe-area-right)));
+  }
 
-    .fire-drill-form-card .fire-drill-form-actions {
-      padding-right: max(12px, var(--safe-area-right));
-    }
+  .issue-ticket-table--history th:nth-child(7),
+  .issue-ticket-table--history td:nth-child(7) {
+    min-width: 88px;
+    padding-right: max(18px, var(--safe-area-right));
+    padding-left: 12px;
+  }
+
+  .fire-drill-form-card .fire-drill-form-actions {
+    padding-right: max(16px, var(--safe-area-right));
   }
 }
 
