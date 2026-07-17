@@ -15,6 +15,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
 import { upsertReport } from "../../services/reportService";
+import Modal from "../../components/common/Modal";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const initialChecklist = [
@@ -1345,6 +1346,67 @@ export const InspectionSubmitAction = ({
   </div>
 );
 
+export const InspectionSubmitConfirmation = ({
+  completedCount,
+  totalRows,
+  defectCount,
+  onCancel,
+  onConfirm
+}) => (
+  <Modal
+    title="Submit inspection checklist?"
+    onClose={onCancel}
+    closeLabel="Cancel inspection submission"
+    className="inspection-confirm-modal"
+    bodyClassName="inspection-confirm-modal__body"
+  >
+    <div className="inspection-confirm-intro">
+      <span className="inspection-confirm-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M9 5h6M9 3h6v4H9z" />
+          <path d="M8 5H6.5A1.5 1.5 0 0 0 5 6.5v13A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 17.5 5H16" />
+          <path d="m8.5 14 2 2 5-5" />
+        </svg>
+      </span>
+      <div>
+        <p className="inspection-confirm-eyebrow">Final step</p>
+        <p className="inspection-confirm-copy">
+          Review the summary below before submitting your inspection.
+        </p>
+      </div>
+    </div>
+
+    <div className="inspection-confirm-summary" aria-label="Inspection summary">
+      <div>
+        <span>Checklist completed</span>
+        <strong>{completedCount} / {totalRows}</strong>
+      </div>
+      <div>
+        <span>Defects recorded</span>
+        <strong>{defectCount}</strong>
+      </div>
+    </div>
+
+    <div className="inspection-confirm-notice">
+      <span aria-hidden="true">i</span>
+      <p>
+        Submitting will save the inspection results and defect evidence, then
+        create the monthly report record.
+      </p>
+    </div>
+
+    <div className="inspection-confirm-actions">
+      <button type="button" className="secondary-button" onClick={onCancel}>
+        Cancel
+      </button>
+      <button type="button" className="primary-button" onClick={onConfirm}>
+        <span aria-hidden="true">&#10003;</span>
+        Submit inspection
+      </button>
+    </div>
+  </Modal>
+);
+
 const Inspections = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -1413,6 +1475,7 @@ const Inspections = () => {
   const [inspectionSubmitError, setInspectionSubmitError] = useState("");
   const [inspectionSubmitSuccess, setInspectionSubmitSuccess] = useState("");
   const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
+  const [isSubmitConfirmationOpen, setIsSubmitConfirmationOpen] = useState(false);
   const [editingIssueRowKey, setEditingIssueRowKey] = useState("");
   const [issueEditSnapshot, setIssueEditSnapshot] = useState(null);
   const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
@@ -2633,7 +2696,7 @@ const Inspections = () => {
     }
   };
 
-  const persistInspection = async (status) => {
+  const persistInspection = async (status, { confirmed = false } = {}) => {
     if (!canSaveInspection || inspectionSubmitting) return;
 
     setInspectionSubmitSuccess("");
@@ -2678,10 +2741,9 @@ const Inspections = () => {
       return;
     }
 
-    if (status === "Submitted") {
-      if (!window.confirm("Submit this inspection checklist? This will save the inspection results and defect evidence.")) {
-        return;
-      }
+    if (status === "Submitted" && !confirmed) {
+      setIsSubmitConfirmationOpen(true);
+      return;
     }
 
     try {
@@ -2972,6 +3034,11 @@ const Inspections = () => {
     }
 
     await persistInspection("Submitted");
+  };
+
+  const confirmInspectionSubmit = async () => {
+    setIsSubmitConfirmationOpen(false);
+    await persistInspection("Submitted", { confirmed: true });
   };
 
   return (
@@ -3275,6 +3342,15 @@ const Inspections = () => {
           </section>
         </div>
       </div>
+      {isSubmitConfirmationOpen && (
+        <InspectionSubmitConfirmation
+          completedCount={completedCount}
+          totalRows={totalRows}
+          defectCount={summaryTotals.faulty}
+          onCancel={() => setIsSubmitConfirmationOpen(false)}
+          onConfirm={confirmInspectionSubmit}
+        />
+      )}
       {(inspectionSubmitError || inspectionSubmitSuccess) && (
         <div className="issue-ticket-modal-backdrop" role="presentation">
           <div className="issue-ticket-modal" role="alertdialog" aria-modal="true" aria-labelledby="inspection-notification-title">

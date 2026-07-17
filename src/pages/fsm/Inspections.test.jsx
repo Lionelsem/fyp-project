@@ -1,6 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { InspectionSubmitAction } from "./Inspections";
+import {
+  InspectionSubmitAction,
+  InspectionSubmitConfirmation
+} from "./Inspections";
 
 test("inspection submit action is rendered without scroll visibility state", () => {
   const onSubmit = jest.fn();
@@ -32,4 +35,31 @@ test("inspection submit action preserves disabled and submitting states", () => 
   );
 
   expect(screen.getByRole("button", { name: "Submitting..." })).toBeDisabled();
+});
+
+test("inspection confirmation shows the summary and handles both actions", () => {
+  const onCancel = jest.fn();
+  const onConfirm = jest.fn();
+
+  render(
+    <InspectionSubmitConfirmation
+      completedCount={15}
+      totalRows={15}
+      defectCount={2}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+
+  expect(
+    screen.getByRole("dialog", { name: "Submit inspection checklist?" })
+  ).toBeInTheDocument();
+  expect(screen.getByText("15 / 15")).toBeInTheDocument();
+  expect(screen.getByText("2")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(onCancel).toHaveBeenCalledTimes(1);
+
+  fireEvent.click(screen.getByRole("button", { name: "Submit inspection" }));
+  expect(onConfirm).toHaveBeenCalledTimes(1);
 });
