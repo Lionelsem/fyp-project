@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ImageSourcePicker from "../../components/common/ImageSourcePicker";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import {
@@ -599,21 +600,19 @@ const ConductForm = ({
         />
       </label>
 
-      <label className="conduct-photo-upload">
+      <div className="conduct-photo-upload">
         <span>Photos (Optional)</span>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(event) => onChange("photos", Array.from(event.target.files || []))}
+        <ImageSourcePicker
+          ariaLabel="Add fire drill photos"
+          onFilesSelected={(files) => onChange("photos", Array.from(files || []))}
         />
-        <strong>Upload Photos</strong>
+        <strong>Take a new photo or select existing images</strong>
         <small>
           {form.photos.length > 0
             ? `${form.photos.length} photo${form.photos.length === 1 ? "" : "s"} selected`
             : "Add photos or attach from gallery"}
         </small>
-      </label>
+      </div>
 
       {formError && <p className="fire-drill-form-error">{formError}</p>}
       <div className="fire-drill-form-actions">

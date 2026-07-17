@@ -15,6 +15,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
 import { upsertReport } from "../../services/reportService";
+import ImageSourcePicker from "../../components/common/ImageSourcePicker";
 import Modal from "../../components/common/Modal";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
@@ -1233,14 +1234,13 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                         )}
                       </figure>
                     ) : isIssueEditing && !isVerifyMode ? (
-                      <label key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-upload-box">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => onPhotoChange(categoryId, item.id, event.target.files)}
+                      <div key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-source-box">
+                        <ImageSourcePicker
+                          className="image-source-picker--tile"
+                          ariaLabel={`Add defect photo ${index + 1}`}
+                          onFilesSelected={(files) => onPhotoChange(categoryId, item.id, files)}
                         />
-                        <span>Camera or Gallery</span>
-                      </label>
+                      </div>
                     ) : (
                       <div key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`Defect photo slot ${index + 1}`} />
                     );
@@ -1277,14 +1277,13 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                         )}
                       </figure>
                     ) : isIssueEditing ? (
-                      <label key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-upload-box">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => onFixPhotoChange(categoryId, item.id, event.target.files)}
+                      <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-source-box">
+                        <ImageSourcePicker
+                          className="image-source-picker--tile"
+                          ariaLabel={`Add after-repair photo ${index + 1}`}
+                          onFilesSelected={(files) => onFixPhotoChange(categoryId, item.id, files)}
                         />
-                        <span>Camera or Gallery</span>
-                      </label>
+                      </div>
                     ) : (
                       <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`After-repair photo slot ${index + 1}`} />
                     );
@@ -3135,16 +3134,14 @@ const Inspections = () => {
               )}
               {isVerifyMode && verificationIssue && (
                 <div className="verification-action-row">
-                  <label className="verification-fix-photo-upload">
+                  <div className="verification-fix-photo-upload">
                     <span>Fix/resolution photos (max 3)</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
+                    <ImageSourcePicker
+                      ariaLabel="Add fix or resolution photos"
                       disabled={getFixPhotoUrls(verificationIssue).length + (Array.isArray(fixProofPhotoPreview) ? fixProofPhotoPreview.length : fixProofPhotoPreview ? 1 : 0) >= PHOTO_LIMIT}
-                      onChange={(event) => handleFixProofPhotoChange(event.target.files)}
+                      onFilesSelected={handleFixProofPhotoChange}
                     />
-                  </label>
+                  </div>
                   <button
                     type="button"
                     className="primary-button compact-action-button"

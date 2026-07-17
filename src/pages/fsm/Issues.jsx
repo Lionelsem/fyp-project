@@ -9,6 +9,7 @@ import {
   upsertIssue
 } from "../../services/issueService";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
+import ImageSourcePicker from "../../components/common/ImageSourcePicker";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 import Modal from "../../components/common/Modal";
 
@@ -455,16 +456,14 @@ const IssueForm = ({
         />
       </label>
       <div className="issue-ticket-photo-field">
-        <label>
+        <div className="issue-image-source-field">
           <span>Defect Photos (max 3)</span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(event) => onChange("photoFiles", Array.from(event.target.files || []))}
+          <ImageSourcePicker
+            ariaLabel="Add defect photos"
+            onFilesSelected={(files) => onChange("photoFiles", Array.from(files || []))}
             disabled={getDefectPhotoUrls(form).length + (form.photoPreviews || []).length >= PHOTO_LIMIT}
           />
-        </label>
+        </div>
         <EvidencePhotoBox
           label="Defect evidence"
           urls={[...getDefectPhotoUrls(form), ...(form.photoPreviews || [])].slice(0, PHOTO_LIMIT)}
@@ -532,17 +531,14 @@ const VerifyClosePanel = ({
           onRemove={(index) => onChange("removeAfterPhotoFile", index)}
         />
       </div>
-      <label>
+      <div className="issue-image-source-field">
         <span>After Photos (max 3)</span>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(event) => onChange("afterPhotoFiles", Array.from(event.target.files || []))}
-          required={getFixPhotoUrls(issue).length === 0}
+        <ImageSourcePicker
+          ariaLabel="Add after-repair photos"
+          onFilesSelected={(files) => onChange("afterPhotoFiles", Array.from(files || []))}
           disabled={getFixPhotoUrls(issue).length + (form.afterPhotoPreviews || []).length >= PHOTO_LIMIT}
         />
-      </label>
+      </div>
       <label>
         <span>Defect Details</span>
         <textarea

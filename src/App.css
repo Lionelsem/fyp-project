@@ -1548,7 +1548,7 @@ button {
 
 .verification-photo figcaption,
 .issue-ticket-evidence-grid figcaption,
-.verification-fix-photo-upload span {
+.verification-fix-photo-upload > span {
   color: #64748b;
   font-size: 12px;
   font-weight: 700;
@@ -1567,6 +1567,106 @@ button {
   display: grid;
   gap: 8px;
   max-width: 24rem;
+}
+
+.image-source-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  width: min(100%, 320px);
+}
+
+.image-source-option {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #a9d4c7;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #2f7f69;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.image-source-option--camera {
+  border-color: #4fa58b;
+  background: #4fa58b;
+  color: #ffffff;
+}
+
+.image-source-option:hover,
+.image-source-option:focus-within {
+  border-color: #2f7f69;
+  background: #eaf6f2;
+  color: #235f50;
+  transform: translateY(-1px);
+}
+
+.image-source-option--camera:hover,
+.image-source-option--camera:focus-within {
+  background: #3f9078;
+  color: #ffffff;
+}
+
+.image-source-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.image-source-option svg {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.image-source-option.is-disabled {
+  border-color: #dbe3ea;
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.inspection-photo-source-box {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+}
+
+.image-source-picker--tile {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+}
+
+.image-source-picker--tile .image-source-option {
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.image-source-picker--tile .image-source-option svg {
+  width: 16px;
+  height: 16px;
 }
 
 .verification-action-row {
@@ -3266,11 +3366,11 @@ button {
   padding: 12px;
 }
 
-.conduct-photo-upload input {
+.conduct-photo-upload > input {
   display: none;
 }
 
-.conduct-photo-upload span {
+.conduct-photo-upload > span {
   justify-self: start;
   color: #047857;
   font-size: 13px;
@@ -3845,6 +3945,14 @@ button {
 }
 
 .issue-ticket-form label {
+  display: grid;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.issue-image-source-field {
   display: grid;
   gap: 8px;
   color: #475569;
