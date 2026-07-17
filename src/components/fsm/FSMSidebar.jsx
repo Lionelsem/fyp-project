@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 
 const menuItems = [
-  { path: "/fsm/dashboard", label: "Fashboard", icon: "📊" },
+  { path: "/fsm/dashboard", label: "Dashboard", icon: "📊" },
   {
     path: "/fsm/inspections",
     label: "Inspection",

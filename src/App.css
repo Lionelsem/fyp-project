@@ -1181,9 +1181,10 @@ button {
 
 /* Inspection page styles */
 .inspection-page {
-  padding: 24px 32px;
-  max-width: 1600px;
+  width: 100%;
+  max-width: 1440px;
   margin: 0 auto;
+  padding: 0;
 }
 
 .checklist-floating-submit {
@@ -3349,6 +3350,36 @@ button {
   min-height: 96px;
 }
 
+.fire-drill-date-filter {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.fire-drill-date-filter label {
+  display: grid;
+  gap: 6px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fire-drill-date-filter input {
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.issue-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* FSM issue ticket page */
 .issue-ticket-page {
   display: grid;
@@ -3513,13 +3544,28 @@ button {
 
 .issue-ticket-toolbar.issue-ticket-toolbar--four {
   grid-template-columns: minmax(12rem, 1.35fr) repeat(3, minmax(9rem, 0.8fr));
-  align-items: center;
+  align-items: end;
+}
+
+@media (min-width: 901px) {
+  .issue-ticket-toolbar--four .issue-overview-filter {
+    position: relative;
+    display: block;
+  }
+
+  .issue-ticket-toolbar--four .issue-overview-filter > span {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    white-space: nowrap;
+  }
 }
 
 .issue-ticket-toolbar.issue-overview-toolbar {
   grid-template-columns: minmax(12rem, 1.4fr) repeat(3, minmax(9rem, 0.75fr));
   gap: 8px;
   align-items: end;
+  margin-bottom: 18px;
 }
 
 .issue-overview-toolbar .issue-overview-filter input,
@@ -6769,6 +6815,13 @@ select.responsive-control {
     padding: 8px;
   }
 
+  .issue-ticket-modal-backdrop.inspection-notification-backdrop {
+    align-items: center;
+    place-items: center;
+    padding: max(12px, var(--safe-area-top)) max(12px, var(--safe-area-right))
+      max(12px, var(--safe-area-bottom)) max(12px, var(--safe-area-left));
+  }
+
   .modal-backdrop {
     align-items: center;
     padding: max(8px, var(--safe-area-top)) max(8px, var(--safe-area-right))
@@ -7532,6 +7585,12 @@ select.responsive-control {
     max-width: 100%;
     justify-content: flex-end;
     flex-wrap: wrap;
+  }
+
+  .portal-shell .issue-ticket-table--history td[data-label="View"] .issue-overview-action {
+    justify-self: end;
+    margin-left: auto;
+    margin-right: 0;
   }
 
   .inspection-page .checklist-submit-action {

@@ -122,6 +122,14 @@ const toDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const toMonthInputValue = (value) => {
+  const date = toDate(value);
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 const formatDate = (value) => {
   const date = toDate(value);
   if (!date) return "-";
@@ -637,6 +645,7 @@ const FireDrill = () => {
   const [saving, setSaving] = useState(false);
   const [showAllSchedule, setShowAllSchedule] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [monthFilter, setMonthFilter] = useState("");
 
   const buildingMap = useMemo(
     () => new Map(buildings.map((building) => [building.id, building])),
@@ -690,6 +699,22 @@ const FireDrill = () => {
     [drillRecords]
   );
 
+  const filteredScheduledDrills = useMemo(
+    () => monthFilter
+      ? scheduledDrills.filter((drill) => toMonthInputValue(drill.drillDate) === monthFilter)
+      : scheduledDrills,
+    [monthFilter, scheduledDrills]
+  );
+
+  const filteredDrillHistory = useMemo(
+    () => monthFilter
+      ? drillHistory.filter((drill) =>
+          toMonthInputValue(drill.actualDate || drill.conductedDate || drill.drillDate) === monthFilter
+        )
+      : drillHistory,
+    [monthFilter, drillHistory]
+  );
+
   const selectedConductDrill = useMemo(
     () =>
       availableDrills.find((drill) => drill.id === conductForm.scheduledDrillId) ||
@@ -697,8 +722,8 @@ const FireDrill = () => {
     [availableDrills, conductForm.scheduledDrillId]
   );
 
-  const visibleScheduledDrills = showAllSchedule ? scheduledDrills : scheduledDrills.slice(0, 3);
-  const visibleHistory = showAllHistory ? drillHistory : drillHistory.slice(0, 5);
+  const visibleScheduledDrills = showAllSchedule ? filteredScheduledDrills : filteredScheduledDrills.slice(0, 3);
+  const visibleHistory = showAllHistory ? filteredDrillHistory : filteredDrillHistory.slice(0, 5);
 
   const getScheduleDefaultsForBuilding = (building) => ({
     buildingId: building?.id || "",
@@ -984,6 +1009,18 @@ const FireDrill = () => {
         </div>
       </div>
 
+      <div className="fire-drill-date-filter">
+        <label htmlFor="fire-drill-month-filter">
+          <span>Filter by month</span>
+          <input
+            id="fire-drill-month-filter"
+            type="month"
+            value={monthFilter}
+            onChange={(event) => setMonthFilter(event.target.value)}
+          />
+        </label>
+      </div>
+
       {activeForm === "schedule" && (
         <ScheduleForm
           buildings={buildings}
@@ -1013,7 +1050,7 @@ const FireDrill = () => {
       <section className="dashboard-card fire-drill-card">
         <div className="card-header-row">
           <h2 className="section-title">Schedule</h2>
-          {scheduledDrills.length > 3 && (
+          {filteredScheduledDrills.length > 3 && (
             <button
               type="button"
               className="view-all-link"
@@ -1044,7 +1081,7 @@ const FireDrill = () => {
       <section className="dashboard-card fire-drill-card">
         <div className="card-header-row">
           <h2 className="section-title">Drill History</h2>
-          {drillHistory.length > 5 && (
+          {filteredDrillHistory.length > 5 && (
             <button
               type="button"
               className="view-all-link"
