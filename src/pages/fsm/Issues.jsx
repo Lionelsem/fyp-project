@@ -1343,13 +1343,14 @@ const Issues = ({ verifyClosureMode = false }) => {
                 <option key={priority} value={priority}>{priority}</option>
               ))}
             </select>
-            <input
-              type="month"
-              value={filters.month}
-              onChange={(event) => handleFilterChange("month", event.target.value)}
-              aria-label="Reporting month"
-              title="Reporting month"
-            />
+            <label className="issue-overview-filter">
+              <span>Filter by month</span>
+              <input
+                type="month"
+                value={filters.month}
+                onChange={(event) => handleFilterChange("month", event.target.value)}
+              />
+            </label>
           </div>
 
           <ResponsiveTableRegion

@@ -660,7 +660,7 @@ const isIssueTargetRow = (issue, category, item) => {
   );
 };
 
-const applyIssueFocusToChecklist = (sourceChecklist, issue) => {
+const applyIssueFocusToChecklist = (sourceChecklist, issue, expandTarget = true) => {
   if (!issue) return sourceChecklist;
 
   return sourceChecklist.map((category) => {
@@ -668,12 +668,12 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue) => {
 
     return {
       ...category,
-      expanded: category.expanded || hasTargetItem,
+      expanded: category.expanded || (expandTarget && hasTargetItem),
       items: category.items.map((item) =>
         isIssueTargetRow(issue, category, item)
           ? {
               ...item,
-              expanded: true,
+              expanded: expandTarget,
               issue: {
                 ...item.issue,
                 description: issue.issueDescription || item.issue?.description || "",
@@ -1061,9 +1061,9 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
   );
 };
 
-const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, isIssueEditing = false, onUpdate, onPhotoChange, onFixPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onRemoveFixPhoto, onStartIssueEdit, onCancelIssueEdit }) => {
+const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, allowIssueEdit = true, isIssueEditing = false, saving = false, onUpdate, onPhotoChange, onFixPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onRemoveFixPhoto, onStartIssueEdit, onCancelIssueEdit, onSaveIssue }) => {
   const [expandedPhotoGroups, setExpandedPhotoGroups] = useState({ before: false, after: false });
-  const hasIssue = item.condition === "Faulty";
+  const hasIssue = item.condition === "Faulty" || isIssueEditing;
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
   const savedPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]);
@@ -1128,16 +1128,28 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
           <div className="issue-panel">
             <div className="issue-panel-heading">
               <h4>Issue Details <span className="issue-badge">Linked to checklist item</span></h4>
-              {!isVerifyMode && (
-                <button
-                  type="button"
-                  className="secondary-button compact-action-button"
-                  onClick={() => isIssueEditing ? onCancelIssueEdit() : onStartIssueEdit(categoryId, item.id)}
-                  disabled={isClosedIssue && !isIssueEditing}
-                  title={isClosedIssue && !isIssueEditing ? "Closed issues cannot be edited" : isIssueEditing ? "Cancel changes" : "Edit issue"}
-                >
-                  {isIssueEditing ? "Cancel" : "Edit"}
-                </button>
+              {!isVerifyMode && allowIssueEdit && (
+                <div className="issue-panel-actions">
+                  <button
+                    type="button"
+                    className="secondary-button compact-action-button"
+                    onClick={() => isIssueEditing ? onCancelIssueEdit() : onStartIssueEdit(categoryId, item.id)}
+                    disabled={isClosedIssue && !isIssueEditing}
+                    title={isClosedIssue && !isIssueEditing ? "Closed issues cannot be edited" : isIssueEditing ? "Cancel changes" : "Edit issue"}
+                  >
+                    {isIssueEditing ? "Cancel" : "Edit"}
+                  </button>
+                  {isIssueEditing && (
+                    <button
+                      type="button"
+                      className="primary-button compact-action-button"
+                      onClick={() => onSaveIssue(categoryId, item.id)}
+                      disabled={saving}
+                    >
+                      {saving ? "Submitting..." : "Submit"}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             <label>
@@ -1223,10 +1235,9 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                         <input
                           type="file"
                           accept="image/*"
-                          capture="environment"
                           onChange={(event) => onPhotoChange(categoryId, item.id, event.target.files)}
                         />
-                        <span>Upload Image</span>
+                        <span>Camera or Gallery</span>
                       </label>
                     ) : (
                       <div key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`Defect photo slot ${index + 1}`} />
@@ -1268,10 +1279,9 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                         <input
                           type="file"
                           accept="image/*"
-                          capture="environment"
                           onChange={(event) => onFixPhotoChange(categoryId, item.id, event.target.files)}
                         />
-                        <span>Upload Image</span>
+                        <span>Camera or Gallery</span>
                       </label>
                     ) : (
                       <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`After-repair photo slot ${index + 1}`} />
@@ -1572,7 +1582,8 @@ const Inspections = () => {
               ...current,
               [selectedLevel]: applyIssueFocusToChecklist(
                 hydrateChecklistFromSavedResults(templateChecklist, linkedResults),
-                verificationIssue
+                verificationIssue,
+                isVerifyMode
               )
             }));
 
@@ -1603,7 +1614,8 @@ const Inspections = () => {
             ...current,
             [selectedLevel]: applyIssueFocusToChecklist(
               hydrateChecklistFromSavedResults(templateChecklist, currentResults),
-              verificationIssue
+              verificationIssue,
+              isVerifyMode
             )
           }));
 
@@ -1642,7 +1654,8 @@ const Inspections = () => {
           ...current,
           [selectedLevel]: applyIssueFocusToChecklist(
             hydrateChecklistFromPreviousMonth(templateChecklist, previousResults),
-            verificationIssue
+            verificationIssue,
+            isVerifyMode
           )
         }));
 
@@ -1659,7 +1672,8 @@ const Inspections = () => {
           ...current,
           [selectedLevel]: applyIssueFocusToChecklist(
             current[selectedLevel] || templateChecklist,
-            verificationIssue
+            verificationIssue,
+            isVerifyMode
           )
         }));
         setLevelRemarks((current) => ({
@@ -1692,6 +1706,7 @@ const Inspections = () => {
 
   useEffect(() => {
     if (!verificationIssue || !selectedLevel) return;
+    if (isChecklistReviewMode && !prefilledInspectionKeys[inspectionKey]) return;
 
     const verificationKey = buildRecordKey(
       verificationIssue.issueKey || verificationIssue.issueId || verificationIssue.id,
@@ -1731,17 +1746,19 @@ const Inspections = () => {
 
       return {
         ...current,
-        [selectedLevel]: applyIssueFocusToChecklist(currentChecklist, verificationIssue)
+        [selectedLevel]: applyIssueFocusToChecklist(currentChecklist, verificationIssue, isVerifyMode)
       };
     });
 
-    window.setTimeout(() => {
-      document
-        .getElementById(getIssueRowDomId(matchedCategory.id, matchedItem.id))
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 100);
+    if (isVerifyMode) {
+      window.setTimeout(() => {
+        document
+          .getElementById(getIssueRowDomId(matchedCategory.id, matchedItem.id))
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
     setFocusedVerificationKey(verificationKey);
-  }, [checklist, editIssueFromQuery, focusedVerificationKey, selectedLevel, verificationIssue]);
+  }, [checklist, editIssueFromQuery, focusedVerificationKey, inspectionKey, isChecklistReviewMode, isVerifyMode, prefilledInspectionKeys, selectedLevel, verificationIssue]);
 
   useEffect(() => {
     if (!selectedLevel || !Array.isArray(issues) || issues.length === 0) return;
@@ -1834,7 +1851,7 @@ const Inspections = () => {
   );
 
   const updateChecklistItem = (categoryId, itemId, changes) => {
-    if (isChecklistReviewMode) return;
+    if (isChecklistReviewMode && !editIssueFromQuery) return;
 
     if (Object.prototype.hasOwnProperty.call(changes, "condition")) {
       setInspectionSubmitError("");
@@ -1900,7 +1917,7 @@ const Inspections = () => {
   };
 
   const handlePhotoChange = (categoryId, itemId, files) => {
-    if (isChecklistReviewMode) return;
+    if (isChecklistReviewMode && !editIssueFromQuery) return;
 
     const selectedFiles = Array.from(files || []);
     if (selectedFiles.length === 0) return;
@@ -1974,7 +1991,7 @@ const Inspections = () => {
   };
 
   const removePhoto = (categoryId, itemId, photoIndex = 0) => {
-    if (isChecklistReviewMode) return;
+    if (isChecklistReviewMode && !editIssueFromQuery) return;
 
     setChecklistForSelectedLevel((current) =>
       current.map((category) => {
@@ -2423,6 +2440,9 @@ const Inspections = () => {
       const resultDocumentId = existingIssue.resultKey || existingIssue.resultId;
       if (resultDocumentId) {
         await updateInspectionResult(resultDocumentId, {
+          condition: item.condition || existingIssue.condition || "",
+          passFail: getPassFail(item.condition),
+          remark: item.remark || "",
           issueDescription: updatedIssue.issueDescription,
           rectification: updatedIssue.rectification,
           priority: updatedIssue.priority,
@@ -2442,7 +2462,7 @@ const Inspections = () => {
       }
       if (isChecklistReviewMode) setVerificationIssue(updatedIssue);
       setChecklistForSelectedLevel((current) =>
-        applyIssueFocusToChecklist(current, updatedIssue).map((currentCategory) =>
+        applyIssueFocusToChecklist(current, updatedIssue, isVerifyMode).map((currentCategory) =>
           currentCategory.id !== categoryId
             ? currentCategory
             : {
@@ -2511,8 +2531,6 @@ const Inspections = () => {
           }
     ));
   };
-
-  void saveIssueFromChecklist;
 
   const resolveVerificationIssue = async () => {
     if (!verificationIssue || inspectionSubmitting) return;
@@ -3084,7 +3102,7 @@ const Inspections = () => {
             setSelectedLevel={setSelectedLevel}
             selectedPeriod={selectedPeriod}
             setSelectedPeriod={setSelectedPeriod}
-            readOnly={isChecklistReviewMode}
+            readOnly={isChecklistReviewMode && !editIssueFromQuery}
           />
           <IssueSummary
             openCount={issueCounts.open}
@@ -3187,7 +3205,7 @@ const Inspections = () => {
                                 className={getConditionClass(item.condition)}
                                 value={item.condition}
                                 onChange={(e) => updateChecklistItem(category.id, item.id, { condition: e.target.value })}
-                                disabled={isChecklistReviewMode}
+                                disabled={isChecklistReviewMode && !editIssueFromQuery}
                               >
                                 <option value="">Select condition</option>
                                 {conditionOptions.map((option) => (
@@ -3200,7 +3218,7 @@ const Inspections = () => {
                                 value={item.remark}
                                 placeholder="Remark"
                                 onChange={(e) => updateChecklistItem(category.id, item.id, { remark: e.target.value })}
-                                disabled={isChecklistReviewMode}
+                                disabled={isChecklistReviewMode && !editIssueFromQuery}
                               />
                             </div>
                           ))}
@@ -3213,8 +3231,10 @@ const Inspections = () => {
                             categoryId={category.id}
                             isHighlighted={isVerifyMode && isIssueTargetRow(verificationIssue, category, item)}
                             isVerifyMode={isVerifyMode}
-                            readOnly={isChecklistReviewMode}
+                            readOnly={isChecklistReviewMode && !editIssueFromQuery}
+                            allowIssueEdit={!isChecklistReviewMode || editIssueFromQuery}
                             isIssueEditing={editingIssueRowKey === `${category.id}:${item.id}`}
+                            saving={inspectionSubmitting}
                             onUpdate={updateChecklistItem}
                             onPhotoChange={handlePhotoChange}
                             onFixPhotoChange={handleFixPhotoChange}
@@ -3224,6 +3244,7 @@ const Inspections = () => {
                             onRemoveFixPhoto={removeFixPhoto}
                             onStartIssueEdit={startIssueEdit}
                             onCancelIssueEdit={cancelIssueEdit}
+                            onSaveIssue={saveIssueFromChecklist}
                           />
                         ))
                       )}
@@ -3269,14 +3290,14 @@ const Inspections = () => {
                 rows={5}
                 placeholder="Add general observation or notes for this inspection..."
                 onChange={(e) => setRemarksForSelectedLevel(e.target.value)}
-                disabled={isChecklistReviewMode}
+                disabled={isChecklistReviewMode && !editIssueFromQuery}
               />
             </label>
           </section>
         </div>
       </div>
       {(inspectionSubmitError || inspectionSubmitSuccess) && (
-        <div className="issue-ticket-modal-backdrop" role="presentation">
+        <div className="issue-ticket-modal-backdrop inspection-notification-backdrop" role="presentation">
           <div className="issue-ticket-modal" role="alertdialog" aria-modal="true" aria-labelledby="inspection-notification-title">
             <h2 id="inspection-notification-title">
               {inspectionSubmitError ? "Unable to submit" : "Submitted successfully"}
