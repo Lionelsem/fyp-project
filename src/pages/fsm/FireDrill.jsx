@@ -1008,17 +1008,19 @@ const FireDrill = () => {
         </div>
       </div>
 
-      <div className="fire-drill-date-filter">
-        <label htmlFor="fire-drill-month-filter">
-          <span>Filter by month</span>
-          <input
-            id="fire-drill-month-filter"
-            type="month"
-            value={monthFilter}
-            onChange={(event) => setMonthFilter(event.target.value)}
-          />
-        </label>
-      </div>
+      {!activeForm && (
+        <div className="fire-drill-date-filter">
+          <label htmlFor="fire-drill-month-filter">
+            <span>Filter by month</span>
+            <input
+              id="fire-drill-month-filter"
+              type="month"
+              value={monthFilter}
+              onChange={(event) => setMonthFilter(event.target.value)}
+            />
+          </label>
+        </div>
+      )}
 
       {activeForm === "schedule" && (
         <ScheduleForm
@@ -1073,7 +1075,9 @@ const FireDrill = () => {
             ))}
           </div>
         ) : (
-          <div className="fire-drill-empty-card-space" />
+          <div className="fire-drill-empty-card-space" role="status">
+            {monthFilter ? "No scheduled drills for the selected month." : "No scheduled drills yet."}
+          </div>
         )}
       </section>
 
@@ -1133,7 +1137,9 @@ const FireDrill = () => {
             </table>
           </ResponsiveTableRegion>
         ) : (
-          <div className="fire-drill-empty-card-space" />
+          <div className="fire-drill-empty-card-space" role="status">
+            {monthFilter ? "No drill history for the selected month." : "No completed drills yet."}
+          </div>
         )}
       </section>
     </div>

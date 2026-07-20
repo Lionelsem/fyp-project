@@ -11,6 +11,7 @@
   --safe-area-left: env(safe-area-inset-left, 0px);
   --content-max: 90rem;
   --responsive-column-min: min(100%, 250px);
+  --mobile-metric-min: min(100%, clamp(8.5rem, 42vw, 15.625rem));
   --responsive-control-width: min(100%, 200px);
   --sidebar-width: clamp(12.5rem, 16vw, 15rem);
   --space-page: clamp(1rem, 2.5vw, 1.75rem);
@@ -1127,6 +1128,10 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
   gap: var(--space-grid);
   margin-bottom: clamp(20px, 2.5vw, 28px);
+}
+
+.compact-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .summary-card {
@@ -3243,7 +3248,7 @@ select.inspection-row-control {
 /* Fire drill page */
 .fire-drill-page {
   display: grid;
-  gap: 18px;
+  gap: clamp(12px, 2vw, 18px);
 }
 
 .fire-drill-page-header {
@@ -3276,15 +3281,22 @@ select.inspection-row-control {
   gap: 18px;
 }
 
+.fire-drill-form-card,
+.fire-drill-card {
+  padding: clamp(16px, 2vw, 24px);
+}
+
 .fire-drill-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
-  gap: 16px;
+  gap: clamp(12px, 1.5vw, 16px);
 }
 
 .fire-drill-form-field {
   display: grid;
   gap: 7px;
+  min-width: 0;
+  min-inline-size: 0;
 }
 
 .fire-drill-form-field--wide {
@@ -3302,7 +3314,12 @@ select.inspection-row-control {
 .fire-drill-form-field input,
 .fire-drill-form-field select,
 .fire-drill-form-field textarea {
+  display: block;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   border: 1px solid #d1d5db;
   border-radius: 12px;
   padding: 11px 12px;
@@ -3421,6 +3438,10 @@ select.inspection-row-control {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.fire-drill-schedule-item--admin {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .fire-drill-schedule-item:last-child {
   border-bottom: none;
 }
@@ -3497,7 +3518,16 @@ select.inspection-row-control {
 }
 
 .fire-drill-empty-card-space {
-  min-height: 96px;
+  display: grid;
+  min-height: clamp(72px, 10vw, 96px);
+  place-items: center;
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: var(--text-sm);
+  text-align: center;
 }
 
 .fire-drill-date-filter {
@@ -4964,20 +4994,8 @@ select.inspection-row-control {
     padding: clamp(32px, 6vw, 48px) clamp(16px, 4vw, 24px);
   }
 
-  .admin-sidebar {
-    width: 100%;
-    min-width: auto;
-    position: static;
-    padding: 20px 16px;
-  }
-
   .sidebar-menu {
     gap: 8px;
-  }
-
-  .admin-navbar {
-    margin: 16px 16px 0;
-    padding: 18px 18px;
   }
 
   .navbar-center {
@@ -7715,12 +7733,11 @@ select.responsive-control {
   }
 }
 
-/* iPad Safari can report a desktop-sized CSS viewport that is wider than the
-   physical screen. Do not use an upper-width limit for this gutter: keep every
-   wide FSM layout visibly clear of the rounded right screen edge. */
+/* Keep the wide FSM gutter aligned with the left edge while still respecting
+   any physical safe area reported by iPadOS. */
 @media (min-width: 768px) {
   .portal-shell.fsm-shell .main-content.fsm-main-content {
-    padding-right: max(60px, calc(40px + var(--safe-area-right)));
+    padding-right: max(var(--space-page), calc(12px + var(--safe-area-right)));
   }
 
   .portal-shell.fsm-shell .issue-ticket-table--history th:nth-child(7),
@@ -7729,21 +7746,41 @@ select.responsive-control {
     padding-right: max(24px, var(--safe-area-right));
     padding-left: 14px;
   }
+}
 
-  .portal-shell.fsm-shell .fire-drill-form-card .fire-drill-form-actions {
-    padding-right: max(24px, var(--safe-area-right));
+@media (min-width: 768px) and (max-width: 1100px) {
+  .portal-shell .compact-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* Compact dashboard summaries keep the most useful status data above the fold. */
+/* Metric-only grids stay two-up on normal phone widths. Forms and main/detail
+   layouts continue using the larger 250px content-column minimum. */
 @media (max-width: 767px) {
-  .portal-shell .compact-summary-grid {
-    grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
+  .portal-shell .summary-grid,
+  .portal-shell .issue-overview-stats,
+  .portal-shell .issue-summary-grid,
+  .portal-shell .summary-stat-grid,
+  .portal-shell .status-cards-grid,
+  .portal-shell .fsm-quick-actions-list {
+    grid-template-columns: repeat(auto-fit, minmax(var(--mobile-metric-min), 1fr));
     gap: clamp(8px, 1.5vw, 12px);
+  }
+
+  .portal-shell .summary-grid {
     margin-bottom: clamp(12px, 3vw, 16px);
   }
 
-  .portal-shell .compact-summary-grid > .summary-card {
+  .portal-shell .summary-grid > :last-child:nth-child(odd),
+  .portal-shell .issue-overview-stats > :last-child:nth-child(odd),
+  .portal-shell .issue-summary-grid > :last-child:nth-child(odd),
+  .portal-shell .summary-stat-grid > :last-child:nth-child(odd),
+  .portal-shell .status-cards-grid > :last-child:nth-child(odd),
+  .portal-shell .fsm-quick-actions-list > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .portal-shell .summary-grid > .summary-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto;
@@ -7758,11 +7795,11 @@ select.responsive-control {
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
   }
 
-  .portal-shell .compact-summary-grid .card-top {
+  .portal-shell .summary-grid .card-top {
     display: contents;
   }
 
-  .portal-shell .compact-summary-grid .card-icon {
+  .portal-shell .summary-grid .card-icon {
     grid-column: 1;
     grid-row: 1;
     width: 34px;
@@ -7771,7 +7808,7 @@ select.responsive-control {
     font-size: var(--text-base);
   }
 
-  .portal-shell .compact-summary-grid .card-value {
+  .portal-shell .summary-grid .card-value {
     grid-column: 1;
     grid-row: 2;
     max-width: 100%;
@@ -7780,7 +7817,7 @@ select.responsive-control {
     overflow-wrap: anywhere;
   }
 
-  .portal-shell .compact-summary-grid .card-label {
+  .portal-shell .summary-grid .card-label {
     grid-column: 1;
     grid-row: 3;
     max-width: 100%;
@@ -7791,7 +7828,21 @@ select.responsive-control {
     overflow-wrap: anywhere;
   }
 
-  .portal-shell .compact-summary-grid .card-trend {
+  .portal-shell .summary-grid .card-trend {
     display: none;
+  }
+
+  .portal-shell .fire-drill-action-buttons,
+  .portal-shell .fire-drill-form-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .portal-shell .fire-drill-action-buttons > *,
+  .portal-shell .fire-drill-form-actions > * {
+    width: 100%;
+    min-width: 0;
   }
 }

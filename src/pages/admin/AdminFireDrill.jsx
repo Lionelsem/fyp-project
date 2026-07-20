@@ -131,7 +131,7 @@ const AdminFireDrill = () => {
       {loading && <div className="loading-state">Loading fire drill records...</div>}
       {error && <div className="error-state">{error}</div>}
 
-      <div className="dashboard-grid" style={{ marginBottom: "24px" }}>
+      <div className="summary-grid compact-summary-grid" style={{ marginBottom: "24px" }}>
         <div className="summary-card">
           <div className="card-label">Total Fire Drills</div>
           <div className="card-value">{summary.total}</div>
@@ -157,7 +157,7 @@ const AdminFireDrill = () => {
         {upcomingDrills.length > 0 ? (
           <div className="fire-drill-schedule-list">
             {upcomingDrills.map((drill) => (
-              <div key={drill.id} className="fire-drill-schedule-item">
+              <div key={drill.id} className="fire-drill-schedule-item fire-drill-schedule-item--admin">
                 <div className="fire-drill-item-details">
                   <h3>{drill.drillType || drill.task || "Fire Drill"}</h3>
                   <p>{formatDate(drill.drillDate)}</p>
