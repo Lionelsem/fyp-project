@@ -945,7 +945,7 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
         <label className="select-group">
           <span className="sr-only">Condition for {item.label}</span>
           <select
-            className={selectClass}
+            className={`inspection-row-control ${selectClass}`.trim()}
             value={item.condition}
             onChange={(e) => onUpdate(categoryId, item.id, { condition: e.target.value })}
           >
@@ -956,7 +956,7 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
           </select>
         </label>
         <input
-          className="remark-input"
+          className="remark-input inspection-row-control"
           type="text"
           value={item.remark}
           placeholder="Remark"
@@ -1097,7 +1097,7 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
         <label className="select-group">
           <span className="sr-only">Condition for {item.label}</span>
           <select
-            className={selectClass}
+            className={`inspection-row-control ${selectClass}`.trim()}
             value={item.condition}
             onChange={(e) => onUpdate(categoryId, item.id, { condition: e.target.value })}
             disabled={readOnly}
@@ -1109,7 +1109,7 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
           </select>
         </label>
         <input
-          className="remark-input"
+          className="remark-input inspection-row-control"
           type="text"
           value={item.remark}
           placeholder="Remark"
@@ -3267,7 +3267,7 @@ const Inspections = () => {
                             >
                               <span>{item.storey === "All" ? selectedLevelName || "All" : item.storey}</span>
                               <select
-                                className={getConditionClass(item.condition)}
+                                className={`inspection-row-control ${getConditionClass(item.condition)}`.trim()}
                                 value={item.condition}
                                 onChange={(e) => updateChecklistItem(category.id, item.id, { condition: e.target.value })}
                                 disabled={isChecklistReviewMode && !editIssueFromQuery}
@@ -3279,6 +3279,7 @@ const Inspections = () => {
                               </select>
                               <span>{item.location}</span>
                               <input
+                                className="inspection-row-control"
                                 type="text"
                                 value={item.remark}
                                 placeholder="Remark"
