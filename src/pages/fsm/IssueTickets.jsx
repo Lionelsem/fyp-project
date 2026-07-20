@@ -194,10 +194,11 @@ const IssueTickets = () => {
             </select>
           </label>
           <label className="issue-overview-filter">
-            <span>Filter by month</span>
+            <span>Reporting month</span>
             <span className="temporal-control issue-temporal-control">
               <input
                 type="month"
+                aria-label="Reporting month"
                 value={monthFilter}
                 onChange={(event) => setMonthFilter(event.target.value)}
               />

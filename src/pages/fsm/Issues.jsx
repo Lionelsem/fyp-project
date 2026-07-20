@@ -194,6 +194,11 @@ const formatDateTime = (value) => {
   });
 };
 
+const formatDate = (value) => {
+  const date = toDate(value);
+  return date ? date.toLocaleDateString("en-SG", { day: "2-digit", month: "short", year: "numeric" }) : "-";
+};
+
 const statusClassName = (status) => {
   const normalized = normalizeText(status);
   if (normalized === normalizeText(ISSUE_STATUS.CLOSED)) return "issue-status issue-status--closed";
@@ -720,6 +725,7 @@ const Issues = ({ verifyClosureMode = false }) => {
     priority: "",
     month: ""
   });
+
   const [activeIssueId, setActiveIssueId] = useState("");
   const [activeForm, setActiveForm] = useState(null);
   const [issueForm, setIssueForm] = useState(emptyIssueForm);
@@ -1349,10 +1355,11 @@ const Issues = ({ verifyClosureMode = false }) => {
               ))}
             </select>
             <label className="issue-overview-filter">
-              <span>Filter by month</span>
+              <span>Reporting month</span>
               <span className="temporal-control issue-temporal-control">
                 <input
                   type="month"
+                  aria-label="Reporting month"
                   value={filters.month}
                   onChange={(event) => handleFilterChange("month", event.target.value)}
                 />
@@ -1379,7 +1386,9 @@ const Issues = ({ verifyClosureMode = false }) => {
               <tbody>
                 {visibleIssues.map((issue) => {
                   const locationLabel = issue.floorName || issue.location || "-";
-                  const issueUpdatedAt = formatDateTime(issue.updatedAt || issue.createdAt);
+                  const issueUpdatedValue = issue.updatedAt || issue.createdAt;
+                  const issueUpdatedAt = formatDate(issueUpdatedValue);
+                  const issueUpdatedDateTime = formatDateTime(issueUpdatedValue);
 
                   return (
                     <tr
@@ -1392,7 +1401,7 @@ const Issues = ({ verifyClosureMode = false }) => {
                       <td data-label="Building" title={issue.buildingName || ""}>{issue.buildingName || "-"}</td>
                       <td data-label="Status"><span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span></td>
                       <td data-label="Priority"><span className={priorityClassName(issue.priority)}>{issue.priority || PRIORITY.MEDIUM}</span></td>
-                      <td data-label="Updated" title={issueUpdatedAt}>{issueUpdatedAt}</td>
+                      <td data-label="Updated" title={issueUpdatedDateTime}>{issueUpdatedAt}</td>
                       {verifyClosureMode && (
                         <td data-label="View">
                           <button

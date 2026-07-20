@@ -11,7 +11,7 @@ const FSMLayout = ({ children }) => {
 
   const section = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
   const pageTitleMap = {
-    dashboard: "Dashboard",
+    dashboard: "FSM Dashboard",
     inspections: "Inspections",
     verify: "Verify Inspection",
     issues: "Issues / Defects",
