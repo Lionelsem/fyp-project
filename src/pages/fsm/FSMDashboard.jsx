@@ -319,36 +319,21 @@ const FSMDashboard = () => {
     recentReports,
     upcomingSchedule
   } = useFsmDashboardData(fsmLookupIds);
-  const [trendPeriod, setTrendPeriod] = useState("monthly");
-
-  const annualTrend = useMemo(() => {
-    const years = new Map();
-
-    monthlyTrend.forEach((item) => {
-      const year = String(item.key || item.month || "").match(/20\d{2}/)?.[0];
-      if (!year) return;
-
-      if (!years.has(year)) {
-        years.set(year, { key: year, label: year, passed: 0, pending: 0, failed: 0 });
-      }
-
-      const entry = years.get(year);
-      entry.passed += Number(item.passed) || 0;
-      entry.pending += Number(item.pending) || 0;
-      entry.failed += Number(item.failed) || 0;
-    });
-
-    return Array.from(years.values()).sort((first, second) => Number(first.key) - Number(second.key));
-  }, [monthlyTrend]);
+  const [trendMonth, setTrendMonth] = useState("");
 
   const trendItems = useMemo(() => {
-    if (trendPeriod === "annual") return annualTrend.slice(-5);
+    if (trendMonth) {
+      return monthlyTrend.filter((item) => item.key === trendMonth).map((item) => ({
+        ...item,
+        label: item.month || item.key
+      }));
+    }
 
-    return monthlyTrend.slice(-6).map((item) => ({
+    return monthlyTrend.map((item) => ({
       ...item,
       label: item.month || item.key
     }));
-  }, [annualTrend, monthlyTrend, trendPeriod]);
+  }, [monthlyTrend, trendMonth]);
 
   return (
     <div className="dashboard-container fsm-dashboard-page" aria-busy={loading}>
@@ -408,14 +393,15 @@ const FSMDashboard = () => {
           </header>
 
           <div className="fsm-trend-toolbar">
-            <select
-              aria-label="Issue trend period"
-              value={trendPeriod}
-              onChange={(event) => setTrendPeriod(event.target.value)}
-            >
-              <option value="monthly">Monthly</option>
-              <option value="annual">Annually</option>
-            </select>
+            <label className="issue-overview-filter fsm-trend-reporting-month">
+              <span>Reporting month</span>
+              <input
+                type="month"
+                aria-label="Reporting month"
+                value={trendMonth}
+                onChange={(event) => setTrendMonth(event.target.value)}
+              />
+            </label>
 
             <div className="fsm-trend-legend" aria-hidden="true">
               {CHART_SERIES.map((series) => (
@@ -425,7 +411,6 @@ const FSMDashboard = () => {
                 </span>
               ))}
             </div>
-            <span className="fsm-trend-toolbar-spacer" />
           </div>
 
           <TrendChart items={trendItems} loading={loading} />

@@ -194,7 +194,7 @@ const IssueTickets = () => {
             </select>
           </label>
           <label className="issue-overview-filter">
-            <span>Filter by month</span>
+            <span>Reporting month</span>
             <input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} />
           </label>
         </div>
