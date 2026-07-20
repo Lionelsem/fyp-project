@@ -26,6 +26,7 @@ const PortalShell = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef(null);
   const sidebarRef = useRef(null);
+  const mainContentRef = useRef(null);
   const wasMenuOpenRef = useRef(false);
 
   const closeMenu = useCallback(() => {
@@ -39,6 +40,14 @@ const PortalShell = ({
   useEffect(() => {
     closeMenu();
   }, [closeMenu, location.hash, location.pathname, location.search]);
+
+  useEffect(() => {
+    const mainContent = mainContentRef.current;
+    if (!mainContent) return;
+
+    mainContent.scrollTop = 0;
+    mainContent.scrollLeft = 0;
+  }, [location.pathname]);
 
   useEffect(() => {
     const wasMenuOpen = wasMenuOpenRef.current;
@@ -107,7 +116,7 @@ const PortalShell = ({
       return undefined;
     }
 
-    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    const mobileQuery = window.matchMedia("(max-width: 960px)");
     const handleViewportChange = (event) => {
       if (!event.matches) {
         closeMenu();
@@ -175,7 +184,7 @@ const PortalShell = ({
             menuControlsId={drawerId}
             onMenuToggle={toggleMenu}
           />
-          <main className={mainContentClasses}>
+          <main ref={mainContentRef} className={mainContentClasses}>
             <PageLayout className="portal-page-layout">{children}</PageLayout>
           </main>
         </div>

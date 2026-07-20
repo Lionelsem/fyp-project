@@ -135,7 +135,7 @@ const IssueTickets = () => {
   ];
 
   return (
-    <main className="dashboard-container issue-overview-page">
+    <div className="dashboard-container issue-overview-page">
       <nav className="page-breadcrumb" aria-label="Breadcrumb">
         <button type="button" onClick={() => navigate("/fsm/inspections")}>Inspections</button>
         <span aria-hidden="true">/</span>
@@ -195,7 +195,14 @@ const IssueTickets = () => {
           </label>
           <label className="issue-overview-filter">
             <span>Reporting month</span>
-            <input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} />
+            <span className="temporal-control issue-temporal-control">
+              <input
+                type="month"
+                aria-label="Reporting month"
+                value={monthFilter}
+                onChange={(event) => setMonthFilter(event.target.value)}
+              />
+            </span>
           </label>
         </div>
 
@@ -272,7 +279,7 @@ const IssueTickets = () => {
           </ResponsiveTableRegion>
         )}
       </section>
-    </main>
+    </div>
   );
 };
 

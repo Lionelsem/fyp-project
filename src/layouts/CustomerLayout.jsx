@@ -12,10 +12,10 @@ const CustomerLayout = ({ children }) => {
   const section = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
   const pageTitleMap = {
     dashboard: "Customer Dashboard",
-    issue: "Issue Progress",
-    inspections: "Inspection Reports",
-    firedrill: "Fire Drill Reports",
-    annual: "Annual Report",
+    "issue-progress": "Issue Progress",
+    "inspection-reports": "Inspection Reports",
+    "fire-drill-reports": "Fire Drill Reports",
+    "annual-reports": "Annual Reports",
     feedbacks: "Comments/Feedbacks",
     building: "My Buildings",
     profile: "Profile"

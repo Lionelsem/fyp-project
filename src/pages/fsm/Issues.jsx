@@ -1329,17 +1329,26 @@ const Issues = ({ verifyClosureMode = false }) => {
           <div className="issue-ticket-toolbar issue-ticket-toolbar--four">
             <input
               type="search"
+              aria-label="Search issues"
               value={filters.search}
               onChange={(event) => handleFilterChange("search", event.target.value)}
               placeholder="Search issues..."
             />
-            <select value={filters.status} onChange={(event) => handleFilterChange("status", event.target.value)}>
+            <select
+              aria-label="Filter issues by status"
+              value={filters.status}
+              onChange={(event) => handleFilterChange("status", event.target.value)}
+            >
               <option value="">All statuses</option>
               {(verifyClosureMode ? verifyClosureStatuses : issueTicketStatuses).map((status) => (
                 <option key={status} value={status}>{status}</option>
               ))}
             </select>
-            <select value={filters.priority} onChange={(event) => handleFilterChange("priority", event.target.value)}>
+            <select
+              aria-label="Filter issues by priority"
+              value={filters.priority}
+              onChange={(event) => handleFilterChange("priority", event.target.value)}
+            >
               <option value="">All priorities</option>
               {Object.values(PRIORITY).map((priority) => (
                 <option key={priority} value={priority}>{priority}</option>
@@ -1347,12 +1356,14 @@ const Issues = ({ verifyClosureMode = false }) => {
             </select>
             <label className="issue-overview-filter">
               <span>Reporting month</span>
-              <input
-              type="month"
-              aria-label="Reporting month"
-              value={filters.month}
-              onChange={(event) => handleFilterChange("month", event.target.value)}
-              />
+              <span className="temporal-control issue-temporal-control">
+                <input
+                  type="month"
+                  aria-label="Reporting month"
+                  value={filters.month}
+                  onChange={(event) => handleFilterChange("month", event.target.value)}
+                />
+              </span>
             </label>
           </div>
 

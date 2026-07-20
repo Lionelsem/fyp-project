@@ -138,14 +138,14 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="dashboard-container admin-dashboard-page role-dashboard-page">
+      <div className="dashboard-container admin-page admin-dashboard-page role-dashboard-page">
         <div className="loading-state">Loading dashboard...</div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-container admin-dashboard-page role-dashboard-page">
+    <div className="dashboard-container admin-page admin-dashboard-page role-dashboard-page">
       {/* Summary cards */}
       <div
         className="summary-grid compact-summary-grid"

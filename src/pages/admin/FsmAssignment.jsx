@@ -103,9 +103,9 @@ const FsmAssignment = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div className="card-header-row">
+    <div className="dashboard-container admin-page admin-page-stack">
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">FSM Assignment</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>

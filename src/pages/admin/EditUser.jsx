@@ -85,9 +85,9 @@ const EditUser = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ width: "min(100%, 960px)", margin: "0 auto" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+    <div className="dashboard-container admin-page admin-record-page">
+      <div className="dashboard-card admin-record-card">
+        <div className="card-header-row admin-record-header">
           <div>
             <h2 className="section-title">Edit User</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -96,25 +96,19 @@ const EditUser = () => {
           </div>
           <button
             type="button"
-            className="primary-btn"
+            className="primary-btn admin-record-back-button"
             onClick={() => navigate("/users")}
-            style={{
-              height: "clamp(2.5rem, 2.35rem + 0.5vw, 2.75rem)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
           >
             ← Back to Users
           </button>
         </div>
 
         {loading ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: "#6b7280" }}>
+          <div className="admin-record-loading">
             Loading user details...
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: "24px", padding: "20px 0" }}>
+          <form className="admin-record-form" onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-field">
                 <label className="form-label">First Name *</label>
@@ -180,7 +174,10 @@ const EditUser = () => {
             </div>
 
             {message && (
-              <div style={{ color: message.type === "error" ? "#b91c1c" : "#047857", fontWeight: 600 }}>
+              <div
+                className="admin-form-message"
+                style={{ color: message.type === "error" ? "#b91c1c" : "#047857" }}
+              >
                 {message.text}
               </div>
             )}

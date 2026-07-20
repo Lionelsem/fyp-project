@@ -216,7 +216,7 @@ const InspectionReports = () => {
         </div>
       </div>
 
-      <div className="summary-grid">
+      <div className="summary-grid compact-summary-grid">
         <div className="summary-card">
           <div className="card-top">
             <div className="card-icon" style={{ backgroundColor: "#ecfdf5", color: "#047857" }}>
@@ -326,7 +326,7 @@ const InspectionReports = () => {
               <h2 className="section-title">Inspection History</h2>
             </div>
 
-            <div className="issues-search-controls" style={{ marginBottom: "16px" }}>
+            <div className="issues-search-controls report-history-filters">
               <div className="issues-search-field">
                 <div className="search-box">
                   <span className="search-icon">🔍</span>
@@ -373,8 +373,10 @@ const InspectionReports = () => {
                     {filteredReports.map((report) => (
                       <tr key={report.id}>
                         <td data-label="Report">
-                          <div className="id-cell">{report.reportId}</div>
-                          <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)" }}>{report.fsmInCharge}</div>
+                          <div className="report-cell-copy">
+                            <div className="id-cell">{report.reportId}</div>
+                            <div className="report-cell-meta">{report.fsmInCharge}</div>
+                          </div>
                         </td>
                         <td data-label="Month">{report.inspectionMonth}</td>
                         <td data-label="Date">{report.inspectionDate}</td>

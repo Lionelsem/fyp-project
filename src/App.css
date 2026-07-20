@@ -13,7 +13,11 @@
   --responsive-column-min: min(100%, 250px);
   --mobile-metric-min: min(100%, clamp(8.5rem, 42vw, 15.625rem));
   --responsive-control-width: min(100%, 200px);
+  --control-height: clamp(2.75rem, 2.68rem + 0.3vw, 3rem);
+  --compact-control-height: clamp(2.375rem, 2.34rem + 0.14vw, 2.5rem);
   --sidebar-width: clamp(12.5rem, 16vw, 15rem);
+  --sidebar-half-width: clamp(6.25rem, 8vw, 7.5rem);
+  --portal-gutter: clamp(0.75rem, 2.4vw, 1.25rem);
   --space-page: clamp(1rem, 2.5vw, 1.75rem);
   --space-card: clamp(1rem, 2vw, 1.5rem);
   --space-grid: clamp(0.75rem, 1.5vw, 1.125rem);
@@ -435,6 +439,7 @@ button {
 .user-avatar-large {
   width: 56px;
   height: 56px;
+  flex: 0 0 56px;
   border-radius: 50%;
   background: #4fa58b;
   display: grid;
@@ -697,7 +702,7 @@ button {
 
 .form-input {
   width: 100%;
-  min-height: 46px;
+  min-height: var(--control-height);
   padding: 14px 16px;
   border-radius: 14px;
   border: 1px solid #d1d5db;
@@ -1131,7 +1136,7 @@ button {
 }
 
 .compact-summary-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
 }
 
 .summary-card {
@@ -1333,8 +1338,12 @@ button {
 }
 
 .action-icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
   border-radius: 12px;
   border: 1px solid #e5e7eb;
   background-color: #ffffff;
@@ -1523,8 +1532,8 @@ button {
   font-weight: 600;
 }
 
-.report-month-filter input {
-  min-height: 38px;
+.report-month-filter > input {
+  min-height: var(--compact-control-height);
   padding: 7px 10px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -1721,7 +1730,7 @@ button {
 
 .overview-level-select {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: 10px 42px 10px 14px;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
@@ -1896,12 +1905,12 @@ button {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Keep the fixed navigator centred in the FSM content pane, not across the
-   sidebar and content combined. The sidebar becomes an overlay below 768px. */
-@media (min-width: 768px) {
+/* Keep the fixed navigator centred in the FSM content pane when the persistent
+   sidebar is present. Tablet and phone navigation uses a drawer instead. */
+@media (min-width: 961px) {
   .fsm-shell .inspection-page .checklist-section-navigator {
-    left: calc(50% + 120px);
-    max-width: calc(100vw - 264px);
+    left: calc(50% + var(--sidebar-half-width));
+    max-width: calc(100vw - var(--sidebar-width) - 24px);
   }
 }
 
@@ -2053,12 +2062,13 @@ button {
 .row-detail textarea,
 .row-main .remark-input {
   width: 100%;
-  height: 46px;
+  height: var(--control-height);
+  min-height: var(--control-height);
   min-width: 0;
   border-radius: 12px;
   border: 1px solid #d1d5db;
   padding: 10px 12px;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: #0f172a;
   background: #ffffff;
   box-sizing: border-box;
@@ -2316,7 +2326,7 @@ select.inspection-row-control {
 .appendix-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 720px;
+  min-width: clamp(42.5rem, 90vw, 45rem);
 }
 
 .appendix-table th,
@@ -2609,7 +2619,7 @@ select.inspection-row-control {
   }
 
   .appendix-table {
-    min-width: 100%;
+    min-width: clamp(42.5rem, 90vw, 45rem);
   }
 }
 
@@ -3320,6 +3330,7 @@ select.inspection-row-control {
   max-width: 100%;
   min-inline-size: 0;
   max-inline-size: 100%;
+  min-height: var(--control-height);
   border: 1px solid #d1d5db;
   border-radius: 12px;
   padding: 11px 12px;
@@ -3332,12 +3343,12 @@ select.inspection-row-control {
   resize: vertical;
 }
 
-.fire-drill-temporal-control {
+.temporal-control {
   display: flex;
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 44px;
+  min-height: var(--control-height);
   align-items: center;
   padding: 0 12px;
   overflow: hidden;
@@ -3351,8 +3362,7 @@ select.inspection-row-control {
   text-transform: none;
 }
 
-.fire-drill-form-field .fire-drill-temporal-control > input,
-.fire-drill-date-filter .fire-drill-temporal-control > input {
+.temporal-control > input {
   flex: 1 1 auto;
   display: block;
   width: 100%;
@@ -3371,13 +3381,30 @@ select.inspection-row-control {
   box-shadow: none;
 }
 
-.fire-drill-temporal-control > input::-webkit-date-and-time-value {
+.temporal-control > input::-webkit-date-and-time-value {
   text-align: left;
 }
 
-.fire-drill-temporal-control:focus-within {
+.temporal-control:focus-within {
   border-color: #10b981;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+
+.temporal-control:has(> input:disabled) {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.report-month-filter > .temporal-control,
+.issue-overview-toolbar .temporal-control {
+  min-height: var(--compact-control-height);
+  padding-inline: 10px;
+  border-radius: 8px;
+}
+
+.form-temporal-control {
+  padding-block: 0;
 }
 
 .fire-drill-form-error {
@@ -3737,10 +3764,10 @@ select.inspection-row-control {
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
 }
 
-.issue-overview-filter input,
-.issue-overview-filter select {
+.issue-overview-filter > input,
+.issue-overview-filter > select {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 10px;
@@ -3811,18 +3838,19 @@ select.inspection-row-control {
   align-items: end;
 }
 
-@media (min-width: 901px) {
-  .issue-ticket-toolbar--four .issue-overview-filter {
-    position: relative;
-    display: block;
-  }
+.issue-ticket-toolbar--four > input,
+.issue-ticket-toolbar--four > select,
+.issue-ticket-toolbar--four > .issue-overview-filter,
+.issue-ticket-toolbar--four .issue-temporal-control {
+  width: 100%;
+  min-width: 0;
+}
 
-  .issue-ticket-toolbar--four .issue-overview-filter > span {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 0;
-    white-space: nowrap;
-  }
+.issue-ticket-toolbar--four > input,
+.issue-ticket-toolbar--four > select,
+.issue-ticket-toolbar--four .issue-temporal-control {
+  height: var(--control-height);
+  min-height: var(--control-height);
 }
 
 .issue-ticket-toolbar.issue-overview-toolbar {
@@ -3832,9 +3860,9 @@ select.inspection-row-control {
   margin-bottom: 18px;
 }
 
-.issue-overview-toolbar .issue-overview-filter input,
-.issue-overview-toolbar .issue-overview-filter select {
-  min-height: 38px;
+.issue-overview-toolbar .issue-overview-filter > input,
+.issue-overview-toolbar .issue-overview-filter > select {
+  min-height: var(--compact-control-height);
   padding: 7px 10px;
   border-radius: 8px;
 }
@@ -3875,15 +3903,17 @@ select.inspection-row-control {
   opacity: 0.55;
 }
 
-.issue-ticket-toolbar input,
-.issue-ticket-toolbar select,
+.issue-ticket-toolbar > input,
+.issue-ticket-toolbar > select,
+.issue-ticket-toolbar .issue-overview-filter > input,
+.issue-ticket-toolbar .issue-overview-filter > select,
 .issue-ticket-form input,
 .issue-ticket-form select,
 .issue-ticket-form textarea {
   width: 100%;
   border: 1px solid #d1d5db;
   border-radius: 12px;
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: 9px 12px;
   font-size: var(--text-md);
   color: #0f172a;
@@ -4269,7 +4299,7 @@ select.inspection-row-control {
 .issue-ticket-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 400;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -4596,6 +4626,10 @@ select.inspection-row-control {
   align-items: start;
 }
 
+.building-details-layout--no-image {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .building-image-container {
   display: flex;
   flex-direction: column;
@@ -4715,6 +4749,8 @@ select.inspection-row-control {
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .report-title {
@@ -4737,9 +4773,9 @@ select.inspection-row-control {
 .fsm-reports-page {
   display: flex;
   justify-content: center;
-  height: calc(100dvh - 156px);
+  height: auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .fsm-reports-panel {
@@ -4850,9 +4886,9 @@ select.inspection-row-control {
 }
 
 .fsm-latest-report-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 7px 0;
   border-bottom: 1px solid #e2e8f0;
@@ -4872,6 +4908,7 @@ select.inspection-row-control {
   color: #0f172a;
   font-size: var(--text-xs);
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .fsm-latest-report-copy span {
@@ -4883,13 +4920,18 @@ select.inspection-row-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 78px;
+  min-width: min(100%, 4.875rem);
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid;
   font-size: var(--text-xs);
   font-weight: 700;
   white-space: nowrap;
+}
+
+.fsm-report-open-link {
+  margin-left: 0;
+  justify-self: end;
 }
 
 .fsm-report-status-pill--approved {
@@ -6707,7 +6749,7 @@ select.responsive-control {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 960px) {
   .login-page {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -7236,8 +7278,7 @@ select.responsive-control {
   }
 
   .inspection-page .row-main,
-  .inspection-page .issue-photo-wrapper--grid,
-  .inspection-page .issue-photo-gallery {
+  .inspection-page .issue-photo-wrapper--grid:not(.issue-photo-gallery) {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -7392,7 +7433,7 @@ select.responsive-control {
   white-space: normal;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1400px) {
   .admin-main-content .assignment-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -7980,5 +8021,474 @@ select.responsive-control {
   .portal-shell .fire-drill-form-actions > * {
     width: 100%;
     min-width: 0;
+  }
+}
+
+/* Site-wide responsive consistency layer.
+   Keep shared shell geometry and control sizing in one final cascade layer. */
+.portal-shell :where(
+  .summary-grid,
+  .dashboard-grid,
+  .form-grid,
+  .responsive-info-grid,
+  .report-toolbar,
+  .issues-search-controls,
+  .issue-ticket-toolbar,
+  .customer-report-summary-grid,
+  .building-spec-grid,
+  .report-modal-grid,
+  .report-section-grid
+) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dashboard-card > .card-header-row:last-child {
+  margin-bottom: 0;
+}
+
+.report-toolbar,
+.issues-search-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
+  align-items: end;
+  gap: var(--space-grid);
+}
+
+.report-toolbar > *,
+.issues-search-controls > *,
+.issues-search-controls > .issues-actions,
+.issues-search-controls > .issues-actions > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.report-toolbar .search-box,
+.issues-search-controls .search-box {
+  width: 100%;
+  min-height: var(--control-height);
+  padding-block: 0;
+}
+
+.report-toolbar .report-month-filter > .temporal-control {
+  min-height: var(--control-height);
+}
+
+.report-history-filters {
+  margin-bottom: var(--space-card);
+}
+
+.report-cell-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.report-cell-meta {
+  color: #64748b;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.form-temporal-control {
+  min-height: var(--control-height);
+  padding: 0 16px;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.form-temporal-control:focus-within {
+  background: #ffffff;
+}
+
+.my-building-page {
+  min-height: 0;
+}
+
+.building-image {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.fsm-latest-report-card .report-month-filter {
+  width: var(--responsive-control-width);
+  max-width: 100%;
+}
+
+.fsm-report-status-pill {
+  justify-self: end;
+}
+
+.role-dashboard-page .dashboard-card {
+  overflow: visible;
+}
+
+.assignment-meta > *,
+.report-content,
+.report-title,
+.report-subtitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-page-stack {
+  display: grid;
+  gap: var(--space-card);
+}
+
+.admin-page-stack > .summary-grid {
+  margin-bottom: 0;
+}
+
+.admin-page-header-card > .admin-page-header {
+  margin-bottom: 0;
+}
+
+.admin-page-header,
+.admin-record-header {
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: clamp(12px, 2vw, 16px);
+}
+
+.admin-record-page {
+  min-width: 0;
+}
+
+.admin-record-card {
+  width: min(100%, 60rem);
+  margin-inline: auto;
+}
+
+.admin-record-form {
+  display: grid;
+  gap: clamp(16px, 2vw, 24px);
+  padding: 0;
+}
+
+.admin-record-back-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  min-height: 44px;
+}
+
+.admin-record-field--wide {
+  grid-column: 1 / -1;
+}
+
+.admin-record-loading {
+  padding-block: clamp(2rem, 5vw, 2.5rem);
+  color: #6b7280;
+  text-align: center;
+}
+
+.admin-record-note {
+  padding: clamp(12px, 2vw, 16px);
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.admin-form-message {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.customer-buildings-page,
+.customer-buildings-content,
+.customer-building-detail-card,
+.customer-building-address > :last-child,
+.customer-building-spec-item {
+  min-width: 0;
+}
+
+.customer-buildings-page-state {
+  margin-bottom: clamp(0.875rem, 2vw, 1.125rem);
+}
+
+.customer-buildings-content {
+  display: grid;
+  gap: var(--space-card);
+}
+
+.customer-buildings-header {
+  margin-bottom: 0;
+}
+
+.customer-building-name {
+  margin: 0 0 0.5rem;
+  color: #0f172a;
+  font-size: clamp(1.375rem, 1.2rem + 0.7vw, 1.625rem);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.customer-building-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  margin: 0 0 0.25rem;
+  color: #64748b;
+  font-size: var(--text-md);
+}
+
+.customer-building-location-icon {
+  flex: 0 0 auto;
+}
+
+.customer-building-occupancy {
+  align-self: flex-start;
+  margin-top: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.customer-building-section {
+  margin-top: clamp(1.25rem, 2.5vw, 1.75rem);
+  padding-top: clamp(1rem, 2vw, 1.5rem);
+  border-top: 1px solid #e5e7eb;
+}
+
+.customer-building-section-title {
+  margin: 0 0 1rem;
+  color: #0f172a;
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.customer-building-spec-grid {
+  grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
+}
+
+.customer-building-spec-label {
+  margin: 0 0 0.375rem;
+  color: #64748b;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.customer-building-spec-value {
+  margin: 0;
+  color: #0f172a;
+  font-size: var(--text-base);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.customer-building-spec-meta {
+  margin: 0.25rem 0 0;
+  color: #94a3b8;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 901px) {
+  .admin-main-content .dashboard-table th,
+  .admin-main-content .dashboard-table td {
+    padding-inline: clamp(0.5rem, 1vw, 0.875rem);
+  }
+
+  .admin-main-content .dashboard-table th:first-child,
+  .admin-main-content .dashboard-table td:first-child {
+    padding-left: 0;
+  }
+
+  .admin-main-content .dashboard-table th:last-child,
+  .admin-main-content .dashboard-table td:last-child {
+    padding-right: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1400px) {
+  .compact-summary-grid,
+  .portal-shell .issue-overview-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .portal-shell .admin-navbar {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-top: max(var(--portal-gutter), var(--safe-area-top));
+    padding-right: max(var(--portal-gutter), var(--safe-area-right));
+    padding-bottom: var(--portal-gutter);
+    padding-left: max(var(--portal-gutter), var(--safe-area-left));
+  }
+
+  .portal-shell .main-content {
+    padding: var(--portal-gutter);
+    padding-right: max(var(--portal-gutter), var(--safe-area-right));
+    padding-bottom: max(var(--portal-gutter), var(--safe-area-bottom));
+    padding-left: max(var(--portal-gutter), var(--safe-area-left));
+  }
+
+  .portal-shell .checklist-section-dot {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-page-header,
+  .admin-record-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-page-header .responsive-control,
+  .admin-record-back-button {
+    width: 100%;
+  }
+
+  .fsm-latest-report-card .report-month-filter {
+    width: 100%;
+  }
+
+  .report-month-filter > .temporal-control,
+  .issue-overview-toolbar .temporal-control,
+  .issue-overview-toolbar .issue-overview-filter > input,
+  .issue-overview-toolbar .issue-overview-filter > select {
+    height: var(--control-height);
+    min-height: var(--control-height);
+  }
+
+  .fsm-trend-toolbar select {
+    height: auto;
+    min-height: 44px;
+  }
+
+  .fsm-latest-report-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .fsm-report-open-link {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .fsm-latest-report-copy strong {
+    font-size: var(--text-sm);
+    line-height: 1.3;
+  }
+
+  .fsm-latest-report-copy span {
+    font-size: var(--text-xs);
+  }
+
+  .portal-shell input[type="checkbox"],
+  .portal-shell input[type="radio"] {
+    width: auto;
+    max-width: none;
+  }
+
+  .portal-shell .profile-toggle-row input {
+    width: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    height: 28px;
+  }
+
+  .portal-shell .image-source-option input,
+  .portal-shell .inspection-photo-upload-box input {
+    width: 1px;
+    min-width: 1px;
+    max-width: 1px;
+  }
+
+  .portal-shell :is(
+    .issue-overview-action,
+    .issue-icon-action,
+    .checklist-section-dot,
+    .notification-close-button,
+    .notification-btn
+  ) {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+    padding: 0;
+  }
+
+  .portal-shell .photo-remove-btn,
+  .modal .modal-close-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+    padding: 0;
+  }
+
+  .portal-shell .photo-thumb-wrapper > .photo-remove-btn {
+    top: -12px;
+    right: -12px;
+  }
+
+  .portal-shell .issue-remove-btn {
+    top: 6px;
+    right: 6px;
+  }
+
+  .category-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: clamp(14px, 4vw, 18px);
+  }
+
+  .category-header > :first-child {
+    min-width: 0;
+  }
+
+  .category-header-status {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 430px) {
+  .fsm-latest-report-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fsm-report-status-pill,
+  .fsm-report-open-link {
+    grid-column: 1;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 374px) {
+  .portal-shell .fire-drill-action-buttons,
+  .portal-shell .fire-drill-form-actions {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

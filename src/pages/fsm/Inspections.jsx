@@ -788,15 +788,17 @@ const InspectionOverview = ({
         </div>
         <div>
           <span className="overview-label">Month</span>
-          <label>
-            <input
-              type="month"
-              value={selectedPeriod}
-              onChange={(event) => event.target.value && setSelectedPeriod(event.target.value)}
-              disabled={readOnly}
-              required
-              aria-label="Inspection month"
-            />
+          <label className="overview-level-field">
+            <span className="temporal-control overview-temporal-control">
+              <input
+                type="month"
+                value={selectedPeriod}
+                onChange={(event) => event.target.value && setSelectedPeriod(event.target.value)}
+                disabled={readOnly}
+                required
+                aria-label="Inspection month"
+              />
+            </span>
           </label>
           <small className="hint-text">{inspectionInfo.month}</small>
         </div>
@@ -1116,15 +1118,16 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
           onChange={(e) => onUpdate(categoryId, item.id, { remark: e.target.value })}
           disabled={readOnly}
         />
-        <button
-          type="button"
-          className="expand-btn"
-          onClick={() => onToggle(categoryId, item.id)}
-          aria-label="Toggle detail row"
-          disabled={!hasIssue}
-        >
-          {hasIssue ? (rowOpen ? "\u25be" : "\u25b8") : ""}
-        </button>
+        {hasIssue && (
+          <button
+            type="button"
+            className="expand-btn"
+            onClick={() => onToggle(categoryId, item.id)}
+            aria-label="Toggle detail row"
+          >
+            {rowOpen ? "\u25be" : "\u25b8"}
+          </button>
+        )}
       </div>
       {hasIssue && rowOpen && (
         <div className="row-detail">
@@ -3060,7 +3063,7 @@ const Inspections = () => {
   };
 
   return (
-    <main className="inspection-page">
+    <div className="inspection-page">
       <nav className="page-breadcrumb" aria-label="Breadcrumb">
         <span aria-current="page">Inspections</span>
         <span aria-hidden="true">/</span>
@@ -3390,7 +3393,7 @@ const Inspections = () => {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 };
 

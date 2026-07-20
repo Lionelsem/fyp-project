@@ -94,12 +94,12 @@ const AdminIssues = () => {
   }, [issues]);
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-page admin-page-stack">
       {loading && <div className="loading-state">Loading issues...</div>}
       {error && <div className="error-state">{error}</div>}
 
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">Issues / Defects</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
