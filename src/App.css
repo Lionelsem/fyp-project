@@ -3303,7 +3303,7 @@ select.inspection-row-control {
   grid-column: 1 / -1;
 }
 
-.fire-drill-form-field span {
+.fire-drill-form-field > span:first-child {
   font-size: var(--text-xs);
   font-weight: 700;
   color: #475569;
@@ -3330,6 +3330,54 @@ select.inspection-row-control {
 
 .fire-drill-form-field textarea {
   resize: vertical;
+}
+
+.fire-drill-temporal-control {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 12px;
+  overflow: hidden;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: var(--text-md);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.fire-drill-form-field .fire-drill-temporal-control > input,
+.fire-drill-date-filter .fire-drill-temporal-control > input {
+  flex: 1 1 auto;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  box-shadow: none;
+}
+
+.fire-drill-temporal-control > input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.fire-drill-temporal-control:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
 }
 
 .fire-drill-form-error {
@@ -3538,20 +3586,15 @@ select.inspection-row-control {
 
 .fire-drill-date-filter label {
   display: grid;
+  width: min(100%, 200px);
   gap: 6px;
   color: #475569;
   font-size: var(--text-sm);
   font-weight: 700;
 }
 
-.fire-drill-date-filter input {
-  min-height: 44px;
-  padding: 9px 12px;
-  border: 1px solid #d1d5db;
+.fire-drill-date-filter .fire-drill-temporal-control {
   border-radius: 10px;
-  background: #fff;
-  color: #0f172a;
-  font: inherit;
 }
 
 .issue-panel-actions {

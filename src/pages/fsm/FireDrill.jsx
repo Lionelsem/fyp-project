@@ -420,28 +420,34 @@ const ScheduleForm = ({
         )}
         <label className="fire-drill-form-field">
           <span>Date</span>
-          <input
-            type="date"
-            value={form.drillDate}
-            onChange={(event) => onChange("drillDate", event.target.value)}
-            required
-          />
+          <span className="fire-drill-temporal-control">
+            <input
+              type="date"
+              value={form.drillDate}
+              onChange={(event) => onChange("drillDate", event.target.value)}
+              required
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>Start Time</span>
-          <input
-            type="time"
-            value={form.drillTime}
-            onChange={(event) => onChange("drillTime", event.target.value)}
-          />
+          <span className="fire-drill-temporal-control">
+            <input
+              type="time"
+              value={form.drillTime}
+              onChange={(event) => onChange("drillTime", event.target.value)}
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>End Time</span>
-          <input
-            type="time"
-            value={form.drillEndTime}
-            onChange={(event) => onChange("drillEndTime", event.target.value)}
-          />
+          <span className="fire-drill-temporal-control">
+            <input
+              type="time"
+              value={form.drillEndTime}
+              onChange={(event) => onChange("drillEndTime", event.target.value)}
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>Scope</span>
@@ -528,21 +534,25 @@ const ConductForm = ({
       <div className="fire-drill-form-grid">
         <label className="fire-drill-form-field">
           <span>Actual Date</span>
-          <input
-            type="date"
-            value={form.actualDate}
-            onChange={(event) => onChange("actualDate", event.target.value)}
-            required
-          />
+          <span className="fire-drill-temporal-control">
+            <input
+              type="date"
+              value={form.actualDate}
+              onChange={(event) => onChange("actualDate", event.target.value)}
+              required
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>Actual Time</span>
-          <input
-            type="time"
-            value={form.actualTime}
-            onChange={(event) => onChange("actualTime", event.target.value)}
-            required
-          />
+          <span className="fire-drill-temporal-control">
+            <input
+              type="time"
+              value={form.actualTime}
+              onChange={(event) => onChange("actualTime", event.target.value)}
+              required
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>Actual Participants</span>
@@ -1012,12 +1022,14 @@ const FireDrill = () => {
         <div className="fire-drill-date-filter">
           <label htmlFor="fire-drill-month-filter">
             <span>Filter by month</span>
-            <input
-              id="fire-drill-month-filter"
-              type="month"
-              value={monthFilter}
-              onChange={(event) => setMonthFilter(event.target.value)}
-            />
+            <span className="fire-drill-temporal-control">
+              <input
+                id="fire-drill-month-filter"
+                type="month"
+                value={monthFilter}
+                onChange={(event) => setMonthFilter(event.target.value)}
+              />
+            </span>
           </label>
         </div>
       )}
