@@ -127,11 +127,11 @@ const AdminFireDrill = () => {
   );
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-page admin-page-stack">
       {loading && <div className="loading-state">Loading fire drill records...</div>}
       {error && <div className="error-state">{error}</div>}
 
-      <div className="summary-grid compact-summary-grid" style={{ marginBottom: "24px" }}>
+      <div className="summary-grid compact-summary-grid">
         <div className="summary-card">
           <div className="card-label">Total Fire Drills</div>
           <div className="card-value">{summary.total}</div>
@@ -150,7 +150,7 @@ const AdminFireDrill = () => {
         </div>
       </div>
 
-      <section className="dashboard-card" style={{ marginBottom: "24px" }}>
+      <section className="dashboard-card">
         <div className="card-header-row">
           <h2 className="section-title">Upcoming Schedule</h2>
         </div>

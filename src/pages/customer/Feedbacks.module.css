@@ -4,6 +4,7 @@
   width: 100%;
   min-width: 0;
   min-height: 100%;
+  container-type: inline-size;
   background-color: #f5f5f5;
 }
 
@@ -36,10 +37,10 @@
 
 .contentWrapper {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  grid-template-columns: minmax(min(100%, 18rem), 0.75fr) minmax(0, 1.25fr);
   width: 100%;
   min-width: 0;
-  min-height: 36rem;
+  min-height: clamp(32rem, 68dvh, 44rem);
   overflow: hidden;
 }
 
@@ -476,23 +477,7 @@
   border: 0;
 }
 
-:global(.modal-backdrop) {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow-y: auto;
-  padding: max(clamp(12px, 2vw, 16px), env(safe-area-inset-top))
-    max(clamp(12px, 2vw, 16px), env(safe-area-inset-right))
-    max(clamp(12px, 2vw, 16px), env(safe-area-inset-bottom))
-    max(clamp(12px, 2vw, 16px), env(safe-area-inset-left));
-  background: rgba(15, 23, 42, 0.58);
-  overscroll-behavior: contain;
-}
-
-:global(.modal) {
+.feedbackModal {
   display: flex;
   flex-direction: column;
   width: min(100%, 36rem);
@@ -503,11 +488,11 @@
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
 }
 
-:global(.modal:focus) {
+.feedbackModal:focus {
   outline: none;
 }
 
-:global(.modal-header) {
+.feedbackModal :global(.modal-header) {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -521,7 +506,7 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
-:global(.modal-header h2) {
+.feedbackModal :global(.modal-header h2) {
   min-width: 0;
   margin: 0;
   color: #1f2937;
@@ -530,7 +515,7 @@
   overflow-wrap: anywhere;
 }
 
-:global(.modal-close-button) {
+.feedbackModal :global(.modal-close-button) {
   display: inline-flex;
   flex: 0 0 44px;
   align-items: center;
@@ -547,17 +532,17 @@
   cursor: pointer;
 }
 
-:global(.modal-close-button:hover) {
+.feedbackModal :global(.modal-close-button:hover) {
   background: #f1f5f9;
   color: #0f172a;
 }
 
-:global(.modal-close-button:focus-visible) {
+.feedbackModal :global(.modal-close-button:focus-visible) {
   outline: 3px solid rgba(23, 162, 184, 0.28);
   outline-offset: 1px;
 }
 
-:global(.modal-body) {
+.feedbackModalBody {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
@@ -587,7 +572,7 @@
   background: #555;
 }
 
-@media (max-width: 640px) {
+@container (max-width: 52rem) {
   .header {
     flex-direction: column;
     align-items: stretch;
@@ -653,27 +638,24 @@
   }
 
   .searchBox input,
-  .inputArea textarea,
+  .inputArea textarea {
+    font-size: clamp(1rem, calc(0.95rem + 0.25vw), 1.125rem);
+  }
+}
+
+@media (max-width: 640px) {
   .formGroup input,
   .formGroup select,
   .formGroup textarea {
     font-size: clamp(1rem, calc(0.95rem + 0.25vw), 1.125rem);
   }
 
-  :global(.modal-backdrop) {
-    align-items: flex-end;
-    padding: max(clamp(10px, 3vw, 12px), env(safe-area-inset-top))
-      max(clamp(10px, 3vw, 12px), env(safe-area-inset-right))
-      max(clamp(10px, 3vw, 12px), env(safe-area-inset-bottom))
-      max(clamp(10px, 3vw, 12px), env(safe-area-inset-left));
-  }
-
-  :global(.modal) {
+  .feedbackModal {
     max-height: calc(100dvh - 24px);
     border-radius: 14px 14px 10px 10px;
   }
 
-  :global(.modal-header) {
+  .feedbackModal :global(.modal-header) {
     padding: clamp(8px, 2vw, 10px)
       clamp(8px, 2vw, 10px)
       clamp(8px, 2vw, 10px)

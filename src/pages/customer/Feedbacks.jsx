@@ -287,6 +287,7 @@ const Feedbacks = () => {
         <Modal
           title="New Message"
           onClose={() => setShowNewMessageModal(false)}
+          className={styles.feedbackModal}
           bodyClassName={styles.feedbackModalBody}
         >
           <div className={styles.modalContent}>
@@ -337,6 +338,7 @@ const Feedbacks = () => {
             setEditingReply(null);
             setEditedReplyText("");
           }}
+          className={styles.feedbackModal}
           bodyClassName={styles.feedbackModalBody}
         >
           <div className={styles.modalContent}>

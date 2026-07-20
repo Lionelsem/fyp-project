@@ -268,7 +268,7 @@ const FireDrillReports = () => {
         </div>
       </div>
 
-      <div className="summary-grid">
+      <div className="summary-grid compact-summary-grid">
         <div className="summary-card">
           <div className="card-top">
             <div className="card-icon" style={{ backgroundColor: "#ecfdf5", color: "#047857" }}>
@@ -378,7 +378,7 @@ const FireDrillReports = () => {
               <h2 className="section-title">Drill History</h2>
             </div>
 
-            <div className="issues-search-controls" style={{ marginBottom: "16px" }}>
+            <div className="issues-search-controls report-history-filters">
               <div className="issues-search-field">
                 <div className="search-box">
                   <span className="search-icon">🔍</span>

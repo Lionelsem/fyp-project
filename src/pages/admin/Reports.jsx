@@ -409,13 +409,10 @@ const AdminReports = () => {
   const sectionDefs = customReportType === "Annual" ? ANNUAL_SECTIONS : MONTHLY_SECTIONS;
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-page admin-page-stack">
       {/* Header */}
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div
-          className="card-header-row"
-          style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}
-        >
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">Reports &amp; Analytics</h2>
             <p
@@ -466,10 +463,7 @@ const AdminReports = () => {
         </div>
 
         <div className="report-toolbar">
-          <div
-            className="search-box"
-            style={{ flex: "0 1 400px", width: "min(100%, 400px)" }}
-          >
+          <div className="search-box">
             <span className="search-icon">🔍</span>
             <input
               type="text"
@@ -481,11 +475,13 @@ const AdminReports = () => {
           </div>
           <label className="report-month-filter">
             <span>Reporting month</span>
-            <input
-              type="month"
-              value={reportMonthFilter}
-              onChange={(event) => setReportMonthFilter(event.target.value)}
-            />
+            <span className="temporal-control report-temporal-control">
+              <input
+                type="month"
+                value={reportMonthFilter}
+                onChange={(event) => setReportMonthFilter(event.target.value)}
+              />
+            </span>
           </label>
         </div>
 
@@ -798,11 +794,23 @@ const AdminReports = () => {
               <div className="report-modal-grid">
                 <div className="form-field">
                   <label className="form-label">From Date</label>
-                  <input type="date" className="form-input" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} />
+                  <span className="temporal-control form-input form-temporal-control">
+                    <input
+                      type="date"
+                      value={customDateFrom}
+                      onChange={(e) => setCustomDateFrom(e.target.value)}
+                    />
+                  </span>
                 </div>
                 <div className="form-field">
                   <label className="form-label">To Date</label>
-                  <input type="date" className="form-input" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} />
+                  <span className="temporal-control form-input form-temporal-control">
+                    <input
+                      type="date"
+                      value={customDateTo}
+                      onChange={(e) => setCustomDateTo(e.target.value)}
+                    />
+                  </span>
                 </div>
               </div>
             )}

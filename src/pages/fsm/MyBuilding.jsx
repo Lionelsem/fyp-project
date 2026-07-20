@@ -423,10 +423,7 @@ const MyBuilding = () => {
                 </div>
               </div>
 
-              <div
-                className="building-card-details"
-                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))" }}
-              >
+              <div className="building-card-details">
                 <DetailItem label="Customer" value={selectedBuilding.customerName} />
                 <DetailItem label="FSM Assigned" value={selectedBuilding.assignedFsm} />
                 <DetailItem label="Next Inspection" value={selectedBuilding.nextInspection} />
@@ -479,11 +476,13 @@ const MyBuilding = () => {
                   <h2 className="section-title">{selectedReportAction.title}</h2>
                   <label className="report-month-filter">
                     <span>Reporting month</span>
-                    <input
-                      type="month"
-                      value={selectedReportMonth}
-                      onChange={(event) => setSelectedReportMonth(event.target.value)}
-                    />
+                    <span className="temporal-control report-temporal-control">
+                      <input
+                        type="month"
+                        value={selectedReportMonth}
+                        onChange={(event) => setSelectedReportMonth(event.target.value)}
+                      />
+                    </span>
                   </label>
                 </div>
 
@@ -517,8 +516,7 @@ const MyBuilding = () => {
                               href={report.reportFileUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="view-all-link"
-                              style={{ marginLeft: "12px" }}
+                              className="view-all-link fsm-report-open-link"
                             >
                               Open
                             </a>

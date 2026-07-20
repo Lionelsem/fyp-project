@@ -420,7 +420,7 @@ const ScheduleForm = ({
         )}
         <label className="fire-drill-form-field">
           <span>Date</span>
-          <span className="fire-drill-temporal-control">
+          <span className="temporal-control fire-drill-temporal-control">
             <input
               type="date"
               value={form.drillDate}
@@ -431,7 +431,7 @@ const ScheduleForm = ({
         </label>
         <label className="fire-drill-form-field">
           <span>Start Time</span>
-          <span className="fire-drill-temporal-control">
+          <span className="temporal-control fire-drill-temporal-control">
             <input
               type="time"
               value={form.drillTime}
@@ -441,7 +441,7 @@ const ScheduleForm = ({
         </label>
         <label className="fire-drill-form-field">
           <span>End Time</span>
-          <span className="fire-drill-temporal-control">
+          <span className="temporal-control fire-drill-temporal-control">
             <input
               type="time"
               value={form.drillEndTime}
@@ -534,7 +534,7 @@ const ConductForm = ({
       <div className="fire-drill-form-grid">
         <label className="fire-drill-form-field">
           <span>Actual Date</span>
-          <span className="fire-drill-temporal-control">
+          <span className="temporal-control fire-drill-temporal-control">
             <input
               type="date"
               value={form.actualDate}
@@ -545,7 +545,7 @@ const ConductForm = ({
         </label>
         <label className="fire-drill-form-field">
           <span>Actual Time</span>
-          <span className="fire-drill-temporal-control">
+          <span className="temporal-control fire-drill-temporal-control">
             <input
               type="time"
               value={form.actualTime}
@@ -1022,7 +1022,7 @@ const FireDrill = () => {
         <div className="fire-drill-date-filter">
           <label htmlFor="fire-drill-month-filter">
             <span>Filter by month</span>
-            <span className="fire-drill-temporal-control">
+            <span className="temporal-control fire-drill-temporal-control">
               <input
                 id="fire-drill-month-filter"
                 type="month"

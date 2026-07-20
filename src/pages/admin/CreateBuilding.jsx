@@ -65,9 +65,9 @@ const CreateBuilding = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ width: "min(100%, 960px)", margin: "0 auto" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+    <div className="dashboard-container admin-page admin-record-page">
+      <div className="dashboard-card admin-record-card">
+        <div className="card-header-row admin-record-header">
           <div>
             <h2 className="section-title">Add Building</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -76,20 +76,14 @@ const CreateBuilding = () => {
           </div>
           <button
             type="button"
-            className="primary-btn"
+            className="primary-btn admin-record-back-button"
             onClick={() => navigate("/buildings")}
-            style={{
-              height: "clamp(2.5rem, 2.35rem + 0.5vw, 2.75rem)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
           >
             ← Back to Buildings
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "24px", padding: "20px 0" }}>
+        <form className="admin-record-form" onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="form-field">
               <label className="form-label">Building Name *</label>
@@ -104,7 +98,7 @@ const CreateBuilding = () => {
           </div>
 
           <div className="form-grid">
-            <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+            <div className="form-field admin-record-field--wide">
               <label className="form-label">Address *</label>
               <input
                 type="text"
@@ -161,7 +155,10 @@ const CreateBuilding = () => {
           </div>
 
           {message && (
-            <div style={{ color: message.type === "error" ? "#b91c1c" : "#047857", fontWeight: 600 }}>
+            <div
+              className="admin-form-message"
+              style={{ color: message.type === "error" ? "#b91c1c" : "#047857" }}
+            >
               {message.text}
             </div>
           )}
