@@ -247,7 +247,7 @@ const AnnualReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <h1 style={{ margin: "0 0 8px", fontSize: "30px" }}>Annual Reports</h1>
+          <h1 style={{ margin: "0 0 8px", fontSize: "clamp(1.5rem, 3vw, 1.875rem)" }}>Annual Reports</h1>
           <p className="page-subtitle">
             Review your building's yearly compliance summary, inspection outcomes, and key fire safety highlights in one place.
           </p>
@@ -309,7 +309,7 @@ const AnnualReports = () => {
             <div className="card-header-row">
               <div>
                 <h2 className="section-title">Latest Annual Report</h2>
-                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "14px" }}>
+                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)" }}>
                   {latestReport?.reportTitle || "Annual report overview"}
                 </p>
               </div>
@@ -321,13 +321,13 @@ const AnnualReports = () => {
             <div className="customer-report-summary">
               <div className="customer-report-summary-grid">
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Generated</div>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Generated</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{formatDate(latestReport?.generatedDate)}</strong>
                 </div>
               </div>
 
               <div style={{ border: "1px solid #e5e7eb", borderRadius: "16px", padding: "16px", background: "#ffffff" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Report Highlights</div>
+                <div style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Report Highlights</div>
                 <ul style={{ margin: 0, paddingLeft: "18px", color: "#334155", lineHeight: "1.7" }}>
                   <li>Overall fire safety compliance remained strong for the reporting year.</li>
                   <li>Inspection results, drill records, and issue resolutions were consolidated into a single view.</li>
@@ -343,7 +343,7 @@ const AnnualReports = () => {
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
                   placeholder="Add comments or feedback for this annual report..."
-                  style={{ minHeight: "140px" }}
+                  style={{ minHeight: "clamp(120px, 20vw, 140px)" }}
                 />
                 <div className="responsive-form-actions">
                   <small className="overflow-safe" style={{ color: "#64748b" }}>
@@ -445,15 +445,15 @@ const AnnualReports = () => {
             </div>
             <div style={{ display: "grid", gap: "12px" }}>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Current Focus</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Current Focus</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>Fire safety compliance and corrective action tracking</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Key Observation</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Key Observation</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>No critical unresolved issues were carried forward into the latest report.</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Next Review</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Next Review</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>Quarterly updates will be shared with your facility contact.</strong>
               </div>
             </div>

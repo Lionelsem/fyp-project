@@ -151,7 +151,7 @@ const ManageBuildings = () => {
                         alignItems: "center",
                         padding: "8px 14px",
                         borderRadius: "999px",
-                        fontSize: "12px",
+                        fontSize: "clamp(0.6875rem, 0.68rem + 0.15vw, 0.75rem)",
                         fontWeight: 700,
                         ...statusStyles[building.status || "Compliant"]
                       }}

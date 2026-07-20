@@ -183,7 +183,9 @@ const AdminDashboard = () => {
               <Link to="/issues-defects" className="view-all-link">View All</Link>
             </div>
             {recentIssues.length === 0 ? (
-              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No issues recorded.</p>
+              <p style={{ color: "#9ca3af", fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)" }}>
+                No issues recorded.
+              </p>
             ) : (
               <ResponsiveTableRegion
                 label="Recent issues"
@@ -222,7 +224,9 @@ const AdminDashboard = () => {
               <Link to="/fire-drill" className="view-all-link">View All</Link>
             </div>
             {recentDrills.length === 0 ? (
-              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No fire drills recorded.</p>
+              <p style={{ color: "#9ca3af", fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)" }}>
+                No fire drills recorded.
+              </p>
             ) : (
               <ResponsiveTableRegion
                 label="Recent fire drill records"
@@ -263,7 +267,9 @@ const AdminDashboard = () => {
               <Link to="/reports" className="view-all-link">View All</Link>
             </div>
             {recentReports.length === 0 ? (
-              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No reports generated yet.</p>
+              <p style={{ color: "#9ca3af", fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)" }}>
+                No reports generated yet.
+              </p>
             ) : (
               <ResponsiveTableRegion
                 label="Recent submitted reports"

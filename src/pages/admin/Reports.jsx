@@ -418,7 +418,13 @@ const AdminReports = () => {
         >
           <div>
             <h2 className="section-title">Reports &amp; Analytics</h2>
-            <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "14px" }}>
+            <p
+              style={{
+                color: "#6b7280",
+                marginTop: "4px",
+                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+              }}
+            >
               Global view of finalized inspections, monthly summaries, and annual audits.
             </p>
           </div>
@@ -446,7 +452,8 @@ const AdminReports = () => {
               onClick={() => setActiveTab(tab.key)}
               style={{
                 background: "none", border: "none", cursor: "pointer",
-                padding: "10px 16px", fontSize: "14px",
+                padding: "10px 16px",
+                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
                 fontWeight: activeTab === tab.key ? "600" : "400",
                 color: activeTab === tab.key ? "#047857" : "#6b7280",
                 borderBottom: activeTab === tab.key ? "2px solid #047857" : "2px solid transparent",
@@ -459,7 +466,10 @@ const AdminReports = () => {
         </div>
 
         <div className="report-toolbar">
-          <div className="search-box" style={{ flex: 1, maxWidth: "400px" }}>
+          <div
+            className="search-box"
+            style={{ flex: "0 1 400px", width: "min(100%, 400px)" }}
+          >
             <span className="search-icon">🔍</span>
             <input
               type="text"
@@ -539,7 +549,7 @@ const AdminReports = () => {
                             border: "none",
                             color: "#047857",
                             cursor: "pointer",
-                            fontSize: "14px",
+                            fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
                             fontWeight: "500",
                             padding: 0
                           }}
@@ -559,7 +569,11 @@ const AdminReports = () => {
       {/* ── Monthly Modal ── */}
       {selectedReportRecord && (
         <div className="issue-ticket-modal-backdrop" onClick={() => setSelectedReportRecord(null)}>
-          <div className="issue-ticket-modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="issue-ticket-modal"
+            style={{ width: "min(100%, 560px)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <ModalHeader
               title={selectedReportRecord.reportTitle || "Report Details"}
               onClose={() => setSelectedReportRecord(null)}
@@ -597,7 +611,13 @@ const AdminReports = () => {
                 Open File
               </a>
             ) : (
-              <p style={{ color: "#6b7280", fontSize: "13px", marginTop: "18px" }}>
+              <p
+                style={{
+                  color: "#6b7280",
+                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
+                  marginTop: "18px",
+                }}
+              >
                 No stored file URL is attached to this report record. Generate the report again to download a new Word or PDF file.
               </p>
             )}
@@ -607,9 +627,19 @@ const AdminReports = () => {
 
       {showMonthlyModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowMonthlyModal(false)}>
-          <div className="issue-ticket-modal" style={{ width: "min(520px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="issue-ticket-modal"
+            style={{ width: "min(100%, 520px)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <ModalHeader title="Generate Monthly Report" onClose={() => setShowMonthlyModal(false)} generating={generating} />
-            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                marginBottom: "20px",
+              }}
+            >
               Select the month, year, and optionally a specific building.
             </p>
             <div className="report-modal-grid">
@@ -635,7 +665,17 @@ const AdminReports = () => {
                 ))}
               </select>
             </div>
-            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
+            {generateError && (
+              <div
+                className="error-state"
+                style={{
+                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
+                  padding: "10px 14px",
+                }}
+              >
+                {generateError}
+              </div>
+            )}
             <div className="report-modal-actions">
               <button type="button" className="secondary-btn" onClick={() => setShowMonthlyModal(false)} disabled={generating}>
                 Cancel
@@ -654,9 +694,19 @@ const AdminReports = () => {
       {/* ── Annual Modal ── */}
       {showAnnualModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowAnnualModal(false)}>
-          <div className="issue-ticket-modal" style={{ width: "min(480px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="issue-ticket-modal"
+            style={{ width: "min(100%, 480px)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <ModalHeader title="Generate Annual Report" onClose={() => setShowAnnualModal(false)} generating={generating} />
-            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                marginBottom: "20px",
+              }}
+            >
               Generates a full annual report covering all buildings for the selected year.
             </p>
             <div className="form-field">
@@ -665,7 +715,17 @@ const AdminReports = () => {
                 {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
+            {generateError && (
+              <div
+                className="error-state"
+                style={{
+                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
+                  padding: "10px 14px",
+                }}
+              >
+                {generateError}
+              </div>
+            )}
             <ModalActions onCancel={() => setShowAnnualModal(false)} onSubmit={doGenerateAnnual} generating={generating} />
           </div>
         </div>
@@ -676,7 +736,7 @@ const AdminReports = () => {
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowCustomModal(false)}>
           <div
             className="issue-ticket-modal report-custom-modal"
-            style={{ width: "min(680px, 100%)" }}
+            style={{ width: "min(100%, 680px)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <ModalHeader title="Custom Report" onClose={() => setShowCustomModal(false)} generating={generating} />
@@ -691,7 +751,10 @@ const AdminReports = () => {
                     type="button"
                     onClick={() => handleCustomTypeChange(type)}
                     style={{
-                      padding: "8px 18px", borderRadius: "6px", fontSize: "13px", fontWeight: "500",
+                      padding: "8px 18px",
+                      borderRadius: "6px",
+                      fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
+                      fontWeight: "500",
                       cursor: "pointer", border: "2px solid",
                       borderColor: customReportType === type ? "#047857" : "#e5e7eb",
                       backgroundColor: customReportType === type ? "#ecfdf5" : "#fff",
@@ -784,7 +847,10 @@ const AdminReports = () => {
                 placeholder="Additional notes that will appear at the top of the report..."
                 value={customOpeningRemarks}
                 onChange={(e) => setCustomOpeningRemarks(e.target.value)}
-                style={{ resize: "vertical", minHeight: "72px" }}
+                style={{
+                  resize: "vertical",
+                  minHeight: "clamp(4.5rem, 4rem + 2vw, 6rem)",
+                }}
               />
             </div>
 
@@ -795,7 +861,14 @@ const AdminReports = () => {
                 {Object.entries(sectionDefs).map(([key, { label }]) => (
                   <label
                     key={key}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px", color: "#374151" }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer",
+                      fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                      color: "#374151",
+                    }}
                   >
                     <input
                       type="checkbox"
@@ -810,7 +883,15 @@ const AdminReports = () => {
             </div>
 
             {generateError && (
-              <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>
+              <div
+                className="error-state"
+                style={{
+                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
+                  padding: "10px 14px",
+                }}
+              >
+                {generateError}
+              </div>
             )}
             <ModalActions onCancel={() => setShowCustomModal(false)} onSubmit={doGenerateCustom} generating={generating} />
           </div>

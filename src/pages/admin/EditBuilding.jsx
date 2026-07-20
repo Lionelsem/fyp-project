@@ -92,7 +92,7 @@ const EditBuilding = () => {
 
   return (
     <div className="dashboard-container">
-      <div className="dashboard-card" style={{ maxWidth: "960px", margin: "0 auto" }}>
+      <div className="dashboard-card" style={{ width: "min(100%, 960px)", margin: "0 auto" }}>
         <div className="card-header-row" style={{ justifyContent: "space-between" }}>
           <div>
             <h2 className="section-title">Edit Building</h2>
@@ -105,7 +105,7 @@ const EditBuilding = () => {
             className="primary-btn"
             onClick={() => navigate("/buildings")}
             style={{
-              height: "40px",
+              height: "clamp(2.5rem, 2.35rem + 0.5vw, 2.75rem)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center"

@@ -139,7 +139,7 @@ const IssueProgress = () => {
         <div className="card-header-row" style={{ justifyContent: "space-between", marginBottom: "20px" }}>
           <div>
             <h2 className="section-title">Issue Progress</h2>
-            <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "14px" }}>
+            <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)" }}>
               Track and monitor identified fire safety defects and their rectification status.
             </p>
           </div>
@@ -220,7 +220,7 @@ const IssueProgress = () => {
                         {issue.status}
                       </span>
                     </td>
-                    <td data-label="Last updated" style={{ fontSize: "13px", color: "#6b7280" }}>{issue.lastUpdated}</td>
+                    <td data-label="Last updated" style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", color: "#6b7280" }}>{issue.lastUpdated}</td>
                     <td data-label="Action">
                       <button
                         type="button"
@@ -239,7 +239,7 @@ const IssueProgress = () => {
 
         {filteredIssues.length > 0 && (
           <div className="responsive-pagination">
-            <span style={{ fontSize: "13px", color: "#6b7280" }}>
+            <span style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", color: "#6b7280" }}>
               Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredIssues.length)} of {filteredIssues.length} Issues
             </span>
             <div className="pagination-actions">
@@ -254,7 +254,7 @@ const IssueProgress = () => {
                   padding: "8px 14px",
                   borderRadius: "8px",
                   cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  fontSize: "13px",
+                  fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)",
                   fontWeight: 600
                 }}
               >
@@ -271,7 +271,7 @@ const IssueProgress = () => {
                   padding: "8px 14px",
                   borderRadius: "8px",
                   cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "13px",
+                  fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)",
                   fontWeight: 600
                 }}
               >

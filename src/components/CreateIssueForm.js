@@ -51,7 +51,7 @@ const CreateIssueForm = ({ buildingId, inspectionId, reportedBy }) => {
   };
 
   return (
-    <div style={{ maxWidth: 840, margin: "auto" }}>
+    <div style={{ width: "min(100%, 840px)", margin: "auto" }}>
       <div style={{ background: "#f7f9fc", padding: 24, borderRadius: 16, marginBottom: 24 }}>
         <h2 style={{ margin: 0 }}>Create Issue Ticket</h2>
         <p style={{ margin: "8px 0 0", color: "#555" }}>

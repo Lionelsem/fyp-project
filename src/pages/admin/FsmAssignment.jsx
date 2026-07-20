@@ -120,7 +120,13 @@ const FsmAssignment = () => {
           <div className="card-header-row" style={{ marginBottom: "16px" }}>
             <div>
               <h3 className="section-title">New Assignment</h3>
-              <p style={{ color: "#6b7280", marginTop: "6px", fontSize: "14px" }}>
+              <p
+                style={{
+                  color: "#6b7280",
+                  marginTop: "6px",
+                  fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                }}
+              >
                 Select a building and FSM to create the next assignment.
               </p>
             </div>
@@ -183,7 +189,13 @@ const FsmAssignment = () => {
             <div className="card-header-row" style={{ alignItems: "flex-start" }}>
               <div>
                 <h3 className="section-title">Current Assignment</h3>
-                <p style={{ color: "#6b7280", marginTop: "6px", fontSize: "14px" }}>
+                <p
+                  style={{
+                    color: "#6b7280",
+                    marginTop: "6px",
+                    fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                  }}
+                >
                   Details for the selected building.
                 </p>
               </div>
@@ -201,7 +213,13 @@ const FsmAssignment = () => {
                     .slice(0, 2)}
                 </div>
                 <div>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a" }}>
+                  <div
+                    style={{
+                      fontSize: "clamp(1rem, 0.95rem + 0.35vw, 1.125rem)",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                    }}
+                  >
                     {selectedFsmId ? selectedFsmName : "No FSM Assigned"}
                   </div>
                   <div style={{ color: "#6b7280", marginTop: "4px" }}>

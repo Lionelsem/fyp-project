@@ -126,10 +126,10 @@ const MyBuildings = () => {
       {selectedBuilding && (
         <div>
           <div style={{ marginBottom: "28px" }}>
-            <h1 style={{ fontSize: "32px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>
+            <h1 style={{ fontSize: "clamp(1.625rem, 4vw, 2rem)", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>
               My Building
             </h1>
-            <p style={{ fontSize: "15px", color: "#64748b", maxWidth: "600px" }}>
+            <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 0.9375rem)", color: "#64748b", width: "min(100%, 600px)" }}>
               Details and specifications for your assigned property.
             </p>
           </div>
@@ -147,16 +147,16 @@ const MyBuildings = () => {
               )}
               
               <div className="building-info-section">
-                <h2 style={{ fontSize: "26px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>
+                <h2 style={{ fontSize: "clamp(1.375rem, 3vw, 1.625rem)", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>
                   {getBuildingName(selectedBuilding)}
                 </h2>
-                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <p style={{ fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)", color: "#64748b", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>📍</span>
                   {selectedBuilding.address || "-"}
                 </p>
                 <span style={{ 
                   display: "inline-block",
-                  fontSize: "12px",
+                  fontSize: "clamp(0.75rem, 1vw, 0.8125rem)",
                   fontWeight: 600,
                   backgroundColor: "#ecfdf5",
                   color: "#047857",
@@ -168,31 +168,34 @@ const MyBuildings = () => {
                 </span>
 
                 <div style={{ marginTop: "28px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
-                  <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <h3 style={{ fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)", fontWeight: 700, color: "#0f172a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     # Specifications
                   </h3>
-                  <div className="building-spec-grid">
+                  <div
+                    className="building-spec-grid"
+                    style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))" }}
+                  >
                     <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         Number of Storeys
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 0.9375rem)", fontWeight: 600, color: "#0f172a" }}>
                         {selectedBuilding.noOfStoreys || "-"}
                       </p>
                     </div>
                     <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         Occupant Load
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 0.9375rem)", fontWeight: 600, color: "#0f172a" }}>
                         {selectedBuilding.occupantLoad || "-"}
                       </p>
                     </div>
                     <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         Gross Floor Area
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 0.9375rem)", fontWeight: 600, color: "#0f172a" }}>
                         {selectedBuilding.grossFloorAreaGfa || "-"}
                       </p>
                     </div>
@@ -200,28 +203,31 @@ const MyBuildings = () => {
                 </div>
 
                 <div style={{ marginTop: "28px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
-                  <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <h3 style={{ fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)", fontWeight: 700, color: "#0f172a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     🔥 Fire Safety Management
                   </h3>
-                  <div className="building-spec-grid">
+                  <div
+                    className="building-spec-grid"
+                    style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))" }}
+                  >
                     <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         Assigned FSM
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 0.9375rem)", fontWeight: 600, color: "#0f172a" }}>
                         {selectedBuilding.assignedFsm || "-"}
                       </p>
                       {selectedBuilding.assignedFsmId && (
-                        <p style={{ fontSize: "12px", color: "#94a3b8" }}>
+                        <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", color: "#94a3b8" }}>
                           {selectedBuilding.assignedFsmId}
                         </p>
                       )}
                     </div>
                     <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <p style={{ fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         Next Scheduled Inspection
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p style={{ fontSize: "clamp(0.875rem, 1.2vw, 0.9375rem)", fontWeight: 600, color: "#0f172a" }}>
                         {formatDate(selectedBuilding.nextInspection) || "-"}
                       </p>
                     </div>

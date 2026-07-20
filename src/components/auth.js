@@ -41,7 +41,7 @@ const Auth = () => {
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "auto" }}>
+    <div style={{ width: "min(100%, 400px)", margin: "auto" }}>
       <h2>Login</h2>
 
       <input

@@ -251,7 +251,7 @@ const FireDrillReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <h1 style={{ margin: "0 0 8px", fontSize: "30px" }}>Fire Drill Reports</h1>
+          <h1 style={{ margin: "0 0 8px", fontSize: "clamp(1.5rem, 3vw, 1.875rem)" }}>Fire Drill Reports</h1>
           <p className="page-subtitle">
             Review drill schedules, outcomes, response times, and follow-up actions for your facility.
           </p>
@@ -313,7 +313,7 @@ const FireDrillReports = () => {
             <div className="card-header-row">
               <div>
                 <h2 className="section-title">Latest Drill Overview</h2>
-                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "14px" }}>
+                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)" }}>
                   {latestDrill?.drillType || "Fire drill summary"}
                 </p>
               </div>
@@ -325,17 +325,17 @@ const FireDrillReports = () => {
             <div className="customer-report-summary">
               <div className="customer-report-summary-grid">
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Building</div>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Building</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.buildingName || "—"}</strong>
                 </div>
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Drill Date</div>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Drill Date</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{formatDate(latestDrill?.actualDate || latestDrill?.drillDate)}</strong>
                 </div>
               </div>
 
               <div style={{ border: "1px solid #e5e7eb", borderRadius: "16px", padding: "16px", background: "#ffffff" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Observations</div>
+                <div style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Observations</div>
                 <p style={{ margin: 0, color: "#334155", lineHeight: "1.7" }}>
                   {latestDrill?.observations || "No observations recorded for this drill yet."}
                 </p>
@@ -349,7 +349,7 @@ const FireDrillReports = () => {
                   value={drillComment}
                   onChange={(event) => setDrillComment(event.target.value)}
                   placeholder="Add comments or feedback for this fire drill report..."
-                  style={{ minHeight: "140px" }}
+                  style={{ minHeight: "clamp(120px, 20vw, 140px)" }}
                 />
                 <div className="responsive-form-actions">
                   <small className="overflow-safe" style={{ color: "#64748b" }}>
@@ -447,15 +447,15 @@ const FireDrillReports = () => {
             </div>
             <div style={{ display: "grid", gap: "12px" }}>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Performance</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Performance</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.performanceStatus || "Pending review"}</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Response Time</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Response Time</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.totalEvacuationTime || "Not recorded"}</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Follow-Up</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Follow-Up</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.recommendations || "No immediate follow-up listed."}</strong>
               </div>
             </div>

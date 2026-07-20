@@ -425,7 +425,7 @@ const MyBuilding = () => {
 
               <div
                 className="building-card-details"
-                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}
+                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))" }}
               >
                 <DetailItem label="Customer" value={selectedBuilding.customerName} />
                 <DetailItem label="FSM Assigned" value={selectedBuilding.assignedFsm} />

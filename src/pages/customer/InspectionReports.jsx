@@ -199,7 +199,7 @@ const InspectionReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <h1 style={{ margin: "0 0 8px", fontSize: "30px" }}>Inspection Reports</h1>
+          <h1 style={{ margin: "0 0 8px", fontSize: "clamp(1.5rem, 3vw, 1.875rem)" }}>Inspection Reports</h1>
           <p className="page-subtitle">
             Review monthly safety inspections, findings, and corrective actions for your building.
           </p>
@@ -261,7 +261,7 @@ const InspectionReports = () => {
             <div className="card-header-row">
               <div>
                 <h2 className="section-title">Latest Inspection Overview</h2>
-                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "14px" }}>
+                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)" }}>
                   {formatInspectionMonth(latestReport?.inspectionMonth) || "Inspection summary"}
                 </p>
               </div>
@@ -273,17 +273,17 @@ const InspectionReports = () => {
             <div style={{ display: "grid", gap: "14px", padding: "8px 0 4px" }}>
               <div className="responsive-info-grid">
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Report ID</div>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Report ID</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.reportId || "—"}</strong>
                 </div>
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>FSM In-Charge</div>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>FSM In-Charge</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.fsmInCharge || "—"}</strong>
                 </div>
               </div>
 
               <div style={{ border: "1px solid #e5e7eb", borderRadius: "16px", padding: "16px", background: "#ffffff" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Inspection Summary</div>
+                <div style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Inspection Summary</div>
                 <p style={{ margin: 0, color: "#334155", lineHeight: "1.7" }}>
                   {latestReport?.summary || "A summary of the latest inspection will appear here."}
                 </p>
@@ -297,7 +297,7 @@ const InspectionReports = () => {
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
                   placeholder="Add comments or feedback for this inspection report..."
-                  style={{ minHeight: "140px" }}
+                  style={{ minHeight: "clamp(120px, 20vw, 140px)" }}
                 />
                 <div className="responsive-form-actions">
                   <small className="overflow-safe" style={{ color: "#64748b" }}>
@@ -374,7 +374,7 @@ const InspectionReports = () => {
                       <tr key={report.id}>
                         <td data-label="Report">
                           <div className="id-cell">{report.reportId}</div>
-                          <div style={{ color: "#64748b", fontSize: "12px" }}>{report.fsmInCharge}</div>
+                          <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)" }}>{report.fsmInCharge}</div>
                         </td>
                         <td data-label="Month">{report.inspectionMonth}</td>
                         <td data-label="Date">{report.inspectionDate}</td>
@@ -399,15 +399,15 @@ const InspectionReports = () => {
             </div>
             <div style={{ display: "grid", gap: "12px" }}>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Findings</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Findings</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.totalFindings ?? "—"}</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Inspector</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Inspector</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.fsmInCharge || "—"}</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Status</div>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Status</div>
                 <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.status || "Pending"}</strong>
               </div>
             </div>
