@@ -3636,6 +3636,10 @@ select.inspection-row-control {
   gap: 24px;
 }
 
+.issue-ticket-page > .page-breadcrumb {
+  margin-bottom: 0;
+}
+
 .issue-overview-page {
   display: grid;
   gap: 20px;
@@ -3774,13 +3778,24 @@ select.inspection-row-control {
 .issue-ticket-form-card,
 .issue-ticket-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   gap: 18px;
   align-content: start;
+}
+
+.issue-ticket-list-card > .card-header-row {
+  margin-bottom: 0;
 }
 
 .issue-ticket-toolbar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   gap: 10px;
   align-items: center;
 }
@@ -3877,6 +3892,9 @@ select.inspection-row-control {
 }
 
 .issue-ticket-table-wrapper {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -6187,6 +6205,7 @@ textarea {
 
 .responsive-table-region {
   width: 100%;
+  min-width: 0;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -7438,6 +7457,18 @@ select.responsive-control {
     justify-self: end;
   }
 
+  .portal-shell .issue-ticket-table--history th:nth-child(7),
+  .portal-shell .issue-ticket-table--history td:nth-child(7) {
+    position: static;
+    right: auto;
+    z-index: auto;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
+
   .admin-main-content .dashboard-card,
   .customer-main-content .dashboard-card {
     padding: 16px;
@@ -7540,6 +7571,10 @@ select.responsive-control {
 }
 
 @media (max-width: 640px) {
+  .portal-shell .issue-ticket-toolbar.issue-ticket-toolbar--four {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .role-dashboard-page .dashboard-card,
   .role-dashboard-page .summary-card {
     padding: 16px;
@@ -7700,18 +7735,6 @@ select.responsive-control {
     white-space: normal;
   }
 
-  .portal-shell .issue-ticket-table--history th:nth-child(7),
-  .portal-shell .issue-ticket-table--history td:nth-child(7) {
-    position: static;
-    right: auto;
-    z-index: auto;
-    width: 100%;
-    min-width: 0;
-    overflow: visible;
-    background: transparent;
-    box-shadow: none;
-  }
-
   .portal-shell .responsive-card-table .issue-overview-actions,
   .portal-shell .responsive-card-table .compact-row-actions {
     width: auto;
@@ -7823,7 +7846,9 @@ select.responsive-control {
   .portal-shell.fsm-shell .main-content.fsm-main-content {
     padding-right: max(var(--space-page), calc(12px + var(--safe-area-right)));
   }
+}
 
+@media (min-width: 901px) {
   .portal-shell.fsm-shell .issue-ticket-table--history th:nth-child(7),
   .portal-shell.fsm-shell .issue-ticket-table--history td:nth-child(7) {
     min-width: 96px;
