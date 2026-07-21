@@ -10,6 +10,7 @@ import {
 } from "../../services/fireDrillService";
 import { uploadFile } from "../../services/storageService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { formatDurationInput, isValidDurationInput } from "../../utils/durationInput";
 
 const emptyScheduleForm = {
   buildingId: "",
@@ -618,8 +619,14 @@ const ConductForm = ({
             type="text"
             inputMode="numeric"
             placeholder="02:15"
+            maxLength={5}
+            pattern="[0-9]{2}:[0-5][0-9]"
+            title="Enter four digits. The first two are minutes and the last two are seconds."
             value={form.alarmToEvacuationTime}
-            onChange={(event) => onChange("alarmToEvacuationTime", event.target.value)}
+            onChange={(event) => onChange(
+              "alarmToEvacuationTime",
+              formatDurationInput(event.target.value, form.alarmToEvacuationTime)
+            )}
           />
         </label>
         <label className="fire-drill-form-field fire-drill-form-field--wide">
@@ -628,8 +635,14 @@ const ConductForm = ({
             type="text"
             inputMode="numeric"
             placeholder="04:32"
+            maxLength={5}
+            pattern="[0-9]{2}:[0-5][0-9]"
+            title="Enter four digits. The first two are minutes and the last two are seconds."
             value={form.totalEvacuationTime}
-            onChange={(event) => onChange("totalEvacuationTime", event.target.value)}
+            onChange={(event) => onChange(
+              "totalEvacuationTime",
+              formatDurationInput(event.target.value, form.totalEvacuationTime)
+            )}
           />
         </label>
       </div>
@@ -1024,6 +1037,14 @@ const FireDrill = () => {
       actualParticipantsNumber < 0
     ) {
       setFormError("Enter the number of participants who attended the drill.");
+      return;
+    }
+
+    if (
+      !isValidDurationInput(conductForm.alarmToEvacuationTime) ||
+      !isValidDurationInput(conductForm.totalEvacuationTime)
+    ) {
+      setFormError("Enter evacuation timing as four digits in MM:SS format, with seconds from 00 to 59.");
       return;
     }
 
