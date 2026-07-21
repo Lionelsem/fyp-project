@@ -20,20 +20,21 @@ const DismissibleNotificationItem = ({ notification, notificationKey, onDismiss 
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const isDismissible = notification.dismissible !== false;
 
   useEffect(() => () => window.clearTimeout(removeTimerRef.current), []);
 
   const finishRemoval = useCallback(() => {
-    if (isRemoving) return;
+    if (isRemoving || !isDismissible) return;
     const width = itemRef.current?.offsetWidth || 360;
     setIsDragging(false);
     setIsRemoving(true);
     setSwipeOffset(-width);
     removeTimerRef.current = window.setTimeout(() => onDismiss(notificationKey), 220);
-  }, [isRemoving, notificationKey, onDismiss]);
+  }, [isDismissible, isRemoving, notificationKey, onDismiss]);
 
   const handlePointerDown = (event) => {
-    if (event.pointerType === "mouse" || isRemoving) return;
+    if (event.pointerType === "mouse" || isRemoving || !isDismissible) return;
     gestureRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -99,7 +100,7 @@ const DismissibleNotificationItem = ({ notification, notificationKey, onDismiss 
       <div
         className={`notification-item${
           notification.isRead ? "" : " notification-item--unread"
-        }`}
+        }${isDismissible ? "" : " notification-item--persistent"}`}
       >
         <span
           className={`notification-item-dot notification-item-dot--${notification.type || "update"}`}
@@ -110,14 +111,16 @@ const DismissibleNotificationItem = ({ notification, notificationKey, onDismiss 
           {notification.message && <p>{notification.message}</p>}
           {notification.time && <time>{notification.time}</time>}
         </div>
-        <button
-          type="button"
-          className="notification-item-dismiss"
-          aria-label={`Remove notification: ${notification.title}`}
-          onClick={finishRemoval}
-        >
-          <span aria-hidden="true">&times;</span>
-        </button>
+        {isDismissible && (
+          <button
+            type="button"
+            className="notification-item-dismiss"
+            aria-label={`Remove notification: ${notification.title}`}
+            onClick={finishRemoval}
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        )}
       </div>
     </li>
   );
@@ -165,7 +168,9 @@ const NotificationPopover = ({ notifications = [], onDismiss, storageKey }) => {
   const visibleNotifications = useMemo(() => {
     const dismissedSet = new Set(dismissedIds);
     return notifications.filter(
-      (notification, index) => !dismissedSet.has(getNotificationKey(notification, index))
+      (notification, index) =>
+        notification.dismissible === false ||
+        !dismissedSet.has(getNotificationKey(notification, index))
     );
   }, [dismissedIds, notifications]);
 

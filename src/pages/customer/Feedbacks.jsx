@@ -6,6 +6,7 @@ import {
   listenToCustomerFeedbackThreads,
   listenToFeedbackThreadReplies,
   addFeedbackReply,
+  markFeedbackMessagesAsRead,
   createCustomerFeedbackThread,
   updateFeedbackReply,
   deleteFeedbackReply
@@ -88,11 +89,15 @@ const Feedbacks = () => {
             role: data.role || "Customer",
             message: data.message,
             createdBy: data.createdBy,
+            readBy: Array.isArray(data.readBy) ? data.readBy : [],
             isOwn: data.createdBy === user?.uid,
             time: formatTimestamp(data.createdAt)
           };
         });
         setSelectedThreadReplies(nextReplies);
+        markFeedbackMessagesAsRead(selectedThreadId, snapshot.docs, user?.uid).catch((error) => {
+          console.error("Failed to mark customer feedback as read:", error);
+        });
       },
       (error) => {
         console.error("Failed to load chat replies:", error);
@@ -309,6 +314,14 @@ const Feedbacks = () => {
                           )}
                         </div>
                         <p className={styles.messageText}>{reply.message}</p>
+                        {reply.isOwn && (
+                          <span className={styles.readStatus}>
+                            {(Array.isArray(reply.readBy) ? reply.readBy : [])
+                              .some((readerId) => String(readerId) !== String(reply.createdBy || ""))
+                              ? "Read"
+                              : "Unread"}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))

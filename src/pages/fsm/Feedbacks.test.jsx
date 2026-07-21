@@ -5,7 +5,8 @@ import { useAuthContext } from "../../context/AuthContext";
 import {
   addFeedbackReply,
   listenToFeedbackThreadReplies,
-  listenToFsmFeedbackThreads
+  listenToFsmFeedbackThreads,
+  markFeedbackMessagesAsRead
 } from "../../services/feedbackService";
 
 jest.mock("../../context/AuthContext", () => ({
@@ -15,7 +16,8 @@ jest.mock("../../context/AuthContext", () => ({
 jest.mock("../../services/feedbackService", () => ({
   addFeedbackReply: jest.fn(() => Promise.resolve()),
   listenToFeedbackThreadReplies: jest.fn(),
-  listenToFsmFeedbackThreads: jest.fn()
+  listenToFsmFeedbackThreads: jest.fn(),
+  markFeedbackMessagesAsRead: jest.fn(() => Promise.resolve())
 }));
 
 const snapshotDoc = (id, data) => ({ id, data: () => data });
@@ -42,12 +44,22 @@ beforeEach(() => {
   });
   listenToFeedbackThreadReplies.mockImplementation((_threadId, onUpdate) => {
     onUpdate({
-      docs: [snapshotDoc("message-1", {
-        senderName: "Customer One",
-        createdBy: "customer-1",
-        message: "Can you clarify this item?",
-        createdAt: new Date("2026-07-21T09:00:00Z")
-      })]
+      docs: [
+        snapshotDoc("message-1", {
+          senderName: "Customer One",
+          createdBy: "customer-1",
+          message: "Can you clarify this item?",
+          readBy: ["customer-1"],
+          createdAt: new Date("2026-07-21T09:00:00Z")
+        }),
+        snapshotDoc("message-2", {
+          senderName: "FSM User",
+          createdBy: "fsm-auth-1",
+          message: "I have sent the clarification.",
+          readBy: ["fsm-auth-1", "customer-1"],
+          createdAt: new Date("2026-07-21T09:05:00Z")
+        })
+      ]
     });
     return jest.fn();
   });
@@ -58,9 +70,15 @@ test("lets an FSM read and reply without creating customer conversations", async
 
   expect((await screen.findAllByText("Monthly report question")).length).toBeGreaterThan(0);
   expect(screen.getByText("Can you clarify this item?")).toBeInTheDocument();
+  expect(screen.getByText("Read")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /new message/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+  expect(markFeedbackMessagesAsRead).toHaveBeenCalledWith(
+    "thread-1",
+    expect.any(Array),
+    "fsm-auth-1"
+  );
 
   fireEvent.change(screen.getByLabelText("Reply to customer"), {
     target: { value: "I will send the clarification today." }

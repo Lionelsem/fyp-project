@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import NotificationPopover from "../common/NotificationPopover";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmNotifications } from "../../hooks/useFsmNotifications";
+import { useFeedbackNotifications } from "../../hooks/useFeedbackNotifications";
 
 const FSMNavbar = ({
   pageTitle = "Fashboard",
@@ -11,7 +12,12 @@ const FSMNavbar = ({
   onMenuToggle
 }) => {
   const { user } = useAuthContext();
-  const notifications = useFsmNotifications(user);
+  const fsmNotifications = useFsmNotifications(user);
+  const feedbackNotifications = useFeedbackNotifications(user);
+  const notifications = useMemo(
+    () => [...feedbackNotifications, ...fsmNotifications],
+    [feedbackNotifications, fsmNotifications]
+  );
   const today = useMemo(
     () =>
       new Date().toLocaleDateString(undefined, {

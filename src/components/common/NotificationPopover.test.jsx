@@ -83,3 +83,24 @@ test("removes a notification with its cross button", () => {
   expect(handleDismiss).toHaveBeenCalledWith("customer-remark");
   jest.useRealTimers();
 });
+
+test("keeps unread chat notifications until the conversation is read", () => {
+  render(
+    <NotificationPopover
+      notifications={[{
+        id: "feedback-thread-message",
+        title: "New message from Customer One",
+        message: "Please review my feedback.",
+        isRead: false,
+        dismissible: false
+      }]}
+    />
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Notifications, 1 unread" }));
+
+  expect(screen.getByText("New message from Customer One")).toBeInTheDocument();
+  expect(screen.queryByRole("button", {
+    name: "Remove notification: New message from Customer One"
+  })).not.toBeInTheDocument();
+});

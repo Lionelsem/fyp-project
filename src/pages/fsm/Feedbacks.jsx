@@ -4,7 +4,8 @@ import styles from "../customer/Feedbacks.module.css";
 import {
   addFeedbackReply,
   listenToFeedbackThreadReplies,
-  listenToFsmFeedbackThreads
+  listenToFsmFeedbackThreads,
+  markFeedbackMessagesAsRead
 } from "../../services/feedbackService";
 
 const toDate = (value) => {
@@ -130,6 +131,9 @@ const Feedbacks = () => {
             isOwn: replyAuthorIds.includes(String(data.createdBy || ""))
           };
         }));
+        markFeedbackMessagesAsRead(selectedThreadId, snapshot.docs, user?.uid).catch((error) => {
+          console.error("Failed to mark FSM feedback as read:", error);
+        });
         setError("");
       },
       (listenError) => {
@@ -242,6 +246,14 @@ const Feedbacks = () => {
                         </div>
                       </div>
                       <p className={styles.messageText}>{reply.message}</p>
+                      {reply.isOwn && (
+                        <span className={styles.readStatus}>
+                          {(Array.isArray(reply.readBy) ? reply.readBy : [])
+                            .some((readerId) => String(readerId) !== String(reply.createdBy || ""))
+                            ? "Read"
+                            : "Unread"}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

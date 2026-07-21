@@ -1055,6 +1055,10 @@ button {
   transition: transform 180ms ease, opacity 180ms ease;
 }
 
+.notification-item--persistent {
+  grid-template-columns: 9px minmax(0, 1fr);
+}
+
 .notification-item-shell--dragging .notification-item {
   transition: none;
 }
@@ -1084,6 +1088,10 @@ button {
 }
 
 .notification-item--unread .notification-item-dot--remark {
+  background: #2563eb;
+}
+
+.notification-item--unread .notification-item-dot--chat {
   background: #2563eb;
 }
 

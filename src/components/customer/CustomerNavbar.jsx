@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import NotificationPopover from "../common/NotificationPopover";
+import { useAuthContext } from "../../context/AuthContext";
+import { useFeedbackNotifications } from "../../hooks/useFeedbackNotifications";
 
 const CustomerNavbar = ({
   pageTitle = "Customer Portal",
@@ -8,6 +10,8 @@ const CustomerNavbar = ({
   menuControlsId,
   onMenuToggle
 }) => {
+  const { user } = useAuthContext();
+  const feedbackNotifications = useFeedbackNotifications(user);
   const today = useMemo(
     () =>
       new Date().toLocaleDateString(undefined, {
@@ -38,7 +42,7 @@ const CustomerNavbar = ({
       </div>
 
       <div className="navbar-right">
-        <NotificationPopover />
+        <NotificationPopover notifications={feedbackNotifications} />
         <div className="date-display" aria-label={`Today's date: ${today}`}>
           <span className="date-display-prefix">Today, </span>{today}
         </div>

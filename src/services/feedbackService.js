@@ -9,6 +9,7 @@ import {
   updateDoc,
   deleteDoc,
   arrayUnion,
+  writeBatch,
   serverTimestamp
 } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -98,6 +99,10 @@ export const addFeedbackReply = async (threadId, reply) => {
 
   const replyDoc = await addDoc(messagesCollection, {
     ...reply,
+    readBy: Array.from(new Set([
+      ...(Array.isArray(reply.readBy) ? reply.readBy : []),
+      reply.createdBy
+    ].filter(Boolean))),
     createdAt: serverTimestamp()
   });
 
@@ -112,6 +117,34 @@ export const addFeedbackReply = async (threadId, reply) => {
   );
 
   return replyDoc;
+};
+
+export const markFeedbackMessagesAsRead = async (threadId, messageDocs, readerId) => {
+  if (!threadId || !readerId || !Array.isArray(messageDocs)) return;
+
+  const unreadMessages = messageDocs.filter((docItem) => {
+    const data = docItem.data();
+    const readBy = Array.isArray(data.readBy) ? data.readBy.map(String) : [];
+    return String(data.createdBy || "") !== String(readerId) && !readBy.includes(String(readerId));
+  });
+
+  for (let start = 0; start < unreadMessages.length; start += 500) {
+    const batch = writeBatch(db);
+    unreadMessages.slice(start, start + 500).forEach((docItem) => {
+      const messageRef = doc(
+        db,
+        COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS,
+        threadId,
+        COLLECTION_NAMES.CUSTOMER_FEEDBACK_MESSAGES,
+        docItem.id
+      );
+      batch.update(messageRef, {
+        readBy: arrayUnion(readerId),
+        lastReadAt: serverTimestamp()
+      });
+    });
+    await batch.commit();
+  }
 };
 
 export const updateFeedbackReply = async (threadId, replyId, data) => {
