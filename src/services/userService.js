@@ -1,5 +1,7 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { auth } from "../config/firebase";
+import { updateEmail } from "firebase/auth";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 
 export const getUserProfile = async (uid, email) => {
@@ -44,6 +46,32 @@ export const updateUser = async (uid, data) => {
     ...data,
     updatedAt: new Date()
   });
+};
+
+export const updateCurrentUserProfile = async (profileId, data) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("You must be signed in to update your profile.");
+
+  const fullName = String(data.fullName || "").trim();
+  const email = String(data.email || "").trim().toLowerCase();
+  const phoneNumber = String(data.phoneNumber || "").trim();
+
+  if (!fullName || !email) throw new Error("Full name and email address are required.");
+
+  if (email !== currentUser.email) {
+    await updateEmail(currentUser, email);
+  }
+
+  const userDocumentId = profileId || currentUser.uid;
+  await updateDoc(doc(db, COLLECTION_NAMES.USERS, userDocumentId), {
+    fullName,
+    userId: fullName,
+    email,
+    phoneNumber,
+    updatedAt: new Date()
+  });
+
+  return { fullName, email, phoneNumber };
 };
 
 export const deleteUser = async (uid) => {
