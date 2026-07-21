@@ -249,21 +249,23 @@ const FireDrillReports = () => {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header" style={{ marginBottom: "24px" }}>
-        <div>
-          <h3 className="page-subtitle">
-            Review drill schedules, outcomes, response times, and follow-up actions for your facility.
-          </h3>
-        </div>
-        <div className="header-actions">
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={handleDownloadLatestDrillPdf}
-            disabled={isDownloadingPdf}
-          >
-            {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Drill Report"}
-          </button>
+      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
+        <div className="card-header-row" style={{ justifyContent: "space-between", marginBottom: "20px" }}>
+          <div>
+            <h4 className="page-subtitle">
+              Review drill schedules, outcomes, response times, and follow-up actions for your facility.
+            </h4>
+          </div>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={handleDownloadLatestDrillPdf}
+              disabled={isDownloadingPdf}
+            >
+              {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Drill Report"}
+            </button>
+          </div>
         </div>
       </div>
 
