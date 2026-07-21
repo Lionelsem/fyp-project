@@ -8,6 +8,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  arrayUnion,
   serverTimestamp
 } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -21,6 +22,49 @@ export const listenToCustomerFeedbackThreads = (customerId, onUpdate, onError) =
   );
 
   return onSnapshot(threadsQuery, onUpdate, onError);
+};
+
+export const listenToFsmFeedbackThreads = (fsmIds, onUpdate, onError) => {
+  const normalizedIds = Array.from(
+    new Set(
+      (Array.isArray(fsmIds) ? fsmIds : [fsmIds])
+        .filter((value) => value !== undefined && value !== null)
+        .map((value) => String(value).trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 10);
+
+  if (normalizedIds.length === 0) {
+    onUpdate({ docs: [] });
+    return () => {};
+  }
+
+  const snapshotsByField = new Map();
+  const buildFilter = (fieldName) => normalizedIds.length === 1
+    ? where(fieldName, "==", normalizedIds[0])
+    : where(fieldName, "in", normalizedIds);
+
+  const unsubscribes = ["assignedFsmId", "recipient"].map((fieldName) => {
+    const threadsQuery = query(
+      collection(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS),
+      buildFilter(fieldName)
+    );
+
+    return onSnapshot(
+      threadsQuery,
+      (snapshot) => {
+        snapshotsByField.set(fieldName, snapshot.docs);
+        const mergedDocs = new Map();
+        snapshotsByField.forEach((docs) => {
+          docs.forEach((docItem) => mergedDocs.set(docItem.id, docItem));
+        });
+        onUpdate({ docs: Array.from(mergedDocs.values()) });
+      },
+      onError
+    );
+  });
+
+  return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
 };
 
 export const listenToFeedbackThreadReplies = (threadId, onUpdate, onError) => {
@@ -57,9 +101,15 @@ export const addFeedbackReply = async (threadId, reply) => {
     createdAt: serverTimestamp()
   });
 
-  await updateDoc(doc(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS, threadId), {
-    lastMessageAt: serverTimestamp()
-  });
+  const threadUpdate = { lastMessageAt: serverTimestamp() };
+  if (reply.createdBy) {
+    threadUpdate.participants = arrayUnion(reply.createdBy);
+  }
+
+  await updateDoc(
+    doc(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS, threadId),
+    threadUpdate
+  );
 
   return replyDoc;
 };

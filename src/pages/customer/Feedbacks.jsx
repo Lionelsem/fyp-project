@@ -171,14 +171,16 @@ const Feedbacks = () => {
     if (!newThreadSubject.trim() || !newThreadBody.trim() || !user?.uid) return;
 
     try {
+      const assignedFsmId = newThreadRecipient.trim() || user.assignedFsmId || "";
       const threadRef = await createCustomerFeedbackThread({
         customerId: user.uid,
+        customerName: user.fullName || user.displayName || user.email || "Customer",
         title: newThreadSubject.trim(),
         recipient: newThreadRecipient.trim() || "Assigned FSM",
-        assignedFsmId: user.assignedFsmId || "",
+        assignedFsmId,
         issueId: "",
         building: "",
-        participants: [user.uid],
+        participants: [user.uid, assignedFsmId].filter(Boolean),
         createdBy: user.uid
       });
 

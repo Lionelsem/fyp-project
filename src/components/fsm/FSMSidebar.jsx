@@ -21,7 +21,8 @@ const menuItems = [
       { path: "/fsm/building", label: "Building Overview", end: true },
       { path: "/fsm/fire-drill", label: "Fire Drill" }
     ]
-  }
+  },
+  { path: "/fsm/feedbacks", label: "Comments/Feedbacks", icon: "\uD83D\uDCDD" }
 ];
 
 const FSMSidebar = ({

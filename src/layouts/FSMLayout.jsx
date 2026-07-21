@@ -18,6 +18,7 @@ const FSMLayout = ({ children }) => {
     "fire-drill": "Fire Drill",
     reports: "Reports",
     building: "My Building",
+    feedbacks: "Comments/Feedbacks",
     profile: "Profile"
   };
   const pageTitle = pageTitleMap[section] || "Dashboard";
