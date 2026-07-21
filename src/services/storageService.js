@@ -7,6 +7,8 @@ const sanitizePathPart = (value) =>
     .replace(/[^a-zA-Z0-9._-]/g, "-")
     .replace(/-+/g, "-") || "file";
 
+let uploadSequence = 0;
+
 export const STORAGE_FOLDERS = {
   INSPECTION_DEFECT_PHOTOS: "inspection-defect-photos"
 };
@@ -47,7 +49,8 @@ const normalizeUploadFolder = (folder) => {
 export const uploadFile = async (file, folder = "uploads") => {
   const safeFolder = normalizeUploadFolder(folder);
   const safeName = sanitizePathPart(file.name);
-  const storagePath = `${safeFolder}/${Date.now()}-${safeName}`;
+  uploadSequence += 1;
+  const storagePath = `${safeFolder}/${Date.now()}-${uploadSequence}-${safeName}`;
   const fileRef = ref(storage, storagePath);
 
   console.log("Uploading file to Firebase Storage", {

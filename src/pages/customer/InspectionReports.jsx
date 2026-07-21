@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { getAllReports, updateReport } from "../../services/reportService";
 
 const mockReports = [
   {
@@ -41,7 +42,42 @@ const mockReports = [
 ];
 
 const parseReportYear = (dateString) => {
-  return parseInt(dateString?.split(",")[1]?.trim() || "", 10);
+  const yearMatch = String(dateString || "").match(/\b(?:19|20)\d{2}\b/);
+  return yearMatch ? parseInt(yearMatch[0], 10) : NaN;
+};
+
+const parseDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === "function") return value.toDate();
+  if (typeof value.seconds === "number") return new Date(value.seconds * 1000);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatReportDate = (value) => {
+  const date = parseDate(value);
+  return date
+    ? date.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })
+    : "—";
+};
+
+const normalizeInspectionReport = (report) => {
+  const reportDate = parseDate(report.generatedDate || report.createdAt || report.updatedAt);
+  return {
+    ...report,
+    reportId: report.reportId || report.id,
+    inspectionMonth:
+      report.inspectionMonth ||
+      report.period ||
+      (reportDate?.toLocaleDateString("en-SG", { month: "long", year: "numeric" }) || "—"),
+    inspectionDate: report.inspectionDate || formatReportDate(reportDate),
+    fsmInCharge: report.fsmInCharge || report.generatedByName || report.generatedBy || "Assigned FSM",
+    totalFindings: report.totalFindings ?? report.defectCount ?? 0,
+    defectCount: report.defectCount ?? report.totalFindings ?? 0,
+    summary: report.summary || report.aiSummary || "No summary available.",
+    customerComments: report.customerComments || ""
+  };
 };
 
 const formatInspectionMonth = (monthString) => {
@@ -109,12 +145,42 @@ const buildInspectionOverviewPdf = (report) => {
 const InspectionReports = () => {
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
-  const [reports, setReports] = useState(mockReports);
-  const [loading] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [remarks, setRemarks] = useState("");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
   const [remarksSavedMessage, setRemarksSavedMessage] = useState("");
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadReports = async () => {
+      try {
+        const data = await getAllReports();
+        const inspectionReports = (data || []).filter((report) => {
+          const type = String(report.reportType || report.reportTitle || "").toLowerCase();
+          return !type.includes("annual");
+        });
+        if (active) {
+          setReports(
+            inspectionReports.length
+              ? inspectionReports.map(normalizeInspectionReport)
+              : mockReports
+          );
+        }
+      } catch (error) {
+        if (active) setReports(mockReports);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadReports();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredReports = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -133,7 +199,7 @@ const InspectionReports = () => {
     });
   }, [reports, search, yearFilter]);
 
-  const latestReport = filteredReports[0] || reports[0];
+  const latestReport = filteredReports[0] || reports[0] || mockReports[0];
 
   useEffect(() => {
     setRemarks(latestReport?.customerComments || "");
@@ -152,20 +218,29 @@ const InspectionReports = () => {
     ).sort((a, b) => b - a);
   }, [reports]);
 
-  const handleSaveRemarks = () => {
+  const handleSaveRemarks = async () => {
+    if (!latestReport?.id) {
+      setRemarksSavedMessage("Unable to save feedback for this report.");
+      return;
+    }
+
     setIsSavingRemarks(true);
     setRemarksSavedMessage("");
 
-    setReports((currentReports) =>
-      currentReports.map((report) =>
-        report.id === latestReport.id ? { ...report, customerComments: remarks } : report
-      )
-    );
-
-    setTimeout(() => {
-      setIsSavingRemarks(false);
+    try {
+      await updateReport(latestReport.id, { customerComments: remarks });
+      setReports((currentReports) =>
+        currentReports.map((report) =>
+          report.id === latestReport.id ? { ...report, customerComments: remarks } : report
+        )
+      );
       setRemarksSavedMessage("Feedback saved.");
-    }, 300);
+    } catch (error) {
+      setRemarksSavedMessage("Unable to save feedback. Please try again.");
+      console.error("Failed to save inspection report feedback", error);
+    } finally {
+      setIsSavingRemarks(false);
+    }
   };
 
   const handleDownloadLatestInspectionPdf = () => {

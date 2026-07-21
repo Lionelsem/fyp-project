@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import NotificationPopover from "./NotificationPopover";
 
 test("opens and closes the notification popover", () => {
@@ -57,4 +57,29 @@ test("closes when clicking outside the popover", () => {
   fireEvent.mouseDown(screen.getByRole("button", { name: "Outside" }));
 
   expect(screen.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument();
+});
+
+test("removes a notification with its cross button", () => {
+  jest.useFakeTimers();
+  const handleDismiss = jest.fn();
+  render(
+    <NotificationPopover
+      onDismiss={handleDismiss}
+      notifications={[{
+        id: "customer-remark",
+        title: "New customer remark",
+        message: "Please review the west stairwell.",
+        isRead: false
+      }]}
+    />
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Notifications, 1 unread" }));
+  fireEvent.click(screen.getByRole("button", { name: "Remove notification: New customer remark" }));
+  act(() => jest.advanceTimersByTime(220));
+
+  expect(screen.queryByText("New customer remark")).not.toBeInTheDocument();
+  expect(screen.getByText("You're all caught up")).toBeInTheDocument();
+  expect(handleDismiss).toHaveBeenCalledWith("customer-remark");
+  jest.useRealTimers();
 });

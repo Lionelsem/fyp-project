@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import NotificationPopover from "../common/NotificationPopover";
+import { useAuthContext } from "../../context/AuthContext";
+import { useFsmNotifications } from "../../hooks/useFsmNotifications";
 
 const FSMNavbar = ({
   pageTitle = "Fashboard",
@@ -8,6 +10,8 @@ const FSMNavbar = ({
   menuControlsId,
   onMenuToggle
 }) => {
+  const { user } = useAuthContext();
+  const notifications = useFsmNotifications(user);
   const today = useMemo(
     () =>
       new Date().toLocaleDateString(undefined, {
@@ -38,7 +42,10 @@ const FSMNavbar = ({
       </div>
 
       <div className="navbar-right">
-        <NotificationPopover />
+        <NotificationPopover
+          notifications={notifications}
+          storageKey={`fsm-dismissed-notifications-${user?.uid || user?.id || "current"}`}
+        />
         <div className="date-display" aria-label={`Today's date: ${today}`}>
           <span className="date-display-prefix">Today, </span>{today}
         </div>

@@ -10,6 +10,7 @@ const EMPTY_DATA = {
   buildings: [],
   inspections: [],
   reports: [],
+  buildingReports: [],
   fireDrills: [],
   fsmFireDrills: [],
   buildingFireDrills: [],
@@ -20,6 +21,7 @@ const EMPTY_LOADED = {
   buildings: true,
   inspections: true,
   reports: true,
+  buildingReports: true,
   fireDrills: true,
   fsmFireDrills: true,
   buildingFireDrills: true,
@@ -30,6 +32,7 @@ const PENDING_LOADED = {
   buildings: false,
   inspections: false,
   reports: false,
+  buildingReports: false,
   fireDrills: true,
   fsmFireDrills: false,
   buildingFireDrills: false,
@@ -699,6 +702,65 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     const assignedBuildingIds = JSON.parse(buildingIdsKey);
 
     if (assignedBuildingIds.length === 0) {
+      setData((current) => ({ ...current, buildingReports: [] }));
+      setLoaded((current) => ({ ...current, buildingReports: true }));
+      return undefined;
+    }
+
+    let active = true;
+    const chunks = chunkArray(assignedBuildingIds, IN_QUERY_CHUNK_SIZE);
+    const chunkResults = chunks.map(() => []);
+    const chunkLoaded = chunks.map(() => false);
+
+    setLoaded((current) => ({ ...current, buildingReports: false }));
+
+    const updateReports = () => {
+      if (!active) return;
+      setData((current) => ({
+        ...current,
+        buildingReports: uniqueById(chunkResults.flat())
+      }));
+      if (chunkLoaded.every(Boolean)) {
+        setLoaded((current) => ({ ...current, buildingReports: true }));
+      }
+    };
+
+    const unsubscribes = chunks.map((ids, index) =>
+      onSnapshot(
+        query(
+          collection(db, COLLECTION_NAMES.REPORTS),
+          where("buildingId", "in", ids)
+        ),
+        (snapshot) => {
+          if (!active) return;
+          chunkResults[index] = mapSnapshot(snapshot);
+          chunkLoaded[index] = true;
+          updateReports();
+        },
+        (listenerError) => {
+          if (!active) return;
+          console.error("FSM dashboard building reports listener failed", listenerError);
+          setError(listenerError.message || "Could not sync building reports.");
+          chunkLoaded[index] = true;
+          updateReports();
+        }
+      )
+    );
+
+    return () => {
+      active = false;
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [buildingIdsKey, fsmLookupIdsKey, loaded.buildings]);
+
+  useEffect(() => {
+    const lookupIds = JSON.parse(fsmLookupIdsKey);
+
+    if (lookupIds.length === 0 || !loaded.buildings) return undefined;
+
+    const assignedBuildingIds = JSON.parse(buildingIdsKey);
+
+    if (assignedBuildingIds.length === 0) {
       setData((current) => ({ ...current, buildingFireDrills: [] }));
       setLoaded((current) => ({ ...current, buildingFireDrills: true }));
       return undefined;
@@ -786,6 +848,11 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     [data.issues, buildingMap]
   );
 
+  const liveReports = useMemo(
+    () => uniqueById([...data.reports, ...data.buildingReports]),
+    [data.buildingReports, data.reports]
+  );
+
   const upcomingSchedule = useMemo(
     () => buildUpcomingSchedule(liveFireDrills, buildingMap),
     [liveFireDrills, buildingMap]
@@ -801,7 +868,7 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     error,
     buildings: data.buildings,
     inspections: data.inspections,
-    reports: data.reports,
+    reports: liveReports,
     fireDrills: liveFireDrills,
     issues: data.issues,
     summaryCards,

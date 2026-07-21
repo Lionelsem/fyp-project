@@ -366,19 +366,27 @@ const ScheduleForm = ({
         {buildings.length > 0 ? (
           <label className="fire-drill-form-field">
             <span>Building</span>
-            <select
-              value={form.buildingId}
-              onChange={(event) => onChange("buildingId", event.target.value)}
-              disabled={buildings.length === 1}
-              required
-            >
-              <option value="">Select building</option>
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {getBuildingName(building)}
-                </option>
-              ))}
-            </select>
+            {buildings.length === 1 ? (
+              <input
+                type="text"
+                value={getBuildingName(buildings[0])}
+                readOnly
+                aria-readonly="true"
+              />
+            ) : (
+              <select
+                value={form.buildingId}
+                onChange={(event) => onChange("buildingId", event.target.value)}
+                required
+              >
+                <option value="">Select building</option>
+                {buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {getBuildingName(building)}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
         ) : (
           <label className="fire-drill-form-field">
@@ -485,6 +493,40 @@ const ReadOnlyItem = ({ label, value }) => (
     <strong>{value || "-"}</strong>
   </div>
 );
+
+const SelectedPhotoGallery = ({ files, onRemove }) => {
+  const previews = useMemo(
+    () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [files]
+  );
+
+  useEffect(
+    () => () => previews.forEach((preview) => URL.revokeObjectURL(preview.url)),
+    [previews]
+  );
+
+  if (previews.length === 0) return null;
+
+  return (
+    <div className="conduct-photo-preview-grid" aria-label="Selected fire drill photos">
+      {previews.map(({ file, url }, index) => (
+        <figure
+          className="conduct-photo-preview"
+          key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+        >
+          <img src={url} alt={`Selected fire drill evidence ${index + 1}`} />
+          <button
+            type="button"
+            aria-label={`Remove selected photo ${index + 1}`}
+            onClick={() => onRemove(index)}
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </figure>
+      ))}
+    </div>
+  );
+};
 
 const ConductForm = ({
   form,
@@ -611,17 +653,30 @@ const ConductForm = ({
       </label>
 
       <div className="conduct-photo-upload">
-        <span>Photos (Optional)</span>
+        <span>Photos (Optional, multiple allowed)</span>
         <ImageSourcePicker
           ariaLabel="Add fire drill photos"
-          onFilesSelected={(files) => onChange("photos", Array.from(files || []))}
+          disabled={saving}
+          multiple
+          onFilesSelected={(files) =>
+            onChange("photos", [...form.photos, ...Array.from(files || [])])
+          }
         />
-        <strong>Take a new photo or select existing images</strong>
+        <strong>Take photos or select multiple images</strong>
         <small>
           {form.photos.length > 0
-            ? `${form.photos.length} photo${form.photos.length === 1 ? "" : "s"} selected`
+            ? `${form.photos.length} photo${form.photos.length === 1 ? "" : "s"} selected. You can add more.`
             : "Add photos or attach from gallery"}
         </small>
+        <SelectedPhotoGallery
+          files={form.photos}
+          onRemove={(photoIndex) =>
+            onChange(
+              "photos",
+              form.photos.filter((_, index) => index !== photoIndex)
+            )
+          }
+        />
       </div>
 
       {formError && <p className="fire-drill-form-error">{formError}</p>}
@@ -733,6 +788,7 @@ const FireDrill = () => {
 
   const visibleScheduledDrills = showAllSchedule ? filteredScheduledDrills : filteredScheduledDrills.slice(0, 3);
   const visibleHistory = showAllHistory ? filteredDrillHistory : filteredDrillHistory.slice(0, 5);
+  const assignedBuilding = buildings.length === 1 ? buildings[0] : null;
 
   const getScheduleDefaultsForBuilding = (building) => ({
     buildingId: building?.id || "",
@@ -783,10 +839,14 @@ const FireDrill = () => {
   };
 
   const openScheduleForm = () => {
+    const isClosing = activeForm === "schedule";
     setFormError("");
     setEditingScheduleId("");
-    setScheduleForm(emptyScheduleForm);
-    setActiveForm(activeForm === "schedule" ? null : "schedule");
+    setScheduleForm({
+      ...emptyScheduleForm,
+      ...(assignedBuilding ? getScheduleDefaultsForBuilding(assignedBuilding) : {})
+    });
+    setActiveForm(isClosing ? null : "schedule");
   };
 
   const openEditScheduleForm = (drill) => {
@@ -871,9 +931,22 @@ const FireDrill = () => {
     event.preventDefault();
     setFormError("");
 
-    const buildingName = getSelectedBuildingName(scheduleForm.buildingId, scheduleForm.buildingName);
-    const resolvedEvacuationType = getResolvedEvacuationType(scheduleForm);
-    if (!buildingName || !scheduleForm.drillDate || !resolvedEvacuationType) {
+    const assignedBuildingDefaults = assignedBuilding
+      ? getScheduleDefaultsForBuilding(assignedBuilding)
+      : null;
+    const resolvedScheduleForm = assignedBuildingDefaults
+      ? {
+          ...scheduleForm,
+          buildingId: assignedBuildingDefaults.buildingId,
+          buildingName: assignedBuildingDefaults.buildingName
+        }
+      : scheduleForm;
+    const buildingName = getSelectedBuildingName(
+      resolvedScheduleForm.buildingId,
+      resolvedScheduleForm.buildingName
+    );
+    const resolvedEvacuationType = getResolvedEvacuationType(resolvedScheduleForm);
+    if (!buildingName || !resolvedScheduleForm.drillDate || !resolvedEvacuationType) {
       setFormError("Building, evacuation type, and date are required.");
       return;
     }
@@ -881,12 +954,12 @@ const FireDrill = () => {
     try {
       setSaving(true);
       const payload = {
-        ...scheduleForm,
+        ...resolvedScheduleForm,
         buildingName,
         drillType: resolvedEvacuationType,
         customEvacuationType:
-          scheduleForm.evacuationType === OTHER_EVACUATION_TYPE
-            ? scheduleForm.customEvacuationType
+          resolvedScheduleForm.evacuationType === OTHER_EVACUATION_TYPE
+            ? resolvedScheduleForm.customEvacuationType
             : "",
         fsmId: getPrimaryFsmId(user),
         status: "Scheduled"
