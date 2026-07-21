@@ -3329,6 +3329,30 @@ select.inspection-row-control {
   gap: clamp(12px, 2vw, 18px);
 }
 
+.profile-form-actions,
+.profile-save-message {
+  grid-column: 1 / -1;
+}
+
+.profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.profile-save-message {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.profile-save-success {
+  color: #15803d;
+}
+
+.profile-save-error {
+  color: #dc2626;
+}
+
 .fire-drill-page-header {
   display: flex;
   justify-content: space-between;
@@ -4136,6 +4160,7 @@ select.inspection-row-control {
   width: 6%;
   min-width: 64px;
   overflow: visible;
+  text-overflow: clip;
   text-align: center;
   background: #ffffff;
   box-shadow: -8px 0 12px -12px rgba(15, 23, 42, 0.45);
@@ -4757,6 +4782,11 @@ select.inspection-row-control {
   grid-template-columns: minmax(min(100%, 280px), 0.35fr) minmax(0, 1fr);
   gap: clamp(16px, 3vw, 32px);
   align-items: start;
+}
+
+.issue-ticket-table.issue-ticket-table--history td:nth-child(7) {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .building-details-layout--no-image {

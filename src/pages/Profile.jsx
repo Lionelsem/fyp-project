@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
 import { getAllBuildings } from "../services/buildingService";
-import { getUserProfile } from "../services/userService";
+import { getUserProfile, updateCurrentUserProfile } from "../services/userService";
 
-const getDisplayName = (profile, overrideDisplayName) =>
-  overrideDisplayName ||
+const DEFAULT_PHONE_NUMBER = "+65 9123 4567";
+
+const getDisplayName = (profile) =>
   profile?.fullName ||
   profile?.displayName ||
   profile?.userId ||
@@ -28,13 +29,6 @@ const getRoleLabel = (role) => {
   if (role === ROLES.ADMIN) return "Admin";
   if (role === ROLES.CUSTOMER) return "Customer";
   return role || "-";
-};
-
-const getSingaporePhoneFallback = (profile) => {
-  const seed = String(profile?.uid || profile?.authUid || profile?.profileId || profile?.email || "user");
-  const total = seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const suffix = String(1000000 + (total * 7919) % 9000000).padStart(7, "0");
-  return `+65 9${suffix.slice(0, 3)} ${suffix.slice(3)}`;
 };
 
 const getLookupIds = (profile) =>
@@ -127,13 +121,17 @@ const notificationSettings = [
   ["systemAnnouncements", "System announcements", "Receive platform maintenance and policy notices."]
 ];
 
-const Profile = ({ overrideDisplayName, overrideRoleLabel }) => {
-  const { user } = useAuthContext();
+const Profile = () => {
+  const { user, updateLocalProfile } = useAuthContext();
   const [profile, setProfile] = useState(user);
   const [activeSection, setActiveSection] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [buildings, setBuildings] = useState([]);
   const [buildingLoading, setBuildingLoading] = useState(false);
+  const [form, setForm] = useState({ fullName: "", email: "", phoneNumber: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     inspectionReminders: true,
@@ -179,6 +177,18 @@ const Profile = ({ overrideDisplayName, overrideRoleLabel }) => {
   }, [user]);
 
   useEffect(() => {
+    setForm({
+      fullName: getDisplayName(profile),
+      email: profile?.email || "",
+      phoneNumber:
+        profile?.phoneNumber ||
+        profile?.phone ||
+        profile?.contactNumber ||
+        DEFAULT_PHONE_NUMBER
+    });
+  }, [profile]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const loadBuildings = async () => {
@@ -203,20 +213,13 @@ const Profile = ({ overrideDisplayName, overrideRoleLabel }) => {
 
   const displayName = useMemo(() => {
     const profileName = getDisplayName(profile);
-    if (overrideDisplayName) return overrideDisplayName;
-    if (profile?.role === ROLES.CUSTOMER && !profileName) return "John Lee";
     return profileName;
-  }, [profile, overrideDisplayName]);
+  }, [profile]);
   const initials = useMemo(
     () => getInitials(displayName, profile?.email),
     [displayName, profile?.email]
   );
-  const roleLabel = overrideRoleLabel || getRoleLabel(profile?.role);
-  const phoneNumber =
-    profile?.phoneNumber ||
-    profile?.phone ||
-    profile?.contactNumber ||
-    getSingaporePhoneFallback(profile);
+  const roleLabel = getRoleLabel(profile?.role);
   const lookupIds = useMemo(() => getLookupIds(profile), [profile]);
   const linkedBuildings = useMemo(
     () => buildings.filter((building) => isLinkedBuilding(building, profile, lookupIds)),
@@ -237,6 +240,33 @@ const Profile = ({ overrideDisplayName, overrideRoleLabel }) => {
     "Contact System Administrator";
   const passwordUpdated = profile?.passwordUpdatedAt || profile?.passwordLastUpdated || "Not recorded";
 
+  const handleProfileChange = (field) => (event) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+    setSaveMessage("");
+    setSaveError("");
+  };
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setSaveMessage("");
+    setSaveError("");
+
+    try {
+      const changes = await updateCurrentUserProfile(profile?.profileId, form);
+      setProfile((current) => ({ ...current, ...changes }));
+      updateLocalProfile(changes);
+      setSaveMessage("Profile updated successfully.");
+    } catch (error) {
+      const message = error?.code === "auth/requires-recent-login"
+        ? "Please sign out and sign in again before changing your email address."
+        : error?.message || "Unable to update profile.";
+      setSaveError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const renderProfileSection = () => (
     <>
       <div className="profile-summary">
@@ -248,15 +278,15 @@ const Profile = ({ overrideDisplayName, overrideRoleLabel }) => {
         </div>
       </div>
 
-      <div className="profile-details-grid">
+      <form className="profile-details-grid" onSubmit={handleProfileSave}>
         <label className="profile-field">
           <span>Full Name</span>
-          <input className="form-input" value={displayName || "-"} readOnly />
+          <input className="form-input" value={form.fullName} onChange={handleProfileChange("fullName")} required />
         </label>
 
         <label className="profile-field">
           <span>Email Address</span>
-          <input className="form-input" value={profile?.email || "-"} readOnly />
+          <input className="form-input" type="email" value={form.email} onChange={handleProfileChange("email")} required />
         </label>
 
         <label className="profile-field">
@@ -266,12 +296,20 @@ const Profile = ({ overrideDisplayName, overrideRoleLabel }) => {
 
         <label className="profile-field">
           <span>Phone Number</span>
-          <input className="form-input" value={phoneNumber} readOnly />
+          <input className="form-input" type="tel" value={form.phoneNumber} onChange={handleProfileChange("phoneNumber")} />
         </label>
-      </div>
+
+        {saveError && <p className="profile-save-message profile-save-error" role="alert">{saveError}</p>}
+        {saveMessage && <p className="profile-save-message profile-save-success" role="status">{saveMessage}</p>}
+        <div className="profile-form-actions">
+          <button type="submit" className="primary-button" disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </form>
 
       <p className="profile-note">
-        To change your role or account email, please contact your system administrator.
+        Your role is assigned by the system and cannot be edited here.
       </p>
     </>
   );

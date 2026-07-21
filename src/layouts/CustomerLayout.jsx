@@ -23,7 +23,7 @@ const CustomerLayout = ({ children }) => {
   const pageTitle = pageTitleMap[section] || "Customer Dashboard";
 
   const displayName =
-    user?.fullName || user?.displayName || user?.email?.split("@")[0] || "John Lee";
+    user?.fullName || user?.displayName || user?.email?.split("@")[0] || "Customer";
   const initials = displayName
     .split(" ")
     .map((part) => part.charAt(0))
