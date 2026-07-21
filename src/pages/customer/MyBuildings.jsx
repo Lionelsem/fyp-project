@@ -127,10 +127,9 @@ const MyBuildings = () => {
         <div className="customer-buildings-content">
           <header className="page-header customer-buildings-header">
             <div>
-              <h1>My Building</h1>
-              <p className="page-subtitle">
+              <h3 className="page-subtitle">
                 Details and specifications for your assigned property.
-              </p>
+              </h3>
             </div>
           </header>
 

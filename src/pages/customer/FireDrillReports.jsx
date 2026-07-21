@@ -251,10 +251,9 @@ const FireDrillReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <h1 style={{ margin: "0 0 8px", fontSize: "clamp(1.5rem, 3vw, 1.875rem)" }}>Fire Drill Reports</h1>
-          <p className="page-subtitle">
+          <h3 className="page-subtitle">
             Review drill schedules, outcomes, response times, and follow-up actions for your facility.
-          </p>
+          </h3>
         </div>
         <div className="header-actions">
           <button

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import Modal from "../../components/common/Modal";
 import { ISSUE_STATUS } from "../../constants/status";
 
 const mockIssues = [
@@ -79,6 +80,7 @@ const IssueProgress = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIssue, setSelectedIssue] = useState(null);
   const itemsPerPage = 5;
   const [loading] = useState(false);
   const [error] = useState(null);
@@ -226,6 +228,7 @@ const IssueProgress = () => {
                         type="button"
                         className="table-action-button"
                         title="View"
+                        onClick={() => setSelectedIssue(issue)}
                       >
                         👁️ View
                       </button>
@@ -281,6 +284,39 @@ const IssueProgress = () => {
           </div>
         )}
       </div>
+
+      {selectedIssue && (
+        <Modal
+          title={`Issue ${selectedIssue.issueId}`}
+          onClose={() => setSelectedIssue(null)}
+          bodyClassName="modal-body"
+        >
+          <div style={{ padding: "1rem", display: "grid", gap: "1rem" }}>
+            <div>
+              <strong>Location</strong>
+              <p>{selectedIssue.location}</p>
+            </div>
+            <div>
+              <strong>Finding</strong>
+              <p>{selectedIssue.finding}</p>
+            </div>
+            <div>
+              <strong>Proposed Rectification</strong>
+              <p>{selectedIssue.proposedRectification}</p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1rem" }}>
+              <div>
+                <strong>Status</strong>
+                <p>{selectedIssue.status}</p>
+              </div>
+              <div>
+                <strong>Last Updated</strong>
+                <p>{selectedIssue.lastUpdated}</p>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

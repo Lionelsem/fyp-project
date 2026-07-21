@@ -274,10 +274,9 @@ const InspectionReports = () => {
     <div className="dashboard-container">
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
-          <h1 style={{ margin: "0 0 8px", fontSize: "clamp(1.5rem, 3vw, 1.875rem)" }}>Inspection Reports</h1>
-          <p className="page-subtitle">
+          <h3 className="page-subtitle">
             Review monthly safety inspections, findings, and corrective actions for your building.
-          </p>
+          </h3>
         </div>
         <div className="header-actions">
           <button

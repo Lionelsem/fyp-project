@@ -1,115 +1,132 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useAuthContext } from "../../context/AuthContext";
 import styles from "./Feedbacks.module.css";
 import Modal from "../../components/common/Modal";
+import {
+  listenToCustomerFeedbackThreads,
+  listenToFeedbackThreadReplies,
+  addFeedbackReply,
+  createCustomerFeedbackThread,
+  updateFeedbackReply,
+  deleteFeedbackReply
+} from "../../services/feedbackService";
+
+const formatTimestamp = (timestamp) => {
+  if (!timestamp) return "";
+  const date = typeof timestamp.toDate === "function" ? timestamp.toDate() : timestamp;
+  if (!(date instanceof Date)) return String(timestamp);
+  return date.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+};
 
 const Feedbacks = () => {
-  const [selectedMessage, setSelectedMessage] = useState(null);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      title: "Regarding Issue DEF-2026-088",
-      issueId: "DEF-2026-088",
-      building: "Basement 2",
-      timestamp: "Sep 13, 2025",
-      replies: [
-        {
-          id: 1,
-          sender: "John Smith (FSM)",
-          role: "FSM",
-          time: "Sep 13, 10:30 AM",
-          message:
-            "I have informed the logistics contractor about this. They have committed to clearing the pallets by 4PM today.",
-          isOwn: false,
-        },
-        {
-          id: 2,
-          sender: "You",
-          role: "Customer",
-          time: "Sep 13, 11:15 AM",
-          message:
-            "Thanks for the update. Please ensure the vendor completes the clearing as promised. Let me know if there are any delays.",
-          isOwn: true,
-        },
-      ],
-    },
-    {
-      id: 2,
-      title: "Clarification on Aug Monthly Report",
-      issueId: "ISSUE-001",
-      timestamp: "Sep 12, 2025",
-      replies: [
-        {
-          id: 1,
-          sender: "Jane Smith (FSM)",
-          role: "FSM",
-          time: "Sep 12, 2:45 PM",
-          message:
-            "Hi, I wanted to clarify your question on point 4 in the August report. The so-called pump pressure is within normal...",
-          isOwn: false,
-        },
-      ],
-    },
-    {
-      id: 3,
-      title: "Annual Report 2025 Acknowledgement",
-      timestamp: "Sep 11, 2025",
-      replies: [
-        {
-          id: 1,
-          sender: "System",
-          role: "System",
-          time: "Sep 11, 3:08 AM",
-          message:
-            "Your digital acknowledgement for the 2025 Annual Fire Safety Report has been recorded",
-          isOwn: false,
-        },
-      ],
-    },
-  ]);
-
+  const { user } = useAuthContext();
+  const [threads, setThreads] = useState([]);
+  const [selectedThreadId, setSelectedThreadId] = useState(null);
+  const [selectedThreadReplies, setSelectedThreadReplies] = useState([]);
   const [replyText, setReplyText] = useState("");
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [showEditReplyModal, setShowEditReplyModal] = useState(false);
   const [editingReply, setEditingReply] = useState(null);
   const [editedReplyText, setEditedReplyText] = useState("");
+  const [newThreadRecipient, setNewThreadRecipient] = useState("");
+  const [newThreadSubject, setNewThreadSubject] = useState("");
+  const [newThreadBody, setNewThreadBody] = useState("");
+  const messagesThreadRef = useRef(null);
 
-  const updateThreadReplies = (threadId, updater) => {
-    setMessages((prevMessages) => {
-      const nextMessages = prevMessages.map((message) => {
-        if (message.id === threadId) {
-          const nextReplies = updater(message.replies);
-          return { ...message, replies: nextReplies };
-        }
-        return message;
-      });
+  const selectedThread = useMemo(
+    () => threads.find((thread) => thread.id === selectedThreadId) || null,
+    [threads, selectedThreadId]
+  );
 
-      const updatedThread = nextMessages.find((message) => message.id === threadId);
-      if (selectedMessage?.id === threadId) {
-        setSelectedMessage((currentMessage) =>
-          currentMessage?.id === threadId
-            ? { ...currentMessage, replies: updatedThread?.replies ?? [] }
-            : currentMessage
-        );
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+
+    const unsubscribe = listenToCustomerFeedbackThreads(
+      user.uid,
+      (snapshot) => {
+        const nextThreads = snapshot.docs.map((docItem) => {
+          const data = docItem.data();
+          return {
+            id: docItem.id,
+            title: data.title || "New conversation",
+            recipient: data.recipient || "",
+            issueId: data.issueId || "",
+            building: data.building || "",
+            lastMessageAt: data.lastMessageAt,
+            createdAt: data.createdAt,
+            ...data
+          };
+        });
+
+        setThreads(nextThreads);
+      },
+      (error) => {
+        console.error("Failed to load chat threads:", error);
       }
+    );
 
-      return nextMessages;
-    });
-  };
+    return unsubscribe;
+  }, [user?.uid]);
 
-  const handleSendReply = () => {
-    if (replyText.trim() && selectedMessage) {
-      updateThreadReplies(selectedMessage.id, (replies) => [
-        ...replies,
-        {
-          id: replies.length + 1,
-          sender: "You",
-          role: "Customer",
-          time: new Date().toLocaleString(),
-          message: replyText,
-          isOwn: true,
-        },
-      ]);
+  useEffect(() => {
+    if (!selectedThreadId) {
+      setSelectedThreadReplies([]);
+      return undefined;
+    }
+
+    const unsubscribe = listenToFeedbackThreadReplies(
+      selectedThreadId,
+      (snapshot) => {
+        const nextReplies = snapshot.docs.map((docItem) => {
+          const data = docItem.data();
+          return {
+            id: docItem.id,
+            sender: data.senderName || data.sender || "Unknown",
+            role: data.role || "Customer",
+            message: data.message,
+            createdBy: data.createdBy,
+            isOwn: data.createdBy === user?.uid,
+            time: formatTimestamp(data.createdAt)
+          };
+        });
+        setSelectedThreadReplies(nextReplies);
+      },
+      (error) => {
+        console.error("Failed to load chat replies:", error);
+      }
+    );
+
+    return unsubscribe;
+  }, [selectedThreadId, user?.uid]);
+
+  useEffect(() => {
+    if (!selectedThreadId && threads.length > 0) {
+      setSelectedThreadId(threads[0].id);
+    }
+  }, [selectedThreadId, threads]);
+
+  useEffect(() => {
+    if (!messagesThreadRef.current) return;
+    messagesThreadRef.current.scrollTop = messagesThreadRef.current.scrollHeight;
+  }, [selectedThreadReplies]);
+
+  const handleSendReply = async () => {
+    if (!replyText.trim() || !selectedThreadId || !user?.uid) return;
+
+    try {
+      await addFeedbackReply(selectedThreadId, {
+        senderName: user.fullName || user.email || "You",
+        role: "Customer",
+        createdBy: user.uid,
+        message: replyText.trim()
+      });
       setReplyText("");
+    } catch (error) {
+      console.error("Failed to send reply:", error);
+      alert("Unable to send message. Please try again.");
     }
   };
 
@@ -119,35 +136,68 @@ const Feedbacks = () => {
     setShowEditReplyModal(true);
   };
 
-  const handleSaveEditedReply = () => {
-    if (!selectedMessage || !editingReply || !editedReplyText.trim()) {
-      return;
+  const handleSaveEditedReply = async () => {
+    if (!selectedThreadId || !editingReply || !editedReplyText.trim()) return;
+
+    try {
+      await updateFeedbackReply(selectedThreadId, editingReply.id, {
+        message: editedReplyText.trim()
+      });
+      setShowEditReplyModal(false);
+      setEditingReply(null);
+      setEditedReplyText("");
+    } catch (error) {
+      console.error("Failed to save edited reply:", error);
+      alert("Unable to update message. Please try again.");
     }
-
-    updateThreadReplies(selectedMessage.id, (replies) =>
-      replies.map((reply) =>
-        reply.id === editingReply.id ? { ...reply, message: editedReplyText.trim() } : reply
-      )
-    );
-
-    setShowEditReplyModal(false);
-    setEditingReply(null);
-    setEditedReplyText("");
   };
 
-  const handleDeleteReply = (replyId) => {
-    if (!selectedMessage) {
-      return;
-    }
+  const handleDeleteReply = async (replyId) => {
+    if (!selectedThreadId) return;
 
     const confirmed = window.confirm("Delete this message?");
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
-    updateThreadReplies(selectedMessage.id, (replies) =>
-      replies.filter((reply) => reply.id !== replyId)
-    );
+    try {
+      await deleteFeedbackReply(selectedThreadId, replyId);
+    } catch (error) {
+      console.error("Failed to delete reply:", error);
+      alert("Unable to delete message. Please try again.");
+    }
+  };
+
+  const handleCreateThread = async (event) => {
+    event.preventDefault();
+    if (!newThreadSubject.trim() || !newThreadBody.trim() || !user?.uid) return;
+
+    try {
+      const threadRef = await createCustomerFeedbackThread({
+        customerId: user.uid,
+        title: newThreadSubject.trim(),
+        recipient: newThreadRecipient.trim() || "Assigned FSM",
+        assignedFsmId: user.assignedFsmId || "",
+        issueId: "",
+        building: "",
+        participants: [user.uid],
+        createdBy: user.uid
+      });
+
+      await addFeedbackReply(threadRef.id, {
+        senderName: user.fullName || user.email || "You",
+        role: "Customer",
+        createdBy: user.uid,
+        message: newThreadBody.trim()
+      });
+
+      setShowNewMessageModal(false);
+      setNewThreadRecipient("");
+      setNewThreadSubject("");
+      setNewThreadBody("");
+      setSelectedThreadId(threadRef.id);
+    } catch (error) {
+      console.error("Failed to create new thread:", error);
+      alert("Unable to create new conversation. Please try again.");
+    }
   };
 
   return (
@@ -167,89 +217,100 @@ const Feedbacks = () => {
       </header>
 
       <div className={styles.contentWrapper}>
-        {/* Messages List Panel */}
         <div className={styles.messagesPanel}>
           <div className={styles.searchBox}>
             <label className={styles.visuallyHidden} htmlFor="feedback-search">
-              Search messages
+              Search conversations
             </label>
             <input
               id="feedback-search"
               type="search"
               placeholder="Search messages..."
+              aria-label="Search messages"
             />
           </div>
 
           <div className={styles.messagesList}>
-            {messages.map((msg) => (
-              <button
-                type="button"
-                key={msg.id}
-                className={`${styles.messageItem} ${
-                  selectedMessage?.id === msg.id ? styles.active : ""
-                }`}
-                onClick={() => setSelectedMessage(msg)}
-                aria-pressed={selectedMessage?.id === msg.id}
-              >
-                <span className={styles.messageTitle}>{msg.title}</span>
-                {msg.issueId && <span className={styles.issueId}>{msg.issueId}</span>}
-                {msg.building && <span className={styles.building}>{msg.building}</span>}
-                <span className={styles.timestamp}>{msg.timestamp}</span>
-              </button>
-            ))}
+            {threads.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p>No conversations yet. Start a new message.</p>
+              </div>
+            ) : (
+              threads.map((thread) => (
+                <button
+                  type="button"
+                  key={thread.id}
+                  className={`${styles.messageItem} ${
+                    selectedThreadId === thread.id ? styles.active : ""
+                  }`}
+                  onClick={() => setSelectedThreadId(thread.id)}
+                  aria-pressed={selectedThreadId === thread.id}
+                >
+                  <span className={styles.messageTitle}>{thread.title}</span>
+                  {thread.issueId && <span className={styles.issueId}>{thread.issueId}</span>}
+                  {thread.building && <span className={styles.building}>{thread.building}</span>}
+                  <span className={styles.timestamp}>{formatTimestamp(thread.lastMessageAt || thread.createdAt)}</span>
+                </button>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Conversation Panel */}
         <div className={styles.conversationPanel}>
-          {selectedMessage ? (
+          {selectedThread ? (
             <>
               <div className={styles.conversationHeader}>
-                <h2>{selectedMessage.title}</h2>
-                {selectedMessage.building && (
-                  <p className={styles.buildingInfo}>{selectedMessage.building}</p>
+                <h2>{selectedThread.title}</h2>
+                {selectedThread.building && (
+                  <p className={styles.buildingInfo}>{selectedThread.building}</p>
                 )}
               </div>
 
-              <div className={styles.messagesThread} aria-live="polite">
-                {selectedMessage.replies.map((reply) => (
-                  <div
-                    key={reply.id}
-                    className={`${styles.message} ${
-                      reply.isOwn ? styles.ownMessage : styles.otherMessage
-                    }`}
-                  >
-                    <div className={styles.messageContent}>
-                      <div className={styles.senderInfo}>
-                        <div className={styles.senderIdentity}>
-                          <strong>{reply.sender}</strong>
-                          <span className={styles.time}>{reply.time}</span>
-                        </div>
-                        {reply.isOwn && (
-                          <div className={styles.messageActions}>
-                            <button
-                              type="button"
-                              className={styles.messageActionButton}
-                              onClick={() => handleEditReply(reply)}
-                              aria-label={`Edit message from ${reply.sender}`}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.messageActionButton}
-                              onClick={() => handleDeleteReply(reply.id)}
-                              aria-label={`Delete message from ${reply.sender}`}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <p className={styles.messageText}>{reply.message}</p>
-                    </div>
+              <div className={styles.messagesThread} aria-live="polite" ref={messagesThreadRef}>
+                {selectedThreadReplies.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    <p>Write the first reply to start the conversation.</p>
                   </div>
-                ))}
+                ) : (
+                  selectedThreadReplies.map((reply) => (
+                    <div
+                      key={reply.id}
+                      className={`${styles.message} ${
+                        reply.isOwn ? styles.ownMessage : styles.otherMessage
+                      }`}
+                    >
+                      <div className={styles.messageContent}>
+                        <div className={styles.senderInfo}>
+                          <div className={styles.senderIdentity}>
+                            <strong>{reply.sender}</strong>
+                            <span className={styles.time}>{reply.time}</span>
+                          </div>
+                          {reply.isOwn && (
+                            <div className={styles.messageActions}>
+                              <button
+                                type="button"
+                                className={styles.messageActionButton}
+                                onClick={() => handleEditReply(reply)}
+                                aria-label={`Edit message from ${reply.sender}`}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.messageActionButton}
+                                onClick={() => handleDeleteReply(reply.id)}
+                                aria-label={`Delete message from ${reply.sender}`}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <p className={styles.messageText}>{reply.message}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className={styles.inputArea}>
@@ -277,7 +338,7 @@ const Feedbacks = () => {
             </>
           ) : (
             <div className={styles.emptyState}>
-              <p>Select a message to view the conversation</p>
+              <p>Select a conversation to view the chat.</p>
             </div>
           )}
         </div>
@@ -291,12 +352,16 @@ const Feedbacks = () => {
           bodyClassName={styles.feedbackModalBody}
         >
           <div className={styles.modalContent}>
-            <form>
+            <form onSubmit={handleCreateThread}>
               <div className={styles.formGroup}>
                 <label htmlFor="new-message-recipient">Recipient</label>
-                <select id="new-message-recipient">
-                  <option>Select FSM...</option>
-                </select>
+                <input
+                  id="new-message-recipient"
+                  type="text"
+                  placeholder="Assigned FSM or team name"
+                  value={newThreadRecipient}
+                  onChange={(e) => setNewThreadRecipient(e.target.value)}
+                />
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="new-message-subject">Subject</label>
@@ -304,6 +369,8 @@ const Feedbacks = () => {
                   id="new-message-subject"
                   type="text"
                   placeholder="Enter subject..."
+                  value={newThreadSubject}
+                  onChange={(e) => setNewThreadSubject(e.target.value)}
                 />
               </div>
               <div className={styles.formGroup}>
@@ -311,6 +378,8 @@ const Feedbacks = () => {
                 <textarea
                   id="new-message-body"
                   placeholder="Enter your message..."
+                  value={newThreadBody}
+                  onChange={(e) => setNewThreadBody(e.target.value)}
                 />
               </div>
               <div className={styles.modalActions}>
@@ -321,7 +390,11 @@ const Feedbacks = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className={styles.submitButton}>
+                <button
+                  type="submit"
+                  className={styles.submitButton}
+                  disabled={!newThreadSubject.trim() || !newThreadBody.trim()}
+                >
                   Send Message
                 </button>
               </div>
