@@ -19,6 +19,7 @@ const ImageSourcePicker = ({
   onFilesSelected,
   disabled = false,
   multiple = true,
+  iconOnly = false,
   className = "",
   ariaLabel = "Add photos"
 }) => {
@@ -38,7 +39,11 @@ const ImageSourcePicker = ({
 
   return (
     <div className={pickerClassName} role="group" aria-label={ariaLabel}>
-      <label className={`image-source-option image-source-option--camera${disabled ? " is-disabled" : ""}`}>
+      <label
+        className={`image-source-option image-source-option--camera${disabled ? " is-disabled" : ""}`}
+        title="Camera"
+        aria-label="Camera"
+      >
         <input
           type="file"
           accept="image/*"
@@ -47,10 +52,14 @@ const ImageSourcePicker = ({
           onChange={handleChange("camera")}
         />
         <CameraIcon />
-        <span>Camera</span>
+        {!iconOnly && <span>Camera</span>}
       </label>
 
-      <label className={`image-source-option image-source-option--gallery${disabled ? " is-disabled" : ""}`}>
+      <label
+        className={`image-source-option image-source-option--gallery${disabled ? " is-disabled" : ""}`}
+        title="Gallery"
+        aria-label="Gallery"
+      >
         <input
           type="file"
           accept="image/*"
@@ -59,7 +68,7 @@ const ImageSourcePicker = ({
           onChange={handleChange("gallery")}
         />
         <GalleryIcon />
-        <span>Gallery</span>
+        {!iconOnly && <span>Gallery</span>}
       </label>
     </div>
   );

@@ -616,7 +616,6 @@ const getFixPhotoUrl = (source) =>
   getFixPhotoUrls(source)[0] || "";
 
 const PHOTO_LIMIT = 3;
-const COMPACT_PHOTO_LIMIT = PHOTO_LIMIT;
 
 const uniqueValues = (values) =>
   Array.from(new Set((values || []).filter(Boolean)));
@@ -1068,6 +1067,7 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
 
 const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode, readOnly = false, allowIssueEdit = true, isIssueEditing = false, saving = false, onUpdate, onPhotoChange, onFixPhotoChange, onIssueUpdate, onToggle, onRemovePhoto, onRemoveFixPhoto, onStartIssueEdit, onCancelIssueEdit, onSaveIssue }) => {
   const [expandedPhotoGroups, setExpandedPhotoGroups] = useState({ before: false, after: false });
+  const [previewPhoto, setPreviewPhoto] = useState(null);
   const hasIssue = item.condition === "Faulty" || isIssueEditing;
   const rowOpen = item.expanded || hasIssue;
   const selectClass = getConditionClass(item.condition);
@@ -1077,12 +1077,74 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
     ...getFixPhotoUrls(item),
     ...(item.fixPhotoPreviews || [])
   ]).slice(0, PHOTO_LIMIT);
-  const hiddenBeforePhotoCount = Math.max(photoUrls.length - COMPACT_PHOTO_LIMIT, 0);
-  const hiddenAfterPhotoCount = Math.max(afterPhotoUrls.length - COMPACT_PHOTO_LIMIT, 0);
   const isClosedIssue = String(item.issue?.status || "").trim().toLowerCase() === ISSUE_STATUS.CLOSED.toLowerCase();
 
-  const expandPhotoGroup = (group) => {
-    setExpandedPhotoGroups((current) => ({ ...current, [group]: true }));
+  useEffect(() => {
+    if (!previewPhoto) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setPreviewPhoto(null);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [previewPhoto]);
+
+  const togglePhotoGroup = (group) => {
+    setExpandedPhotoGroups((current) => ({ ...current, [group]: !current[group] }));
+  };
+
+  const renderPhotoEvidence = ({ group, urls, label, alt, canAdd, onAdd, onRemove }) => {
+    const expanded = expandedPhotoGroups[group];
+    const hasPhotos = urls.length > 0;
+    const atLimit = urls.length >= PHOTO_LIMIT;
+
+    return (
+      <div className={`compact-photo-field${expanded ? " compact-photo-field--expanded" : ""}`}>
+        <div className="compact-photo-field__summary">
+          {hasPhotos ? (
+            <button
+              type="button"
+              className="compact-photo-field__cover"
+              onClick={() => togglePhotoGroup(group)}
+              aria-expanded={expanded}
+              aria-label={`${expanded ? "Hide" : "View"} ${urls.length} ${label.toLowerCase()}`}
+            >
+              <img src={urls[0]} alt={`${alt} 1`} />
+              <span className="compact-photo-field__count">{urls.length}</span>
+            </button>
+          ) : (
+            <div className="compact-photo-field__empty" aria-label={`No ${label.toLowerCase()} uploaded`} />
+          )}
+          {canAdd && !atLimit && (
+            <ImageSourcePicker
+              className="image-source-picker--icons"
+              ariaLabel={`Add ${label.toLowerCase()}`}
+              onFilesSelected={onAdd}
+              iconOnly
+            />
+          )}
+        </div>
+        {hasPhotos && expanded && (
+          <div className="compact-photo-field__stack" aria-label={`${label} gallery`}>
+            {urls.map((photoUrl, index) => (
+              <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
+                <button
+                  type="button"
+                  className="compact-photo-field__preview-button"
+                  onClick={() => setPreviewPhoto({ url: photoUrl, alt: `${alt} ${index + 1}` })}
+                  aria-label={`View ${label.toLowerCase()} ${index + 1} full size`}
+                >
+                  <img className="issue-photo-preview" src={photoUrl} alt={`${alt} ${index + 1}`} />
+                </button>
+                {canAdd && (
+                  <button type="button" className="photo-remove-btn issue-remove-btn" onClick={() => onRemove(index)} aria-label={`Remove ${label.toLowerCase()} ${index + 1}`}>&times;</button>
+                )}
+              </figure>
+            ))}
+          </div>
+        )}
+        <small className="compact-photo-field__limit">{urls.length} / {PHOTO_LIMIT} photos</small>
+      </div>
+    );
   };
 
   return (
@@ -1209,93 +1271,35 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
             <div className="issue-evidence-sections">
               <section className="issue-evidence-section" aria-label="Fault Photos Before">
                 <h5>Fault Photos (Before)</h5>
-                <div className={`issue-photo-wrapper issue-photo-wrapper--grid issue-photo-gallery${expandedPhotoGroups.before ? " issue-photo-gallery--expanded" : ""}`}>
-                  {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
-                    const photoUrl = photoUrls[index];
-                    return photoUrl ? (
-                      <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
-                        <img className="issue-photo-preview" src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
-                        {index === COMPACT_PHOTO_LIMIT - 1 && hiddenBeforePhotoCount > 0 && !expandedPhotoGroups.before && (
-                          <button
-                            type="button"
-                            className="issue-photo-overflow-button"
-                            onClick={() => expandPhotoGroup("before")}
-                            aria-label={`Show ${hiddenBeforePhotoCount} more fault ${hiddenBeforePhotoCount === 1 ? "photo" : "photos"}`}
-                          >
-                            +{hiddenBeforePhotoCount}
-                          </button>
-                        )}
-                        {isIssueEditing && !isVerifyMode && !readOnly && (
-                          <button
-                            type="button"
-                            className="photo-remove-btn issue-remove-btn"
-                            onClick={() => onRemovePhoto(categoryId, item.id, index)}
-                            aria-label={index < savedPhotoUrls.length ? "Remove submitted defect photo" : "Remove selected defect photo"}
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </figure>
-                    ) : isIssueEditing && !isVerifyMode ? (
-                      <div key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-source-box">
-                        <ImageSourcePicker
-                          className="image-source-picker--tile"
-                          ariaLabel={`Add defect photo ${index + 1}`}
-                          onFilesSelected={(files) => onPhotoChange(categoryId, item.id, files)}
-                        />
-                      </div>
-                    ) : (
-                      <div key={`empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`Defect photo slot ${index + 1}`} />
-                    );
-                  })}
-                </div>
+                {renderPhotoEvidence({ group: "before", urls: photoUrls, label: "Fault photos", alt: "Original defect evidence", canAdd: isIssueEditing && !isVerifyMode && !readOnly, onAdd: (files) => onPhotoChange(categoryId, item.id, files), onRemove: (index) => onRemovePhoto(categoryId, item.id, index) })}
               </section>
               <section className="issue-evidence-section" aria-label="After-Repair Photos">
-                <h5>After-Repair Photos</h5>
-                <div className={`issue-photo-wrapper issue-photo-wrapper--grid issue-photo-gallery${expandedPhotoGroups.after ? " issue-photo-gallery--expanded" : ""}`}>
-                  {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
-                    const photoUrl = afterPhotoUrls[index];
-                    return photoUrl ? (
-                      <figure key={`${photoUrl}-${index}`} className="inspection-photo-preview">
-                        <img className="issue-photo-preview" src={photoUrl} alt={`After-repair evidence ${index + 1}`} />
-                        {isIssueEditing && (
-                          <button
-                            type="button"
-                            className="photo-remove-btn issue-remove-btn"
-                            onClick={() => onRemoveFixPhoto(categoryId, item.id, index)}
-                            aria-label={`Remove after-repair photo ${index + 1}`}
-                          >
-                            &times;
-                          </button>
-                        )}
-                        {index === COMPACT_PHOTO_LIMIT - 1 && hiddenAfterPhotoCount > 0 && !expandedPhotoGroups.after && (
-                          <button
-                            type="button"
-                            className="issue-photo-overflow-button"
-                            onClick={() => expandPhotoGroup("after")}
-                            aria-label={`Show ${hiddenAfterPhotoCount} more after-repair ${hiddenAfterPhotoCount === 1 ? "photo" : "photos"}`}
-                          >
-                            +{hiddenAfterPhotoCount}
-                          </button>
-                        )}
-                      </figure>
-                    ) : isIssueEditing ? (
-                      <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty inspection-photo-source-box">
-                        <ImageSourcePicker
-                          className="image-source-picker--tile"
-                          ariaLabel={`Add after-repair photo ${index + 1}`}
-                          onFilesSelected={(files) => onFixPhotoChange(categoryId, item.id, files)}
-                        />
-                      </div>
-                    ) : (
-                      <div key={`after-empty-${index}`} className="issue-photo-preview issue-ticket-detail-photo--empty" aria-label={`After-repair photo slot ${index + 1}`} />
-                    );
-                  })}
-                </div>
-                <p className="hint-text">After-repair evidence is required before changing the status to Closed.</p>
+                <h5 className="issue-evidence-section__heading">
+                  <span>After-Repair Photos</span>
+                  <button
+                    type="button"
+                    className="issue-evidence-help"
+                    aria-label="After-repair photo requirement"
+                    aria-describedby={`after-repair-help-${categoryId}-${item.id}`}
+                  >
+                    !
+                    <span id={`after-repair-help-${categoryId}-${item.id}`} role="tooltip">
+                      After-repair evidence is required before changing the status to Closed.
+                    </span>
+                  </button>
+                </h5>
+                {renderPhotoEvidence({ group: "after", urls: afterPhotoUrls, label: "After-repair photos", alt: "After-repair evidence", canAdd: isIssueEditing, onAdd: (files) => onFixPhotoChange(categoryId, item.id, files), onRemove: (index) => onRemoveFixPhoto(categoryId, item.id, index) })}
               </section>
             </div>
             <IssueHistoryTimeline history={item.issue?.history || []} />
+          </div>
+        </div>
+      )}
+      {previewPhoto && (
+        <div className="inspection-image-lightbox" role="presentation" onClick={() => setPreviewPhoto(null)}>
+          <div className="inspection-image-lightbox__dialog" role="dialog" aria-modal="true" aria-label="Full-size photo preview" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="inspection-image-lightbox__close" onClick={() => setPreviewPhoto(null)} aria-label="Close photo preview">&times;</button>
+            <img src={previewPhoto.url} alt={previewPhoto.alt} />
           </div>
         </div>
       )}

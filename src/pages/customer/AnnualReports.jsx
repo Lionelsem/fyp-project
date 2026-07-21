@@ -245,21 +245,23 @@ const AnnualReports = () => {
 
   return (
     <div className="dashboard-container">
-      <div className="page-header" style={{ marginBottom: "24px" }}>
-        <div>
-          <h4 className="page-subtitle">
-            Review your building's yearly compliance summary, inspection outcomes, and key fire safety highlights in one place.
-          </h4>
-        </div>
-        <div className="header-actions">
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={handleDownloadLatestAnnualPdf}
-            disabled={isDownloadingPdf}
-          >
-            {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Report"}
-          </button>
+      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
+        <div className="card-header-row" style={{ justifyContent: "space-between", marginBottom: "20px" }}>
+          <div>
+            <h4 className="page-subtitle">
+              Review your building's yearly compliance summary, inspection outcomes, and key fire safety highlights in one place.
+            </h4>
+          </div>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={handleDownloadLatestAnnualPdf}
+              disabled={isDownloadingPdf}
+            >
+              {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Report"}
+            </button>
+          </div>
         </div>
       </div>
 
