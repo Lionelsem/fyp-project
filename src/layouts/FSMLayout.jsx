@@ -35,7 +35,8 @@ const FSMLayout = ({ children }) => {
   const sidebarProfile = {
     name: displayName,
     role: user?.role ? user.role.replace(/_/g, " ") : "Fire Safety Manager",
-    initials
+    initials,
+    photoURL: user?.photoURL
   };
 
   return (

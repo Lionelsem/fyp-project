@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllUsers, deleteUser } from "../../services/userService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import UserAvatar from "../../components/common/UserAvatar";
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
@@ -72,7 +73,12 @@ const ManageUsers = () => {
             ) : (
               users.map((user) => (
                 <tr key={user.uid}>
-                  <td data-label="Name">{user.fullName || "-"}</td>
+                  <td data-label="Name">
+                    <span className="admin-user-name-cell">
+                      <UserAvatar className="admin-user-list-avatar" photoURL={user.photoURL} name={user.fullName || "User"} />
+                      {user.fullName || "-"}
+                    </span>
+                  </td>
                   <td data-label="Role">{user.role || "-"}</td>
                   <td data-label="Assigned building">{user.assignedBuilding || "-"}</td>
                   <td data-label="Email">{user.email || "-"}</td>

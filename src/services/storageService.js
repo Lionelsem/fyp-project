@@ -1,4 +1,4 @@
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "../config/firebase";
 
 const sanitizePathPart = (value) =>
@@ -10,7 +10,8 @@ const sanitizePathPart = (value) =>
 let uploadSequence = 0;
 
 export const STORAGE_FOLDERS = {
-  INSPECTION_DEFECT_PHOTOS: "inspection-defect-photos"
+  INSPECTION_DEFECT_PHOTOS: "inspection-defect-photos",
+  PROFILE_PICTURES: "profile-pictures"
 };
 
 export const getInspectionDefectPhotoFolder = ({
@@ -90,4 +91,18 @@ export const uploadFile = async (file, folder = "uploads") => {
     size: file.size,
     type: file.type
   };
+};
+
+export const deleteUploadedFile = async (url, expectedFolder) => {
+  if (!url) return;
+  const fileRef = ref(storage, url);
+  const safeFolder = normalizeUploadFolder(expectedFolder);
+  if (!fileRef.fullPath.startsWith(`${safeFolder}/`)) {
+    return;
+  }
+  try {
+    await deleteObject(fileRef);
+  } catch (error) {
+    if (error?.code !== "storage/object-not-found") throw error;
+  }
 };

@@ -3,6 +3,7 @@ import { db } from "../config/firebase";
 import { auth } from "../config/firebase";
 import { updateEmail } from "firebase/auth";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
+import { deleteUploadedFile, STORAGE_FOLDERS, uploadFile } from "./storageService";
 
 export const getUserProfile = async (uid, email) => {
   const userDoc = await getDoc(doc(db, COLLECTION_NAMES.USERS, uid));
@@ -46,6 +47,25 @@ export const updateUser = async (uid, data) => {
     ...data,
     updatedAt: new Date()
   });
+};
+
+export const updateUserProfilePicture = async (uid, file, previousPhotoURL = "") => {
+  if (!auth.currentUser) throw new Error("You must be signed in.");
+  const folder = `${STORAGE_FOLDERS.PROFILE_PICTURES}/${uid}`;
+  const uploaded = await uploadFile(file, folder);
+  await updateUser(uid, { photoURL: uploaded.url });
+  if (previousPhotoURL && previousPhotoURL !== uploaded.url) {
+    await deleteUploadedFile(previousPhotoURL, folder);
+  }
+  return uploaded.url;
+};
+
+export const removeUserProfilePicture = async (uid, photoURL) => {
+  if (!auth.currentUser) throw new Error("You must be signed in.");
+  await updateUser(uid, { photoURL: "" });
+  if (photoURL) {
+    await deleteUploadedFile(photoURL, `${STORAGE_FOLDERS.PROFILE_PICTURES}/${uid}`);
+  }
 };
 
 export const updateCurrentUserProfile = async (profileId, data) => {

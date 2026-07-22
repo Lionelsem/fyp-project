@@ -34,7 +34,8 @@ const CustomerLayout = ({ children }) => {
   const sidebarProfile = {
     name: displayName,
     role: user?.role ? user.role.replace(/_/g, " ") : "Customer",
-    initials
+    initials,
+    photoURL: user?.photoURL
   };
 
   return (
