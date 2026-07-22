@@ -8,6 +8,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  getDocs,
   arrayUnion,
   writeBatch,
   serverTimestamp
@@ -170,4 +171,37 @@ export const deleteFeedbackReply = async (threadId, replyId) => {
     replyId
   );
   await deleteDoc(replyDoc);
+};
+
+export const deleteCustomerFeedbackThread = async (threadId) => {
+  if (!threadId) return;
+
+  const messagesCollection = collection(
+    db,
+    COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS,
+    threadId,
+    COLLECTION_NAMES.CUSTOMER_FEEDBACK_MESSAGES
+  );
+
+  const snapshot = await getDocs(messagesCollection);
+
+  // Delete messages in batches of 500
+  for (let start = 0; start < snapshot.docs.length; start += 500) {
+    const batch = writeBatch(db);
+    snapshot.docs.slice(start, start + 500).forEach((docItem) => {
+      const messageRef = doc(
+        db,
+        COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS,
+        threadId,
+        COLLECTION_NAMES.CUSTOMER_FEEDBACK_MESSAGES,
+        docItem.id
+      );
+      batch.delete(messageRef);
+    });
+    await batch.commit();
+  }
+
+  // Delete the thread document itself
+  const threadRef = doc(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS, threadId);
+  await deleteDoc(threadRef);
 };
