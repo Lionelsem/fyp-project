@@ -68,3 +68,23 @@ exports.createUserAccount = functions.region("us-central1").https.onCall(async (
     throw new functions.https.HttpsError(code, message);
   }
 });
+
+exports.revokeUserSessions = functions.region("us-central1").https.onCall(async (_data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to sign out all devices."
+    );
+  }
+
+  try {
+    await auth.revokeRefreshTokens(context.auth.uid);
+    return { success: true };
+  } catch (error) {
+    console.error("Error revoking user sessions:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Unable to sign out all devices. Please try again."
+    );
+  }
+});
