@@ -4,6 +4,7 @@ import { ROLES } from "../constants/roles";
 import { getAllBuildings } from "../services/buildingService";
 import { getUserProfile, updateCurrentUserProfile } from "../services/userService";
 import UserAvatar from "../components/common/UserAvatar";
+import { signOutAllDevices } from "../services/authService";
 
 const DEFAULT_PHONE_NUMBER = "+65 9123 4567";
 
@@ -122,6 +123,8 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [signingOutAll, setSigningOutAll] = useState(false);
+  const [securityError, setSecurityError] = useState("");
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     inspectionReminders: true,
@@ -253,6 +256,29 @@ const Profile = () => {
     }
   };
 
+  const handleSignOutAllDevices = async () => {
+    const confirmed = window.confirm(
+      "Sign out of every device, including this one? You will need to sign in again."
+    );
+
+    if (!confirmed) return;
+
+    setSigningOutAll(true);
+    setSecurityError("");
+
+    try {
+      await signOutAllDevices();
+    } catch (error) {
+      console.error("Failed to sign out all devices", error);
+      setSecurityError(
+        error?.code === "functions/unauthenticated"
+          ? "Your session has expired. Please sign in again."
+          : "Unable to sign out all devices. Please try again."
+      );
+      setSigningOutAll(false);
+    }
+  };
+
   const renderProfileSection = () => (
     <>
       <div className="profile-summary">
@@ -334,10 +360,23 @@ const Profile = () => {
       <div className="profile-setting-row">
         <div>
           <h3>Sign out of all devices</h3>
-          <p>This action requires backend session revocation before it can be enabled.</p>
+          <p>Revoke access on every signed-in device, including this browser. Other devices may take up to one hour to sign out.</p>
         </div>
-        <button type="button" className="danger-button" disabled>Sign out all</button>
+        <button
+          type="button"
+          className="danger-button"
+          onClick={handleSignOutAllDevices}
+          disabled={signingOutAll}
+        >
+          {signingOutAll ? "Signing out..." : "Sign out all"}
+        </button>
       </div>
+
+      {securityError && (
+        <p className="profile-save-message profile-save-error" role="alert">
+          {securityError}
+        </p>
+      )}
 
       <div className="profile-info-strip">
         <span>Password last updated</span>

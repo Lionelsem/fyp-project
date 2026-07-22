@@ -1,8 +1,9 @@
 import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, getAuth as getAuthFromFirebase } from "firebase/auth";
 import { initializeApp, deleteApp } from "firebase/app";
-import { auth, firebaseConfig, db } from "../config/firebase";
+import { auth, firebaseConfig, db, functions } from "../config/firebase";
 import { getUserProfile } from "./userService";
 import { doc, setDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 
 export const login = async (email, password) => {
@@ -18,6 +19,12 @@ export const login = async (email, password) => {
 };
 
 export const logout = async () => {
+  await signOut(auth);
+};
+
+export const signOutAllDevices = async () => {
+  const revokeUserSessions = httpsCallable(functions, "revokeUserSessions");
+  await revokeUserSessions();
   await signOut(auth);
 };
 
