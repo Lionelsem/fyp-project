@@ -53,6 +53,35 @@
   overflow: hidden;
 }
 
+.headerControls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.mobileThreadListToggle {
+  display: none;
+  min-height: 44px;
+  padding: 10px 14px;
+  background-color: #f3f4f6;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+.mobileBackButton {
+  display: none;
+  border: none;
+  background: transparent;
+  color: #1ba098;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
 .searchBox {
   padding: clamp(0.75rem, 2vw, 1rem);
   border-bottom: 1px solid #e0e0e0;
@@ -970,6 +999,18 @@
     align-items: stretch;
   }
 
+  .headerControls {
+    flex-wrap: wrap;
+  }
+
+  .mobileThreadListToggle {
+    display: inline-flex;
+  }
+
+  .mobileBackButton {
+    display: inline-flex;
+  }
+
   .contentWrapper {
     display: flex;
     flex-direction: column;
@@ -997,7 +1038,6 @@
 }
 
 @media (max-width: 480px) {
-  /* On narrow screens, show the conversation pane full width and hide the thread list for a WhatsApp-like mobile experience */
   .messagesPanel {
     display: none;
   }
@@ -1005,6 +1045,14 @@
   .conversationPanel {
     width: 100%;
     min-height: 60vh;
+  }
+
+  .contentWrapper.mobileListVisible .messagesPanel {
+    display: flex;
+  }
+
+  .contentWrapper.mobileListVisible .conversationPanel {
+    display: none;
   }
 }
 

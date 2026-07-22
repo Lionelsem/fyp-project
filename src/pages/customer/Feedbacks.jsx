@@ -30,6 +30,7 @@ const Feedbacks = () => {
   const [selectedThreadReplies, setSelectedThreadReplies] = useState([]);
   const [replyText, setReplyText] = useState("");
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [isMobileThreadListOpen, setIsMobileThreadListOpen] = useState(false);
   const [showEditReplyModal, setShowEditReplyModal] = useState(false);
   const [editingReply, setEditingReply] = useState(null);
   const [editedReplyText, setEditedReplyText] = useState("");
@@ -231,19 +232,28 @@ const Feedbacks = () => {
           <h1>Comments &amp; Feedback</h1>
           <p>Communicate with your assigned FSM or request clarifications on reports.</p>
         </div>
-        <button
-          type="button"
-          className={styles.newMessageButton}
-          onClick={() => {
-            setNewThreadRecipient("John Smith (FSM)");
-            setShowNewMessageModal(true);
-          }}
-        >
-          <span aria-hidden="true">+</span> New Message
-        </button>
+        <div className={styles.headerControls}>
+          <button
+            type="button"
+            className={styles.newMessageButton}
+            onClick={() => {
+              setNewThreadRecipient("John Smith (FSM)");
+              setShowNewMessageModal(true);
+            }}
+          >
+            <span aria-hidden="true">+</span> New Message
+          </button>
+          <button
+            type="button"
+            className={styles.mobileThreadListToggle}
+            onClick={() => setIsMobileThreadListOpen((open) => !open)}
+          >
+            {isMobileThreadListOpen ? "Hide Chats" : "Chats"}
+          </button>
+        </div>
       </header>
 
-      <div className={styles.contentWrapper}>
+      <div className={`${styles.contentWrapper} ${isMobileThreadListOpen ? styles.mobileListVisible : ""}`}>
         <div className={styles.messagesPanel}>
           <div className={styles.searchBox}>
             <label className={styles.visuallyHidden} htmlFor="feedback-search">
@@ -305,7 +315,21 @@ const Feedbacks = () => {
           {selectedThread ? (
             <>
               <div className={styles.conversationHeader}>
-                <h2>{selectedThread.title}</h2>
+                <div className={styles.conversationHeaderInfo}>
+                  <button
+                    type="button"
+                    className={styles.mobileBackButton}
+                    onClick={() => setIsMobileThreadListOpen(true)}
+                  >
+                    ← Chats
+                  </button>
+                  <div>
+                    <h2>{selectedThread.title}</h2>
+                    {selectedThread.building && (
+                      <p className={styles.buildingInfo}>{selectedThread.building}</p>
+                    )}
+                  </div>
+                </div>
                 <button
                   type="button"
                   className={styles.headerDeleteButton}
@@ -314,9 +338,6 @@ const Feedbacks = () => {
                 >
                   Delete
                 </button>
-                {selectedThread.building && (
-                  <p className={styles.buildingInfo}>{selectedThread.building}</p>
-                )}
               </div>
 
               <div className={styles.messagesThread} aria-live="polite" ref={messagesThreadRef}>
