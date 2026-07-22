@@ -2,8 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
 import { getAllBuildings } from "../services/buildingService";
-import { getUserProfile, updateCurrentUserProfile } from "../services/userService";
+import {
+  getUserProfile,
+  updateCurrentUserProfile,
+  updateNotificationPreferences
+} from "../services/userService";
 import { signOutAllDevices } from "../services/authService";
+import UserAvatar from "../components/common/UserAvatar";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   normalizeNotificationPreferences

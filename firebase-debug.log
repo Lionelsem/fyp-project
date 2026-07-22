@@ -1,0 +1,192 @@
+[debug] [2026-07-22T15:52:25.009Z] ----------------------------------------------------------------------
+[debug] [2026-07-22T15:52:25.011Z] Command:       C:\Y2 Sem 1\C237 Software Application Development\node.exe C:\Users\24045619\AppData\Local\npm-cache\_npx\ba4f1959e38407b5\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting --project fireguardcbre
+[debug] [2026-07-22T15:52:25.012Z] CLI Version:   15.24.0
+[debug] [2026-07-22T15:52:25.012Z] Platform:      win32
+[debug] [2026-07-22T15:52:25.012Z] Node Version:  v24.18.0
+[debug] [2026-07-22T15:52:25.013Z] Detected Agent: codex_cli
+[debug] [2026-07-22T15:52:25.013Z] Time:          Wed Jul 22 2026 23:52:25 GMT+0800 (Singapore Standard Time)
+[debug] [2026-07-22T15:52:25.013Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-07-22T15:52:25.031Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-07-22T15:52:29.984Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-22T15:52:29.985Z] > authorizing via signed-in user (fypcbre@gmail.com)
+[debug] [2026-07-22T15:52:29.985Z] [iam] checking project fireguardcbre for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-07-22T15:52:29.987Z] Checked if tokens are valid: false, expires at: 1784303159189
+[debug] [2026-07-22T15:52:29.988Z] Checked if tokens are valid: false, expires at: 1784303159189
+[debug] [2026-07-22T15:52:29.989Z] > refreshing access token with scopes: []
+[debug] [2026-07-22T15:52:29.993Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-07-22T15:52:29.993Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-07-22T15:52:30.256Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-07-22T15:52:30.257Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-07-22T15:52:30.293Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/fireguardcbre:testIamPermissions [none]
+[debug] [2026-07-22T15:52:30.294Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/fireguardcbre:testIamPermissions  x-goog-user-project=fireguardcbre
+[debug] [2026-07-22T15:52:30.294Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/fireguardcbre:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-07-22T15:52:30.622Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-07-22T15:52:30.622Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-07-22T15:52:31.557Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/fireguardcbre:testIamPermissions 200
+[debug] [2026-07-22T15:52:31.558Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/fireguardcbre:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-07-22T15:52:31.559Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:31.560Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:31.560Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/fireguardcbre [none]
+[debug] [2026-07-22T15:52:32.067Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/fireguardcbre 200
+[debug] [2026-07-22T15:52:32.067Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/fireguardcbre {"projectId":"fireguardcbre","projectNumber":"1090700840165","displayName":"FireGuardCBRE","name":"projects/fireguardcbre","resources":{"hostingSite":"fireguardcbre"},"state":"ACTIVE","labels":{"firebase":"enabled","firebaseworkflows/environment":"production","firebase/storage-default-bucket":"created"},"etag":"1_88f90dfb-e163-416c-8312-cf691d66a473"}
+[info] 
+[info] === Deploying to 'fireguardcbre'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-07-22T15:52:32.077Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:32.077Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:32.078Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/fireguardcbre/sites/fireguardcbre [none]
+[debug] [2026-07-22T15:52:32.931Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/fireguardcbre/sites/fireguardcbre 200
+[debug] [2026-07-22T15:52:32.932Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/fireguardcbre/sites/fireguardcbre {"name":"projects/fireguardcbre/sites/fireguardcbre","defaultUrl":"https://fireguardcbre.web.app","appId":"1:1090700840165:web:aeb03ac28c5d66fc6c180c","type":"DEFAULT_SITE"}
+[debug] [2026-07-22T15:52:32.948Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:32.948Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:32.952Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions [none]
+[debug] [2026-07-22T15:52:32.953Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2026-07-22T15:52:34.222Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions 200
+[debug] [2026-07-22T15:52:34.222Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions {"name":"projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[fireguardcbre]: beginning deploy... 
+[info] i  hosting[fireguardcbre]: found 18 files in build 
+[debug] [2026-07-22T15:52:34.265Z] [hosting] uploading with 200 concurrency
+[debug] [2026-07-22T15:52:35.229Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.229Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.236Z] [hosting] hash cache [YnVpbGQ] stored for 18 files
+[debug] [2026-07-22T15:52:35.237Z] [hosting][hash queue][FINAL] {"max":941,"min":31,"avg":156.88888888888889,"active":0,"complete":18,"success":18,"errored":0,"retried":0,"total":18,"elapsed":965}
+[debug] [2026-07-22T15:52:35.238Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4:populateFiles [none]
+[debug] [2026-07-22T15:52:35.238Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4:populateFiles {"files":{"/logo192.png":"79e2b749561016bc8af300ea19f48347ceed3cb1a54f48ae456172eca45e08f0","/logo512.png":"212b102aa09e51b3b3e06647e81f7801a61333e171f6582e8124379aabccb41d","/favicon.ico":"27edce7be5922cf0bef7d4136f69b5bfbdd5bf8c13c7b026f71187d41a00aa7d","/robots.txt":"b2090cf9761ef60aa06e4fab97679bd43dfa5e5df073701ead5879d7c68f1ec5","/manifest.json":"583bc705413e233fd29e775b7449d4178c293912035023b98eb9ad92b27ebfb4","/index.html":"944fc3e15c945af3659166d59051201624462f2a27b7d4c57d09670f49e29687","/asset-manifest.json":"3cd4a3e452fd744944f90276e89354846724c8229914b6cb5cbf37b333c5201f","/cbre-logo.svg":"49c3572d871bb22211e4ca0c3237508911511f9ea4570397ade936f9f1e6e6fe","/static/js/main.c820b0ab.js.LICENSE.txt":"e5b4ee6309e0c6831bb445205611d5618063e252f531f0bf4c79872af4ee3ff7","/static/css/main.b368d70a.css":"13055796497a46f38c3f988b1253ce9de2ab1f04858aa4056dd590d57608fd39","/static/css/main.b368d70a.css.map":"1083dfeef5243553079f828b7da1530cd87caff2dbef0f73d0fa58cad020006d","/static/js/main.c820b0ab.js":"0231b8e30d2c902becf0aa170907d570698dda90414c62eafa8d274635179ead","/docx.iife.js":"47788e7634f1aea2ddb08af7284a10404ec77819c7a2c9d05386f690792b740b","/default-profile-avatar.png":"dfa3ad133614dc6ee811e0fd53b81e47890ae2cd894b81547c7e70c7fa23f891","/default-profile-avatar-4.png":"2f80790beb95b18b19f17b93b906a46cf242f790176b480b63e89fc109c18910","/default-profile-avatar-3.png":"819a8714c9adadb1c31e881033daa58c94cf7df75ecadb0f8ae5e127ef52530b","/default-profile-avatar-2.png":"1c40f3ad016e45fdda69dbb5d4bcfcd0801bd85c0e50c79e38bdf43e4b7591ea","/static/js/main.c820b0ab.js.map":"974a355383be7a37c75f6ef863f346c40db6cc9e00fe31c215ce8ad84c11c969"}}
+[debug] [2026-07-22T15:52:35.988Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4:populateFiles 200
+[debug] [2026-07-22T15:52:35.988Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4:populateFiles {"uploadRequiredHashes":["3cd4a3e452fd744944f90276e89354846724c8229914b6cb5cbf37b333c5201f","49c3572d871bb22211e4ca0c3237508911511f9ea4570397ade936f9f1e6e6fe","dfa3ad133614dc6ee811e0fd53b81e47890ae2cd894b81547c7e70c7fa23f891","13055796497a46f38c3f988b1253ce9de2ab1f04858aa4056dd590d57608fd39","1083dfeef5243553079f828b7da1530cd87caff2dbef0f73d0fa58cad020006d","583bc705413e233fd29e775b7449d4178c293912035023b98eb9ad92b27ebfb4","2f80790beb95b18b19f17b93b906a46cf242f790176b480b63e89fc109c18910","819a8714c9adadb1c31e881033daa58c94cf7df75ecadb0f8ae5e127ef52530b","974a355383be7a37c75f6ef863f346c40db6cc9e00fe31c215ce8ad84c11c969","1c40f3ad016e45fdda69dbb5d4bcfcd0801bd85c0e50c79e38bdf43e4b7591ea","0231b8e30d2c902becf0aa170907d570698dda90414c62eafa8d274635179ead","944fc3e15c945af3659166d59051201624462f2a27b7d4c57d09670f49e29687"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files"}
+[debug] [2026-07-22T15:52:35.989Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.989Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.989Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.989Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.989Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.989Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.990Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.990Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.990Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.990Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.991Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.991Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.992Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.992Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.992Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.992Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.993Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.993Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.994Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.995Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.995Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.996Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.996Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.996Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:35.997Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/3cd4a3e452fd744944f90276e89354846724c8229914b6cb5cbf37b333c5201f [none]
+[debug] [2026-07-22T15:52:35.997Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/3cd4a3e452fd744944f90276e89354846724c8229914b6cb5cbf37b333c5201f [stream]
+[debug] [2026-07-22T15:52:35.998Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/49c3572d871bb22211e4ca0c3237508911511f9ea4570397ade936f9f1e6e6fe [none]
+[debug] [2026-07-22T15:52:35.998Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/49c3572d871bb22211e4ca0c3237508911511f9ea4570397ade936f9f1e6e6fe [stream]
+[debug] [2026-07-22T15:52:36.000Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/dfa3ad133614dc6ee811e0fd53b81e47890ae2cd894b81547c7e70c7fa23f891 [none]
+[debug] [2026-07-22T15:52:36.000Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/dfa3ad133614dc6ee811e0fd53b81e47890ae2cd894b81547c7e70c7fa23f891 [stream]
+[debug] [2026-07-22T15:52:36.001Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/13055796497a46f38c3f988b1253ce9de2ab1f04858aa4056dd590d57608fd39 [none]
+[debug] [2026-07-22T15:52:36.001Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/13055796497a46f38c3f988b1253ce9de2ab1f04858aa4056dd590d57608fd39 [stream]
+[debug] [2026-07-22T15:52:36.002Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1083dfeef5243553079f828b7da1530cd87caff2dbef0f73d0fa58cad020006d [none]
+[debug] [2026-07-22T15:52:36.002Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1083dfeef5243553079f828b7da1530cd87caff2dbef0f73d0fa58cad020006d [stream]
+[debug] [2026-07-22T15:52:36.004Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/583bc705413e233fd29e775b7449d4178c293912035023b98eb9ad92b27ebfb4 [none]
+[debug] [2026-07-22T15:52:36.004Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/583bc705413e233fd29e775b7449d4178c293912035023b98eb9ad92b27ebfb4 [stream]
+[debug] [2026-07-22T15:52:36.005Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/2f80790beb95b18b19f17b93b906a46cf242f790176b480b63e89fc109c18910 [none]
+[debug] [2026-07-22T15:52:36.006Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/2f80790beb95b18b19f17b93b906a46cf242f790176b480b63e89fc109c18910 [stream]
+[debug] [2026-07-22T15:52:36.007Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/819a8714c9adadb1c31e881033daa58c94cf7df75ecadb0f8ae5e127ef52530b [none]
+[debug] [2026-07-22T15:52:36.007Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/819a8714c9adadb1c31e881033daa58c94cf7df75ecadb0f8ae5e127ef52530b [stream]
+[debug] [2026-07-22T15:52:36.008Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/974a355383be7a37c75f6ef863f346c40db6cc9e00fe31c215ce8ad84c11c969 [none]
+[debug] [2026-07-22T15:52:36.008Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/974a355383be7a37c75f6ef863f346c40db6cc9e00fe31c215ce8ad84c11c969 [stream]
+[debug] [2026-07-22T15:52:36.009Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1c40f3ad016e45fdda69dbb5d4bcfcd0801bd85c0e50c79e38bdf43e4b7591ea [none]
+[debug] [2026-07-22T15:52:36.009Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1c40f3ad016e45fdda69dbb5d4bcfcd0801bd85c0e50c79e38bdf43e4b7591ea [stream]
+[debug] [2026-07-22T15:52:36.010Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/0231b8e30d2c902becf0aa170907d570698dda90414c62eafa8d274635179ead [none]
+[debug] [2026-07-22T15:52:36.010Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/0231b8e30d2c902becf0aa170907d570698dda90414c62eafa8d274635179ead [stream]
+[debug] [2026-07-22T15:52:36.011Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/944fc3e15c945af3659166d59051201624462f2a27b7d4c57d09670f49e29687 [none]
+[debug] [2026-07-22T15:52:36.011Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/944fc3e15c945af3659166d59051201624462f2a27b7d4c57d09670f49e29687 [stream]
+[debug] [2026-07-22T15:52:36.023Z] [hosting][populate queue][FINAL] {"max":768,"min":768,"avg":768,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":795}
+[debug] [2026-07-22T15:52:36.023Z] [hosting] uploads queued: 12
+[info] i  hosting: uploading new files [0/12] (0%) 
+[debug] [2026-07-22T15:52:37.681Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/583bc705413e233fd29e775b7449d4178c293912035023b98eb9ad92b27ebfb4 200
+[debug] [2026-07-22T15:52:37.681Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/583bc705413e233fd29e775b7449d4178c293912035023b98eb9ad92b27ebfb4 [stream]
+[debug] [2026-07-22T15:52:37.682Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/13055796497a46f38c3f988b1253ce9de2ab1f04858aa4056dd590d57608fd39 200
+[debug] [2026-07-22T15:52:37.682Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/13055796497a46f38c3f988b1253ce9de2ab1f04858aa4056dd590d57608fd39 [stream]
+[debug] [2026-07-22T15:52:37.904Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/3cd4a3e452fd744944f90276e89354846724c8229914b6cb5cbf37b333c5201f 200
+[debug] [2026-07-22T15:52:37.904Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/3cd4a3e452fd744944f90276e89354846724c8229914b6cb5cbf37b333c5201f [stream]
+[debug] [2026-07-22T15:52:37.905Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/49c3572d871bb22211e4ca0c3237508911511f9ea4570397ade936f9f1e6e6fe 200
+[debug] [2026-07-22T15:52:37.905Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/49c3572d871bb22211e4ca0c3237508911511f9ea4570397ade936f9f1e6e6fe [stream]
+[debug] [2026-07-22T15:52:38.040Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1083dfeef5243553079f828b7da1530cd87caff2dbef0f73d0fa58cad020006d 200
+[debug] [2026-07-22T15:52:38.040Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1083dfeef5243553079f828b7da1530cd87caff2dbef0f73d0fa58cad020006d [stream]
+[debug] [2026-07-22T15:52:38.043Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/944fc3e15c945af3659166d59051201624462f2a27b7d4c57d09670f49e29687 200
+[debug] [2026-07-22T15:52:38.043Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/944fc3e15c945af3659166d59051201624462f2a27b7d4c57d09670f49e29687 [stream]
+[debug] [2026-07-22T15:52:38.172Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/0231b8e30d2c902becf0aa170907d570698dda90414c62eafa8d274635179ead 200
+[debug] [2026-07-22T15:52:38.172Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/0231b8e30d2c902becf0aa170907d570698dda90414c62eafa8d274635179ead [stream]
+[info] i  hosting: uploading new files [7/12] (58%) 
+[debug] [2026-07-22T15:52:39.572Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/974a355383be7a37c75f6ef863f346c40db6cc9e00fe31c215ce8ad84c11c969 200
+[debug] [2026-07-22T15:52:39.572Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/974a355383be7a37c75f6ef863f346c40db6cc9e00fe31c215ce8ad84c11c969 [stream]
+[debug] [2026-07-22T15:52:39.674Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/2f80790beb95b18b19f17b93b906a46cf242f790176b480b63e89fc109c18910 200
+[debug] [2026-07-22T15:52:39.675Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/2f80790beb95b18b19f17b93b906a46cf242f790176b480b63e89fc109c18910 [stream]
+[debug] [2026-07-22T15:52:39.719Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/dfa3ad133614dc6ee811e0fd53b81e47890ae2cd894b81547c7e70c7fa23f891 200
+[debug] [2026-07-22T15:52:39.719Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/dfa3ad133614dc6ee811e0fd53b81e47890ae2cd894b81547c7e70c7fa23f891 [stream]
+[debug] [2026-07-22T15:52:39.759Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1c40f3ad016e45fdda69dbb5d4bcfcd0801bd85c0e50c79e38bdf43e4b7591ea 200
+[debug] [2026-07-22T15:52:39.759Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/1c40f3ad016e45fdda69dbb5d4bcfcd0801bd85c0e50c79e38bdf43e4b7591ea [stream]
+[debug] [2026-07-22T15:52:40.115Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/819a8714c9adadb1c31e881033daa58c94cf7df75ecadb0f8ae5e127ef52530b 200
+[debug] [2026-07-22T15:52:40.116Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/fireguardcbre/versions/04063faa30d2d6a4/files/819a8714c9adadb1c31e881033daa58c94cf7df75ecadb0f8ae5e127ef52530b [stream]
+[debug] [2026-07-22T15:52:40.116Z] [hosting][upload queue][FINAL] {"max":4124,"min":1690,"avg":2697.6666666666665,"active":0,"complete":12,"success":12,"errored":0,"retried":0,"total":12,"elapsed":4128}
+[info] i  hosting: upload complete 
+[info] +  hosting[fireguardcbre]: file upload complete 
+[debug] [2026-07-22T15:52:40.117Z] [hosting] deploy completed after 5886ms
+[debug] [2026-07-22T15:52:40.118Z] [
+  {
+    "config": {
+      "public": "build",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "/node_modules/"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "site": "fireguardcbre"
+    },
+    "version": "projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4"
+  }
+]
+[info] i  hosting[fireguardcbre]: finalizing version... 
+[debug] [2026-07-22T15:52:40.128Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:40.129Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:40.130Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions/04063faa30d2d6a4 updateMask=status%2Cconfig
+[debug] [2026-07-22T15:52:40.130Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions/04063faa30d2d6a4 {"status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}],"headers":[{"glob":"**","headers":{"Cache-Control":"no-cache, no-store, must-revalidate"}}]}}
+[debug] [2026-07-22T15:52:41.107Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions/04063faa30d2d6a4 200
+[debug] [2026-07-22T15:52:41.107Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/versions/04063faa30d2d6a4 {"name":"projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4","status":"FINALIZED","config":{"headers":[{"headers":{"Cache-Control":"no-cache, no-store, must-revalidate"},"glob":"**"}],"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-07-22T15:52:33.338482Z","createUser":{"email":"fypcbre@gmail.com"},"finalizeTime":"2026-07-22T15:52:40.889988Z","finalizeUser":{"email":"fypcbre@gmail.com"}}
+[debug] [2026-07-22T15:52:41.108Z] [hosting] finalized version for fireguardcbre:[object Object]
+[info] +  hosting[fireguardcbre]: version finalized 
+[info] i  hosting[fireguardcbre]: releasing new version... 
+[debug] [2026-07-22T15:52:41.109Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:41.110Z] Checked if tokens are valid: true, expires at: 1784739149257
+[debug] [2026-07-22T15:52:41.111Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/channels/live/releases versionName=projects%2F1090700840165%2Fsites%2Ffireguardcbre%2Fversions%2F04063faa30d2d6a4
+[debug] [2026-07-22T15:52:41.111Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/channels/live/releases {}
+[debug] [2026-07-22T15:52:41.929Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/channels/live/releases 200
+[debug] [2026-07-22T15:52:41.929Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/fireguardcbre/channels/live/releases {"name":"projects/1090700840165/sites/fireguardcbre/channels/live/releases/1784735561017000","version":{"name":"projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4","status":"FINALIZED","config":{"headers":[{"headers":{"Cache-Control":"no-cache, no-store, must-revalidate"},"glob":"**"}],"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-07-22T15:52:33.338482Z","createUser":{"email":"fypcbre@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLiNsqgHdZ6cU9nqCA5tYNFQamRvVsVSYnydv4SYxj2KTD_7g=mo"},"finalizeTime":"2026-07-22T15:52:40.889988Z","finalizeUser":{"email":"fypcbre@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLiNsqgHdZ6cU9nqCA5tYNFQamRvVsVSYnydv4SYxj2KTD_7g=mo"}},"type":"DEPLOY","releaseTime":"2026-07-22T15:52:41.017Z","releaseUser":{"email":"fypcbre@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLiNsqgHdZ6cU9nqCA5tYNFQamRvVsVSYnydv4SYxj2KTD_7g=mo"}}
+[debug] [2026-07-22T15:52:41.930Z] [hosting] release: {"name":"projects/1090700840165/sites/fireguardcbre/channels/live/releases/1784735561017000","version":{"name":"projects/1090700840165/sites/fireguardcbre/versions/04063faa30d2d6a4","status":"FINALIZED","config":{"headers":[{"headers":{"Cache-Control":"no-cache, no-store, must-revalidate"},"glob":"**"}],"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-07-22T15:52:33.338482Z","createUser":{"email":"fypcbre@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLiNsqgHdZ6cU9nqCA5tYNFQamRvVsVSYnydv4SYxj2KTD_7g=mo"},"finalizeTime":"2026-07-22T15:52:40.889988Z","finalizeUser":{"email":"fypcbre@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLiNsqgHdZ6cU9nqCA5tYNFQamRvVsVSYnydv4SYxj2KTD_7g=mo"}},"type":"DEPLOY","releaseTime":"2026-07-22T15:52:41.017Z","releaseUser":{"email":"fypcbre@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocLiNsqgHdZ6cU9nqCA5tYNFQamRvVsVSYnydv4SYxj2KTD_7g=mo"}}
+[info] +  hosting[fireguardcbre]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/fireguardcbre/overview
+[info] Hosting URL: https://fireguardcbre.web.app

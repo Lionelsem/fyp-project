@@ -3,6 +3,12 @@ import { db } from "../config/firebase";
 import { auth } from "../config/firebase";
 import { updateEmail } from "firebase/auth";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
+import { normalizeNotificationPreferences } from "../constants/notificationPreferences";
+import {
+  deleteUploadedFile,
+  STORAGE_FOLDERS,
+  uploadFile
+} from "./storageService";
 
 export const getUserProfile = async (uid, email) => {
   const userDoc = await getDoc(doc(db, COLLECTION_NAMES.USERS, uid));
