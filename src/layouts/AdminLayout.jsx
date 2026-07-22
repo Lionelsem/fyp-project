@@ -34,7 +34,8 @@ const AdminLayout = ({ children }) => {
   const sidebarProfile = {
     name: displayName,
     role: user?.role ? user.role.replace(/_/g, " ") : "Admin",
-    initials
+    initials,
+    photoURL: user?.photoURL
   };
 
   return (

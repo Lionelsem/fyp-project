@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
+import UserAvatar from "../common/UserAvatar";
 
 const menuItems = [
   { path: "/fsm/dashboard", label: "Dashboard", icon: "📊" },
@@ -37,15 +38,6 @@ const FSMSidebar = ({
 
   const displayName = profile?.name || "Fire Safety Manager";
   const roleLabel = profile?.role || "FSM";
-  const initials =
-    profile?.initials ||
-    displayName
-      .split(" ")
-      .map((part) => part.charAt(0))
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
@@ -96,7 +88,7 @@ const FSMSidebar = ({
       </div>
 
       <div className="sidebar-user-card">
-        <div className="user-avatar-large">{initials}</div>
+        <UserAvatar className="user-avatar-large" photoURL={profile?.photoURL} name={displayName} />
         <div className="user-info">
           <div className="user-name">{displayName}</div>
           <div className="user-role">{roleLabel}</div>

@@ -447,6 +447,7 @@ button {
   color: #ffffff;
   font-size: var(--text-lg);
   font-weight: 700;
+  object-fit: cover;
 }
 
 .user-info {
@@ -3229,7 +3230,46 @@ select.inspection-row-control {
   color: #ffffff;
   font-size: var(--text-2xl);
   font-weight: 800;
+  object-fit: cover;
 }
+
+.admin-profile-photo-field {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.admin-edit-user-avatar {
+  width: 88px;
+  height: 88px;
+  flex: 0 0 88px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-photo-button {
+  display: inline-block;
+  padding: 8px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-photo-button:hover { background: #f1f5f9; }
+.profile-photo-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.admin-photo-help { margin: 7px 0 0; color: #64748b; font-size: var(--text-xs); }
+.admin-photo-action { margin-left: 8px; padding: 8px 13px; }
+
+.admin-user-name-cell { display: flex; align-items: center; gap: 10px; }
+.admin-user-list-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: 0 0 36px; }
 
 .profile-summary h2 {
   margin: 0 0 4px;

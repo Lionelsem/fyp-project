@@ -2,11 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
 import { getAllBuildings } from "../services/buildingService";
-import {
-  getUserProfile,
-  updateCurrentUserProfile,
-  updateNotificationPreferences
-} from "../services/userService";
+import { getUserProfile, updateCurrentUserProfile } from "../services/userService";
 import { signOutAllDevices } from "../services/authService";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -21,17 +17,6 @@ const getDisplayName = (profile) =>
   profile?.userId ||
   [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") ||
   "";
-
-const getInitials = (name, email) => {
-  const source = name || email || "";
-  const parts = source.includes("@") ? [source.charAt(0)] : source.split(" ");
-  return parts
-    .filter(Boolean)
-    .map((part) => part.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-};
 
 const getRoleLabel = (role) => {
   if (role === ROLES.FSM) return "FSM / Fire Safety Manager";
@@ -227,10 +212,6 @@ const Profile = () => {
     const profileName = getDisplayName(profile);
     return profileName;
   }, [profile]);
-  const initials = useMemo(
-    () => getInitials(displayName, profile?.email),
-    [displayName, profile?.email]
-  );
   const roleLabel = getRoleLabel(profile?.role);
   const lookupIds = useMemo(() => getLookupIds(profile), [profile]);
   const linkedBuildings = useMemo(
@@ -332,7 +313,7 @@ const Profile = () => {
   const renderProfileSection = () => (
     <>
       <div className="profile-summary">
-        <div className="profile-avatar">{initials || "U"}</div>
+        <UserAvatar className="profile-avatar" photoURL={profile?.photoURL} name={displayName} />
         <div>
           <h2>{displayName || "-"}</h2>
           <p>{roleLabel}</p>
@@ -371,7 +352,7 @@ const Profile = () => {
       </form>
 
       <p className="profile-note">
-        Your role is assigned by the system and cannot be edited here.
+        Your role and profile picture are managed by an administrator.
       </p>
     </>
   );
