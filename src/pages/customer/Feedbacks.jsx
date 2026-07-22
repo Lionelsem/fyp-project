@@ -228,9 +228,8 @@ const Feedbacks = () => {
     <div className={styles.feedbacksContainer}>
       <header className={styles.header}>
         <div className={styles.headerCopy}>
-          <span className={styles.headerBadge}>Customer support</span>
           <h1>Comments &amp; Feedback</h1>
-          <p>Keep conversations with your assigned FSM in one friendly workspace.</p>
+          <p>Communicate with your assigned FSM or request clarifications on reports.</p>
         </div>
         <button
           type="button"
@@ -240,19 +239,12 @@ const Feedbacks = () => {
             setShowNewMessageModal(true);
           }}
         >
-          <span aria-hidden="true">+</span> New chat
+          <span aria-hidden="true">+</span> New Message
         </button>
       </header>
 
       <div className={styles.contentWrapper}>
-        <aside className={styles.messagesPanel}>
-          <div className={styles.panelHeader}>
-            <div>
-              <h3>Conversations</h3>
-              <p>Recent updates and follow-ups</p>
-            </div>
-          </div>
-
+        <div className={styles.messagesPanel}>
           <div className={styles.searchBox}>
             <label className={styles.visuallyHidden} htmlFor="feedback-search">
               Search conversations
@@ -260,15 +252,15 @@ const Feedbacks = () => {
             <input
               id="feedback-search"
               type="search"
-              placeholder="Search chats..."
+              placeholder="Search messages..."
               aria-label="Search messages"
             />
           </div>
 
           <div className={styles.messagesList}>
-            {threads.length === 0 ? (
+              {threads.length === 0 ? (
               <div className={styles.emptyState}>
-                <p>No conversations yet. Start a new chat.</p>
+                <p>No conversations yet. Start a new message.</p>
               </div>
             ) : (
               threads.map((thread) => (
@@ -288,23 +280,10 @@ const Feedbacks = () => {
                   }}
                   aria-pressed={selectedThreadId === thread.id}
                 >
-                  <div className={styles.threadAvatar} aria-hidden="true">
-                    {(thread.title || "C").charAt(0).toUpperCase()}
-                  </div>
-                  <div className={styles.threadDetails}>
-                    <div className={styles.threadTopRow}>
-                      <span className={styles.messageTitle}>{thread.title}</span>
-                      <span className={styles.timestamp}>
-                        {formatTimestamp(thread.lastMessageAt || thread.createdAt)}
-                      </span>
-                    </div>
-                    <div className={styles.threadMeta}>
-                      <span className={styles.threadPreview}>
-                        {thread.building || thread.recipient || "Assigned support team"}
-                      </span>
-                      {thread.issueId && <span className={styles.issuePill}>{thread.issueId}</span>}
-                    </div>
-                  </div>
+                  <span className={styles.messageTitle}>{thread.title}</span>
+                  {thread.issueId && <span className={styles.issueId}>{thread.issueId}</span>}
+                  {thread.building && <span className={styles.building}>{thread.building}</span>}
+                  <span className={styles.timestamp}>{formatTimestamp(thread.lastMessageAt || thread.createdAt)}</span>
                   <button
                     type="button"
                     className={styles.deleteThreadButton}
@@ -314,30 +293,19 @@ const Feedbacks = () => {
                     }}
                     aria-label={`Delete conversation ${thread.title}`}
                   >
-                    ×
+                    Delete
                   </button>
                 </div>
               ))
             )}
           </div>
-        </aside>
+        </div>
 
-        <section className={styles.conversationPanel}>
+        <div className={styles.conversationPanel}>
           {selectedThread ? (
             <>
               <div className={styles.conversationHeader}>
-                <div className={styles.conversationHeaderInfo}>
-                  <div className={styles.threadAvatarLarge} aria-hidden="true">
-                    {(selectedThread.title || "C").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h2>{selectedThread.title}</h2>
-                    <p className={styles.buildingInfo}>
-                      <span className={styles.onlineDot} aria-hidden="true" />
-                      {selectedThread.building || selectedThread.recipient || "Assigned support team"}
-                    </p>
-                  </div>
-                </div>
+                <h2>{selectedThread.title}</h2>
                 <button
                   type="button"
                   className={styles.headerDeleteButton}
@@ -346,6 +314,9 @@ const Feedbacks = () => {
                 >
                   Delete
                 </button>
+                {selectedThread.building && (
+                  <p className={styles.buildingInfo}>{selectedThread.building}</p>
+                )}
               </div>
 
               <div className={styles.messagesThread} aria-live="polite" ref={messagesThreadRef}>
@@ -361,11 +332,7 @@ const Feedbacks = () => {
                         reply.isOwn ? styles.ownMessage : styles.otherMessage
                       }`}
                     >
-                      <div
-                        className={`${styles.messageContent} ${
-                          reply.isOwn ? styles.ownBubble : styles.otherBubble
-                        }`}
-                      >
+                      <div className={styles.messageContent}>
                         <div className={styles.senderInfo}>
                           <div className={styles.senderIdentity}>
                             <strong>{reply.sender}</strong>
@@ -408,20 +375,18 @@ const Feedbacks = () => {
               </div>
 
               <div className={styles.inputArea}>
-                <div className={styles.inputShell}>
-                  <textarea
-                    placeholder="Type your message..."
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && e.ctrlKey) {
-                        e.preventDefault();
-                        handleSendReply();
-                      }
-                    }}
-                    aria-label="Reply message"
-                  />
-                </div>
+                <textarea
+                  placeholder="Type your message..."
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.ctrlKey) {
+                      e.preventDefault();
+                      handleSendReply();
+                    }
+                  }}
+                  aria-label="Reply message"
+                />
                 <button
                   type="button"
                   className={styles.sendButton}
@@ -437,7 +402,7 @@ const Feedbacks = () => {
               <p>Select a conversation to view the chat.</p>
             </div>
           )}
-        </section>
+        </div>
       </div>
 
       {showNewMessageModal && (
