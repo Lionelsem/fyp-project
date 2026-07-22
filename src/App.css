@@ -51,6 +51,17 @@ button {
   font: inherit;
 }
 
+/* Keep single-line controls vertically balanced across desktop and mobile
+   browsers while preserving each component's own height and padding. */
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]),
+  select,
+  button
+) {
+  line-height: 1.25;
+  vertical-align: middle;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1379,8 +1390,13 @@ button {
 .danger-button,
 .primary-btn,
 .secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 12px;
   padding: 14px 24px;
+  line-height: 1.25;
+  text-align: center;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -3696,6 +3712,7 @@ select.inspection-row-control {
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  height: var(--control-height);
   min-height: var(--control-height);
   align-items: center;
   padding: 0 12px;
@@ -3716,7 +3733,8 @@ select.inspection-row-control {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 0;
+  height: 100%;
+  min-height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -3726,11 +3744,30 @@ select.inspection-row-control {
   background: transparent;
   color: inherit;
   font: inherit;
+  line-height: 1.25;
+  vertical-align: middle;
   box-shadow: none;
 }
 
 .temporal-control > input::-webkit-date-and-time-value {
+  display: flex;
+  height: 100%;
+  min-height: 100%;
+  align-items: center;
+  margin: 0;
+  padding: 0;
   text-align: left;
+}
+
+.temporal-control > input::-webkit-datetime-edit {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  padding: 0;
+}
+
+.temporal-control > input::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
 }
 
 .temporal-control:focus-within {
@@ -3746,6 +3783,7 @@ select.inspection-row-control {
 
 .report-month-filter > .temporal-control,
 .issue-overview-toolbar .temporal-control {
+  height: var(--compact-control-height);
   min-height: var(--compact-control-height);
   padding-inline: 10px;
   border-radius: 8px;
@@ -5784,15 +5822,12 @@ select.inspection-row-control {
   margin-bottom: 5px;
 }
 
-.fsm-trend-reporting-month input {
+.fsm-trend-reporting-month .fsm-trend-temporal-control {
   width: 100%;
   height: 38px;
-  padding: 7px 10px;
-  border: 1px solid #d1d5db;
+  min-height: 38px;
+  padding-inline: 10px;
   border-radius: 8px;
-  background: #ffffff;
-  color: #0f172a;
-  font: inherit;
 }
 
 .fsm-trend-toolbar select {
@@ -8996,7 +9031,7 @@ select.responsive-control {
   }
 
   .portal-shell .fsm-trend-reporting-month,
-  .portal-shell .fsm-trend-reporting-month input,
+  .portal-shell .fsm-trend-reporting-month .fsm-trend-temporal-control,
   .portal-shell .fsm-trend-chart {
     display: block;
     width: 100%;

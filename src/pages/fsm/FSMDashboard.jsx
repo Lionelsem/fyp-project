@@ -395,12 +395,14 @@ const FSMDashboard = () => {
           <div className="fsm-trend-toolbar">
             <label className="issue-overview-filter fsm-trend-reporting-month">
               <span>Reporting month</span>
-              <input
-                type="month"
-                aria-label="Reporting month"
-                value={trendMonth}
-                onChange={(event) => setTrendMonth(event.target.value)}
-              />
+              <span className="temporal-control fsm-trend-temporal-control">
+                <input
+                  type="month"
+                  aria-label="Reporting month"
+                  value={trendMonth}
+                  onChange={(event) => setTrendMonth(event.target.value)}
+                />
+              </span>
             </label>
 
             <div className="fsm-trend-legend" aria-hidden="true">
