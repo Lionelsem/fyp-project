@@ -8936,6 +8936,14 @@ select.responsive-control {
     margin-inline: auto;
   }
 
+  .portal-shell .fire-drill-card > .card-header-row {
+    margin-bottom: 0;
+  }
+
+  .portal-shell .fire-drill-schedule-list .fire-drill-schedule-item:first-child {
+    padding-top: 4px;
+  }
+
   .portal-shell .fsm-trends-card {
     min-width: 0;
     overflow: hidden;
@@ -8991,6 +8999,12 @@ select.responsive-control {
   .portal-shell .appendix-table.responsive-card-table td::before {
     overflow-wrap: normal;
     word-break: normal;
+  }
+}
+
+@media (max-width: 960px) {
+  .portal-sidebar-drawer .admin-sidebar::after {
+    bottom: 6px;
   }
 }
 
