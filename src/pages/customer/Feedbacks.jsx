@@ -30,7 +30,7 @@ const Feedbacks = () => {
   const [selectedThreadReplies, setSelectedThreadReplies] = useState([]);
   const [replyText, setReplyText] = useState("");
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
-  const [isMobileThreadListOpen, setIsMobileThreadListOpen] = useState(false);
+  const [mobileViewingThread, setMobileViewingThread] = useState(false);
   const [showEditReplyModal, setShowEditReplyModal] = useState(false);
   const [editingReply, setEditingReply] = useState(null);
   const [editedReplyText, setEditedReplyText] = useState("");
@@ -243,17 +243,14 @@ const Feedbacks = () => {
           >
             <span aria-hidden="true">+</span> New Message
           </button>
-          <button
-            type="button"
-            className={styles.mobileThreadListToggle}
-            onClick={() => setIsMobileThreadListOpen((open) => !open)}
-          >
-            {isMobileThreadListOpen ? "Hide Chats" : "Chats"}
-          </button>
         </div>
       </header>
 
-      <div className={`${styles.contentWrapper} ${isMobileThreadListOpen ? styles.mobileListVisible : ""}`}>
+      <div
+        className={`${styles.contentWrapper} ${
+          mobileViewingThread ? styles.mobileConversationVisible : styles.mobileListVisible
+        }`}
+      >
         <div className={styles.messagesPanel}>
           <div className={styles.searchBox}>
             <label className={styles.visuallyHidden} htmlFor="feedback-search">
@@ -281,11 +278,15 @@ const Feedbacks = () => {
                   className={`${styles.messageItem} ${
                     selectedThreadId === thread.id ? styles.active : ""
                   }`}
-                  onClick={() => setSelectedThreadId(thread.id)}
+                  onClick={() => {
+                    setSelectedThreadId(thread.id);
+                    setMobileViewingThread(true);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       setSelectedThreadId(thread.id);
+                      setMobileViewingThread(true);
                     }
                   }}
                   aria-pressed={selectedThreadId === thread.id}
@@ -319,7 +320,7 @@ const Feedbacks = () => {
                   <button
                     type="button"
                     className={styles.mobileBackButton}
-                    onClick={() => setIsMobileThreadListOpen(true)}
+                    onClick={() => setMobileViewingThread(false)}
                   >
                     ← Chats
                   </button>

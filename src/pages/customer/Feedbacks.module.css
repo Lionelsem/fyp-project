@@ -1039,15 +1039,20 @@
 
 @media (max-width: 480px) {
   .messagesPanel {
-    display: none;
+    display: flex;
   }
 
   .conversationPanel {
+    display: none;
     width: 100%;
     min-height: 60vh;
   }
 
-  .contentWrapper.mobileListVisible .messagesPanel {
+  .contentWrapper.mobileConversationVisible .messagesPanel {
+    display: none;
+  }
+
+  .contentWrapper.mobileConversationVisible .conversationPanel {
     display: flex;
   }
 
