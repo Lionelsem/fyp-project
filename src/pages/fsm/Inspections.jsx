@@ -1315,9 +1315,9 @@ const AppendixTable = ({ entries }) => (
     </div>
     <ResponsiveTableRegion
       label="Inspection findings and rectification appendix"
-      className="appendix-table-wrapper"
+      className="appendix-table-wrapper responsive-table-region--cards"
     >
-      <table className="appendix-table">
+      <table className="appendix-table responsive-card-table">
         <thead>
           <tr>
             <th>S/No</th>
@@ -1329,10 +1329,10 @@ const AppendixTable = ({ entries }) => (
         <tbody>
           {entries.map((entry, index) => (
             <tr key={`${entry.location}-${index}`}>
-              <td>{index + 1}</td>
-              <td>{entry.location}</td>
-              <td>{entry.findings}</td>
-              <td>{entry.remarks}</td>
+              <td data-label="S/No">{index + 1}</td>
+              <td data-label="Location">{entry.location}</td>
+              <td data-label="Findings">{entry.findings}</td>
+              <td data-label="Remarks / Rectification">{entry.remarks}</td>
             </tr>
           ))}
         </tbody>

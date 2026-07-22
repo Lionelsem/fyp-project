@@ -54,3 +54,43 @@ test("builds submitted, completed, and customer remark notifications", () => {
   ]));
 });
 
+test("filters notification categories using saved preferences", () => {
+  const source = {
+    now,
+    fireDrills: [{
+      id: "drill-1",
+      drillDate: "2026-07-22",
+      status: "Scheduled"
+    }],
+    reports: [{
+      id: "report-1",
+      status: "Submitted",
+      updatedAt: now
+    }],
+    issues: [{
+      id: "issue-1",
+      issueTitle: "Faulty alarm",
+      status: "In Progress",
+      updatedAt: now
+    }],
+    preferences: {
+      inspectionReminders: false,
+      issueUpdates: false,
+      reportUpdates: false
+    }
+  };
+
+  expect(buildFsmNotifications(source)).toEqual([]);
+
+  const issueNotifications = buildFsmNotifications({
+    ...source,
+    preferences: { ...source.preferences, issueUpdates: true }
+  });
+  expect(issueNotifications).toEqual([
+    expect.objectContaining({
+      id: "issue-issue-1-in progress",
+      title: "Faulty alarm - In Progress",
+      type: "issue"
+    })
+  ]);
+});
