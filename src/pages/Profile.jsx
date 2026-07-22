@@ -3,8 +3,11 @@ import { useAuthContext } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
 import { getAllBuildings } from "../services/buildingService";
 import { getUserProfile, updateCurrentUserProfile } from "../services/userService";
-import UserAvatar from "../components/common/UserAvatar";
 import { signOutAllDevices } from "../services/authService";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  normalizeNotificationPreferences
+} from "../constants/notificationPreferences";
 
 const DEFAULT_PHONE_NUMBER = "+65 9123 4567";
 
@@ -106,7 +109,7 @@ const settingsSections = [
 
 const notificationSettings = [
   ["emailNotifications", "Email notifications", "Receive important account and workflow updates by email."],
-  ["inspectionReminders", "Inspection reminders", "Get reminders before scheduled inspection tasks."],
+  ["inspectionReminders", "Inspection reminders", "Get reminders before scheduled inspection and fire-drill tasks."],
   ["issueUpdates", "Issue / defect updates", "Stay informed when issue status or assignment changes."],
   ["reportUpdates", "Report/status updates", "Receive updates when reports are generated or reviewed."],
   ["systemAnnouncements", "System announcements", "Receive platform maintenance and policy notices."]
@@ -125,13 +128,10 @@ const Profile = () => {
   const [saveError, setSaveError] = useState("");
   const [signingOutAll, setSigningOutAll] = useState(false);
   const [securityError, setSecurityError] = useState("");
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    inspectionReminders: true,
-    issueUpdates: true,
-    reportUpdates: true,
-    systemAnnouncements: false
-  });
+  const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [notificationSavingKey, setNotificationSavingKey] = useState("");
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationError, setNotificationError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -180,6 +180,10 @@ const Profile = () => {
         DEFAULT_PHONE_NUMBER
     });
   }, [profile]);
+
+  useEffect(() => {
+    setNotifications(normalizeNotificationPreferences(profile?.notificationPreferences));
+  }, [profile?.notificationPreferences]);
 
   useEffect(() => {
     let isMounted = true;
@@ -276,6 +280,33 @@ const Profile = () => {
           : "Unable to sign out all devices. Please try again."
       );
       setSigningOutAll(false);
+    }
+  };
+
+  const handleNotificationChange = (key) => async (event) => {
+    const enabled = event.target.checked;
+    const previousValue = notifications[key];
+    const nextPreferences = { ...notifications, [key]: enabled };
+
+    setNotifications(nextPreferences);
+    setNotificationSavingKey(key);
+    setNotificationMessage("");
+    setNotificationError("");
+
+    try {
+      await updateNotificationPreferences(profile?.profileId, nextPreferences);
+      setProfile((current) => ({
+        ...current,
+        notificationPreferences: nextPreferences
+      }));
+      updateLocalProfile({ notificationPreferences: nextPreferences });
+      setNotificationMessage("Notification preferences saved.");
+    } catch (error) {
+      console.error("Failed to save notification preference", error);
+      setNotifications((current) => ({ ...current, [key]: previousValue }));
+      setNotificationError("Unable to save notification preferences. Please try again.");
+    } finally {
+      setNotificationSavingKey("");
     }
   };
 
@@ -389,7 +420,7 @@ const Profile = () => {
     <div className="profile-settings-stack">
       <div className="profile-section-heading">
         <h2>Notifications</h2>
-        <p>Choose which updates you want to receive. These controls are ready for persistence.</p>
+        <p>Choose which updates you want to receive. Changes are saved automatically.</p>
       </div>
 
       <div className="profile-toggle-list">
@@ -402,16 +433,28 @@ const Profile = () => {
             <input
               type="checkbox"
               checked={notifications[key]}
-              onChange={(event) =>
-                setNotifications((current) => ({ ...current, [key]: event.target.checked }))
-              }
+              onChange={handleNotificationChange(key)}
+              disabled={Boolean(notificationSavingKey)}
             />
           </label>
         ))}
       </div>
 
+      {notificationSavingKey && (
+        <p className="profile-save-message" role="status">Saving preference...</p>
+      )}
+      {notificationMessage && !notificationSavingKey && (
+        <p className="profile-save-message profile-save-success" role="status">
+          {notificationMessage}
+        </p>
+      )}
+      {notificationError && (
+        <p className="profile-save-message profile-save-error" role="alert">
+          {notificationError}
+        </p>
+      )}
       <p className="profile-note">
-        Notification preferences are shown in the UI for now and can be saved once backend storage is added.
+        Email delivery will apply once an email provider is connected. In-app preferences affect the notification bell now.
       </p>
     </div>
   );

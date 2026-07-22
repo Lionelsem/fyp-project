@@ -3,7 +3,6 @@ import { db } from "../config/firebase";
 import { auth } from "../config/firebase";
 import { updateEmail } from "firebase/auth";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
-import { deleteUploadedFile, STORAGE_FOLDERS, uploadFile } from "./storageService";
 
 export const getUserProfile = async (uid, email) => {
   const userDoc = await getDoc(doc(db, COLLECTION_NAMES.USERS, uid));
@@ -92,6 +91,22 @@ export const updateCurrentUserProfile = async (profileId, data) => {
   });
 
   return { fullName, email, phoneNumber };
+};
+
+export const updateNotificationPreferences = async (profileId, preferences) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("You must be signed in to update notification preferences.");
+  }
+
+  const userDocumentId = profileId || currentUser.uid;
+  const notificationPreferences = normalizeNotificationPreferences(preferences);
+  await updateDoc(doc(db, COLLECTION_NAMES.USERS, userDocumentId), {
+    notificationPreferences,
+    updatedAt: new Date()
+  });
+
+  return notificationPreferences;
 };
 
 export const deleteUser = async (uid) => {

@@ -3454,6 +3454,11 @@ select.inspection-row-control {
   transform: translateX(20px);
 }
 
+.profile-toggle-row input:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .profile-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--responsive-column-min), 1fr));
@@ -8940,5 +8945,126 @@ select.responsive-control {
   .portal-shell .fire-drill-action-buttons,
   .portal-shell .fire-drill-form-actions {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Phone layout finishing layer: keep gutters, card padding, and controls
+   symmetrical even on narrow WebKit viewports. */
+@media (min-width: 641px) {
+  .portal-shell .appendix-table.responsive-card-table {
+    min-width: clamp(42.5rem, 90vw, 45rem);
+  }
+}
+
+@media (max-width: 600px) {
+  .portal-shell .dashboard-card,
+  .portal-shell .fsm-overview-card,
+  .portal-shell .inspection-card,
+  .portal-shell .fire-drill-card {
+    padding: 16px;
+  }
+
+  .portal-shell .fire-drill-date-filter {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .portal-shell .fire-drill-date-filter label {
+    width: min(100%, 22rem);
+    min-width: 0;
+    margin-inline: auto;
+  }
+
+  .portal-shell .fire-drill-card > .card-header-row {
+    margin-bottom: 0;
+  }
+
+  .portal-shell .fire-drill-schedule-list .fire-drill-schedule-item:first-child {
+    padding-top: 4px;
+  }
+
+  .portal-shell .fsm-trends-card {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .portal-shell .fsm-trend-toolbar {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .portal-shell .fsm-trend-reporting-month,
+  .portal-shell .fsm-trend-reporting-month input,
+  .portal-shell .fsm-trend-chart {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .portal-shell .fsm-trend-legend {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .portal-shell .appendix-table-wrapper {
+    overflow: visible;
+  }
+
+  .portal-shell .appendix-table.responsive-card-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .portal-shell .appendix-table.responsive-card-table tbody {
+    gap: 12px;
+  }
+
+  .portal-shell .appendix-table.responsive-card-table tr {
+    padding: 10px 12px;
+  }
+
+  .portal-shell .appendix-table.responsive-card-table td {
+    grid-template-columns: minmax(88px, 0.75fr) minmax(0, 1.25fr);
+    align-items: start;
+    gap: 12px;
+    text-align: left;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  .portal-shell .appendix-table.responsive-card-table td::before {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
+
+@media (max-width: 960px) {
+  .portal-sidebar-drawer .admin-sidebar::after {
+    bottom: 6px;
+  }
+}
+
+@media (max-width: 374px) {
+  .portal-shell .main-content {
+    padding-top: 10px;
+    padding-right: max(10px, var(--safe-area-right));
+    padding-bottom: max(10px, var(--safe-area-bottom));
+    padding-left: max(10px, var(--safe-area-left));
+  }
+
+  .portal-shell .dashboard-card,
+  .portal-shell .fsm-overview-card,
+  .portal-shell .inspection-card,
+  .portal-shell .fire-drill-card {
+    padding: 14px;
+  }
+
+  .portal-shell .appendix-table.responsive-card-table td {
+    grid-template-columns: minmax(76px, 0.7fr) minmax(0, 1.3fr);
+    gap: 8px;
   }
 }

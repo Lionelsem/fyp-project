@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useFsmDashboardData } from "./useFsmDashboardData";
+import { normalizeNotificationPreferences } from "../constants/notificationPreferences";
 
 const COMPLETED_STATUSES = new Set(["completed", "conducted", "done"]);
 const SUBMITTED_STATUSES = new Set(["submitted"]);
@@ -70,6 +71,8 @@ const getBuildingName = (record, buildingMap) =>
 const getRecordLabel = (record, fallback) =>
   record.reportTitle ||
   record.inspectionTitle ||
+  record.issueTitle ||
+  record.issueDescription ||
   record.title ||
   record.task ||
   record.drillType ||
@@ -87,9 +90,12 @@ export const buildFsmNotifications = ({
   inspections = [],
   reports = [],
   fireDrills = [],
+  issues = [],
+  preferences,
   now = new Date()
 }) => {
   const notifications = [];
+  const notificationPreferences = normalizeNotificationPreferences(preferences);
   const buildingMap = new Map(buildings.map((building) => [building.id, building]));
   const today = getStartOfDay(now);
 
@@ -100,7 +106,7 @@ export const buildFsmNotifications = ({
     ) || Boolean(drill.completedAt || drill.actualDate || drill.conductedDate);
     const scheduledDate = toDate(drill.drillDate);
 
-    if (scheduledDate && !isFinished) {
+    if (notificationPreferences.inspectionReminders && scheduledDate && !isFinished) {
       const daysUntil = Math.round((getStartOfDay(scheduledDate) - today) / DAY_IN_MS);
       if (daysUntil >= 0 && daysUntil <= 3) {
         const timing = daysUntil === 0
@@ -143,28 +149,48 @@ export const buildFsmNotifications = ({
     });
   };
 
-  inspections.forEach((inspection) =>
-    addStatusNotification(inspection, "inspection", "Inspection")
-  );
-  reports.forEach((report) => addStatusNotification(report, "report", "Report"));
-  fireDrills.forEach((drill) => addStatusNotification(drill, "fire-drill", "Fire drill"));
+  if (notificationPreferences.reportUpdates) {
+    inspections.forEach((inspection) =>
+      addStatusNotification(inspection, "inspection", "Inspection")
+    );
+    reports.forEach((report) => addStatusNotification(report, "report", "Report"));
+    fireDrills.forEach((drill) => addStatusNotification(drill, "fire-drill", "Fire drill"));
+  }
 
-  [...reports, ...fireDrills].forEach((record) => {
-    const remark = String(record.customerComments || "").trim();
-    if (!remark) return;
-
-    const eventDate = getRecordDate(record);
-    const entityType = reports.includes(record) ? "report" : "fire-drill";
-    notifications.push({
-      id: `customer-remark-${entityType}-${record.id}-${remark}`,
-      type: "remark",
-      title: "New customer remark",
-      message: remark,
-      time: formatRelativeTime(eventDate, now),
-      isRead: false,
-      sortDate: eventDate || new Date(0)
+  if (notificationPreferences.issueUpdates) {
+    issues.forEach((issue) => {
+      const status = String(issue.status || "Updated").trim();
+      const eventDate = getRecordDate(issue);
+      notifications.push({
+        id: `issue-${issue.id}-${normalizeText(status)}`,
+        type: "issue",
+        title: `${getRecordLabel(issue, "Issue")} - ${status}`,
+        message: getBuildingName(issue, buildingMap),
+        time: formatRelativeTime(eventDate, now),
+        isRead: false,
+        sortDate: eventDate || new Date(0)
+      });
     });
-  });
+  }
+
+  if (notificationPreferences.reportUpdates) {
+    [...reports, ...fireDrills].forEach((record) => {
+      const remark = String(record.customerComments || "").trim();
+      if (!remark) return;
+
+      const eventDate = getRecordDate(record);
+      const entityType = reports.includes(record) ? "report" : "fire-drill";
+      notifications.push({
+        id: `customer-remark-${entityType}-${record.id}-${remark}`,
+        type: "remark",
+        title: "New customer remark",
+        message: remark,
+        time: formatRelativeTime(eventDate, now),
+        isRead: false,
+        sortDate: eventDate || new Date(0)
+      });
+    });
+  }
 
   return notifications
     .sort((first, second) => second.sortDate.getTime() - first.sortDate.getTime())
@@ -190,10 +216,21 @@ const getFsmLookupIds = (user) => [
 
 export const useFsmNotifications = (user) => {
   const lookupIds = useMemo(() => getFsmLookupIds(user), [user]);
-  const { buildings, inspections, reports, fireDrills } = useFsmDashboardData(lookupIds);
+  const { buildings, inspections, reports, fireDrills, issues } = useFsmDashboardData(lookupIds);
+  const preferences = useMemo(
+    () => normalizeNotificationPreferences(user?.notificationPreferences),
+    [user?.notificationPreferences]
+  );
 
   return useMemo(
-    () => buildFsmNotifications({ buildings, inspections, reports, fireDrills }),
-    [buildings, fireDrills, inspections, reports]
+    () => buildFsmNotifications({
+      buildings,
+      inspections,
+      reports,
+      fireDrills,
+      issues,
+      preferences
+    }),
+    [buildings, fireDrills, inspections, issues, preferences, reports]
   );
 };
