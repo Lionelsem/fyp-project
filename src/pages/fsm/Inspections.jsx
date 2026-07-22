@@ -799,7 +799,6 @@ const InspectionOverview = ({
               />
             </span>
           </label>
-          <small className="hint-text">{inspectionInfo.month}</small>
         </div>
         <div>
           <span className="overview-label">Inspector</span>
