@@ -141,7 +141,7 @@ const Feedbacks = () => {
         setError("Unable to load this conversation.");
       }
     );
-  }, [fsmIdsKey, selectedThreadId]);
+  }, [fsmIdsKey, selectedThreadId, user?.uid]);
 
   useEffect(() => {
     if (!messagesThreadRef.current) return;
