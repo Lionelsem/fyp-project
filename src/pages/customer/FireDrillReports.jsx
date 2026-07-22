@@ -263,7 +263,7 @@ const FireDrillReports = () => {
               onClick={handleDownloadLatestDrillPdf}
               disabled={isDownloadingPdf}
             >
-              {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Drill Report"}
+              {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Report"}
             </button>
           </div>
         </div>

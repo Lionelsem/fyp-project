@@ -9,7 +9,8 @@ import {
   markFeedbackMessagesAsRead,
   createCustomerFeedbackThread,
   updateFeedbackReply,
-  deleteFeedbackReply
+  deleteFeedbackReply,
+  deleteCustomerFeedbackThread
 } from "../../services/feedbackService";
 
 const formatTimestamp = (timestamp) => {
@@ -113,6 +114,22 @@ const Feedbacks = () => {
     }
   }, [selectedThreadId, threads]);
 
+  const handleDeleteThread = async (threadId) => {
+    if (!threadId) return;
+    const confirmed = window.confirm("Delete this conversation and all messages?");
+    if (!confirmed) return;
+
+    try {
+      await deleteCustomerFeedbackThread(threadId);
+      if (selectedThreadId === threadId) {
+        setSelectedThreadId(null);
+      }
+    } catch (error) {
+      console.error("Failed to delete thread:", error);
+      alert("Unable to delete conversation. Please try again.");
+    }
+  };
+
   useEffect(() => {
     if (!messagesThreadRef.current) return;
     messagesThreadRef.current.scrollTop = messagesThreadRef.current.scrollHeight;
@@ -211,20 +228,31 @@ const Feedbacks = () => {
     <div className={styles.feedbacksContainer}>
       <header className={styles.header}>
         <div className={styles.headerCopy}>
+          <span className={styles.headerBadge}>Customer support</span>
           <h1>Comments &amp; Feedback</h1>
-          <p>Communicate with your assigned FSM or request clarifications on reports.</p>
+          <p>Keep conversations with your assigned FSM in one friendly workspace.</p>
         </div>
         <button
           type="button"
           className={styles.newMessageButton}
-          onClick={() => setShowNewMessageModal(true)}
+          onClick={() => {
+            setNewThreadRecipient("John Smith (FSM)");
+            setShowNewMessageModal(true);
+          }}
         >
-          <span aria-hidden="true">+</span> New Message
+          <span aria-hidden="true">+</span> New chat
         </button>
       </header>
 
       <div className={styles.contentWrapper}>
-        <div className={styles.messagesPanel}>
+        <aside className={styles.messagesPanel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h3>Conversations</h3>
+              <p>Recent updates and follow-ups</p>
+            </div>
+          </div>
+
           <div className={styles.searchBox}>
             <label className={styles.visuallyHidden} htmlFor="feedback-search">
               Search conversations
@@ -232,7 +260,7 @@ const Feedbacks = () => {
             <input
               id="feedback-search"
               type="search"
-              placeholder="Search messages..."
+              placeholder="Search chats..."
               aria-label="Search messages"
             />
           </div>
@@ -240,37 +268,84 @@ const Feedbacks = () => {
           <div className={styles.messagesList}>
             {threads.length === 0 ? (
               <div className={styles.emptyState}>
-                <p>No conversations yet. Start a new message.</p>
+                <p>No conversations yet. Start a new chat.</p>
               </div>
             ) : (
               threads.map((thread) => (
-                <button
-                  type="button"
+                <div
                   key={thread.id}
+                  role="button"
+                  tabIndex={0}
                   className={`${styles.messageItem} ${
                     selectedThreadId === thread.id ? styles.active : ""
                   }`}
                   onClick={() => setSelectedThreadId(thread.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedThreadId(thread.id);
+                    }
+                  }}
                   aria-pressed={selectedThreadId === thread.id}
                 >
-                  <span className={styles.messageTitle}>{thread.title}</span>
-                  {thread.issueId && <span className={styles.issueId}>{thread.issueId}</span>}
-                  {thread.building && <span className={styles.building}>{thread.building}</span>}
-                  <span className={styles.timestamp}>{formatTimestamp(thread.lastMessageAt || thread.createdAt)}</span>
-                </button>
+                  <div className={styles.threadAvatar} aria-hidden="true">
+                    {(thread.title || "C").charAt(0).toUpperCase()}
+                  </div>
+                  <div className={styles.threadDetails}>
+                    <div className={styles.threadTopRow}>
+                      <span className={styles.messageTitle}>{thread.title}</span>
+                      <span className={styles.timestamp}>
+                        {formatTimestamp(thread.lastMessageAt || thread.createdAt)}
+                      </span>
+                    </div>
+                    <div className={styles.threadMeta}>
+                      <span className={styles.threadPreview}>
+                        {thread.building || thread.recipient || "Assigned support team"}
+                      </span>
+                      {thread.issueId && <span className={styles.issuePill}>{thread.issueId}</span>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.deleteThreadButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteThread(thread.id);
+                    }}
+                    aria-label={`Delete conversation ${thread.title}`}
+                  >
+                    ×
+                  </button>
+                </div>
               ))
             )}
           </div>
-        </div>
+        </aside>
 
-        <div className={styles.conversationPanel}>
+        <section className={styles.conversationPanel}>
           {selectedThread ? (
             <>
               <div className={styles.conversationHeader}>
-                <h2>{selectedThread.title}</h2>
-                {selectedThread.building && (
-                  <p className={styles.buildingInfo}>{selectedThread.building}</p>
-                )}
+                <div className={styles.conversationHeaderInfo}>
+                  <div className={styles.threadAvatarLarge} aria-hidden="true">
+                    {(selectedThread.title || "C").charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h2>{selectedThread.title}</h2>
+                    <p className={styles.buildingInfo}>
+                      <span className={styles.onlineDot} aria-hidden="true" />
+                      {selectedThread.building || selectedThread.recipient || "Assigned support team"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.headerDeleteButton}
+                  onClick={() => handleDeleteThread(selectedThread.id)}
+                  aria-label={`Delete conversation ${selectedThread.title}`}
+                >
+                  Delete
+                </button>
               </div>
 
               <div className={styles.messagesThread} aria-live="polite" ref={messagesThreadRef}>
@@ -286,7 +361,11 @@ const Feedbacks = () => {
                         reply.isOwn ? styles.ownMessage : styles.otherMessage
                       }`}
                     >
-                      <div className={styles.messageContent}>
+                      <div
+                        className={`${styles.messageContent} ${
+                          reply.isOwn ? styles.ownBubble : styles.otherBubble
+                        }`}
+                      >
                         <div className={styles.senderInfo}>
                           <div className={styles.senderIdentity}>
                             <strong>{reply.sender}</strong>
@@ -329,18 +408,20 @@ const Feedbacks = () => {
               </div>
 
               <div className={styles.inputArea}>
-                <textarea
-                  placeholder="Type your message..."
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.ctrlKey) {
-                      e.preventDefault();
-                      handleSendReply();
-                    }
-                  }}
-                  aria-label="Reply message"
-                />
+                <div className={styles.inputShell}>
+                  <textarea
+                    placeholder="Type your message..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && e.ctrlKey) {
+                        e.preventDefault();
+                        handleSendReply();
+                      }
+                    }}
+                    aria-label="Reply message"
+                  />
+                </div>
                 <button
                   type="button"
                   className={styles.sendButton}
@@ -356,7 +437,7 @@ const Feedbacks = () => {
               <p>Select a conversation to view the chat.</p>
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       {showNewMessageModal && (
