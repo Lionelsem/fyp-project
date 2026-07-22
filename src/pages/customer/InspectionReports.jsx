@@ -346,17 +346,8 @@ const InspectionReports = () => {
               </span>
             </div>
 
-            <div style={{ display: "grid", gap: "14px", padding: "8px 0 4px" }}>
-              <div className="responsive-info-grid">
-                <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Report ID</div>
-                  <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.reportId || "—"}</strong>
-                </div>
-                <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>FSM In-Charge</div>
-                  <strong style={{ display: "block", marginTop: "6px" }}>{latestReport?.fsmInCharge || "—"}</strong>
-                </div>
-              </div>
+              <div style={{ display: "grid", gap: "14px", padding: "8px 0 4px" }}>
+              {/* Report ID and FSM In-Charge removed per request */}
 
               <div style={{ border: "1px solid #e5e7eb", borderRadius: "16px", padding: "16px", background: "#ffffff" }}>
                 <div style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Inspection Summary</div>
@@ -439,7 +430,6 @@ const InspectionReports = () => {
                 <table className="dashboard-table responsive-card-table">
                   <thead>
                     <tr>
-                      <th>REPORT</th>
                       <th>MONTH</th>
                       <th>DATE</th>
                       <th>STATUS</th>
@@ -448,12 +438,6 @@ const InspectionReports = () => {
                   <tbody>
                     {filteredReports.map((report) => (
                       <tr key={report.id}>
-                        <td data-label="Report">
-                          <div className="report-cell-copy">
-                            <div className="id-cell">{report.reportId}</div>
-                            <div className="report-cell-meta">{report.fsmInCharge}</div>
-                          </div>
-                        </td>
                         <td data-label="Month">{report.inspectionMonth}</td>
                         <td data-label="Date">{report.inspectionDate}</td>
                         <td data-label="Status">
