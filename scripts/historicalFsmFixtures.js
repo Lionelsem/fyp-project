@@ -1,7 +1,18 @@
-const inspectionDates = [
-  "2026-01-12", "2026-01-26", "2026-02-09", "2026-02-23", "2026-03-09",
-  "2026-03-23", "2026-04-13", "2026-04-27", "2026-05-18"
-];
+const buildInspectionDates = (now = new Date(), monthCount = 6) => {
+  const dates = [];
+  for (let monthsAgo = monthCount; monthsAgo >= 1; monthsAgo -= 1) {
+    const month = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+    [9, 23].forEach((day) => {
+      const date = new Date(month.getFullYear(), month.getMonth(), day);
+      dates.push([
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+      ].join("-"));
+    });
+  }
+  return dates;
+};
 
 const checklist = [
   ["encroachment", "A. Encroachment", "A", "Encroachment review"],
@@ -34,4 +45,4 @@ const findings = [
   ["others", "9.3", "Access route encroachment", "Delivery items encroached on the fire-engine access route.", "Remove the items and reinforce the no-storage rule.", "High", "Open", 0]
 ];
 
-module.exports = { checklist, findings, inspectionDates };
+module.exports = { checklist, findings, buildInspectionDates };

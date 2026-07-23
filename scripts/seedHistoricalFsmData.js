@@ -1,15 +1,15 @@
 /*
- * One-time, idempotent development seed for January-May 2026.
+ * Idempotent development seed for the previous six complete months.
  * Uses the current Firebase CLI login and the existing Firestore schema.
  * Run: npm run seed:fsm-history
  * Optional: npm run seed:fsm-history -- --building=DOCUMENT_ID
  */
 const fs = require("fs");
 const path = require("path");
-const { checklist, findings, inspectionDates } = require("./historicalFsmFixtures");
+const { checklist, findings, buildInspectionDates } = require("./historicalFsmFixtures");
 
 const projectId = "fireguardcbre";
-const seedSource = "historical-fsm-2026-v1";
+const seedSource = "historical-fsm-rolling-v2";
 const apiRoot = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 const documentRoot = `projects/${projectId}/databases/(default)/documents`;
 
@@ -81,6 +81,7 @@ const write = (collection, id, data) => ({
 
 const buildWrites = (building, fsmId) => {
   const writes = [];
+  const inspectionDates = buildInspectionDates();
   const buildingName = building.buildingName || building.building_name || building.name || building.id;
   const floors = Math.max(1, Math.min(Number(building.noOfStoreys) || 3, 3));
 
@@ -91,7 +92,7 @@ const buildWrites = (building, fsmId) => {
     const floorId = `level-${index % floors + 1}`;
     const floorName = `Level ${index % floors + 1}`;
     const inspectionKey = `seed-hist-${cleanId(building.id)}-${dateText}`;
-    const [faultCategory, faultCode, title, description, rectification, priority, status, resolutionDays] = findings[index];
+    const [faultCategory, faultCode, title, description, rectification, priority, status, resolutionDays] = findings[index % findings.length];
     const issueKey = `${inspectionKey}__${faultCategory}__${faultCode}`;
     const resolvedAt = resolutionDays ? addDays(createdAt, resolutionDays) : null;
 

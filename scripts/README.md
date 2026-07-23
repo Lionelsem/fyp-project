@@ -1,6 +1,6 @@
 # Historical FSM sample data
 
-The generator creates deterministic development records dated January-May 2026. It does not delete or modify June/July operational records. All generated documents contain `seedSource: historical-fsm-2026-v1`.
+The generator creates deterministic development records for the previous six complete calendar months. It never deletes operational records. All generated documents contain `seedSource: historical-fsm-rolling-v2`.
 
 Authenticate and run from the repository root:
 

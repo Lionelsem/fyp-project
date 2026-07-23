@@ -5,9 +5,10 @@ import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const CHART_SERIES = [
-  { key: "passed", label: "Resolved", color: "#009c83" },
-  { key: "pending", label: "In Progress", color: "#ff9f0a" },
-  { key: "failed", label: "Critical", color: "#f5333f" }
+  { key: "completed", label: "Completed", color: "#2563eb" },
+  { key: "resolved", label: "Resolved", color: "#009c83" },
+  { key: "inProgress", label: "In Progress", color: "#ff9f0a" },
+  { key: "critical", label: "Critical", color: "#f5333f" }
 ];
 
 const QUICK_ACTIONS = [
@@ -81,7 +82,7 @@ const TrendChart = ({ items, loading }) => {
     <div
       className="fsm-trend-chart"
       role="img"
-      aria-label={`Issue trend chart. ${items.map((item) => `${item.label}: ${item.passed || 0} resolved, ${item.pending || 0} in progress, and ${item.failed || 0} critical`).join(". ")}`}
+      aria-label={`Issue trend chart. ${items.map((item) => `${item.label}: ${CHART_SERIES.map((series) => `${item[series.key] || 0} ${series.label.toLowerCase()}`).join(", ")}`).join(". ")}`}
     >
       <div className="fsm-trend-canvas" style={{ minWidth: `${canvasWidth}px` }}>
         <div className="fsm-trend-y-axis" aria-hidden="true">
@@ -138,15 +139,18 @@ const TrendChart = ({ items, loading }) => {
 
 const IssueStatusChart = ({ statusBreakdown, loading }) => {
   const total = Number(statusBreakdown?.total) || 0;
-  const statusItems = [
-    { label: "Resolved", value: Number(statusBreakdown?.passed) || 0, color: "#009c83" },
-    { label: "In Progress", value: Number(statusBreakdown?.pending) || 0, color: "#ff9f0a" },
-    { label: "Critical", value: Number(statusBreakdown?.failed) || 0, color: "#f5333f" }
-  ];
-  const resolvedEnd = total ? (statusItems[0].value / total) * 100 : 0;
-  const progressEnd = total ? resolvedEnd + ((statusItems[1].value / total) * 100) : 0;
+  const statusItems = CHART_SERIES.map((series) => ({
+    ...series,
+    value: Number(statusBreakdown?.[series.key]) || 0
+  }));
+  let chartPosition = 0;
+  const chartSegments = statusItems.map((item) => {
+    const start = chartPosition;
+    chartPosition += total ? (item.value / total) * 100 : 0;
+    return `${item.color} ${start}% ${chartPosition}%`;
+  });
   const chartBackground = total
-    ? `conic-gradient(${statusItems[0].color} 0 ${resolvedEnd}%, ${statusItems[1].color} ${resolvedEnd}% ${progressEnd}%, ${statusItems[2].color} ${progressEnd}% 100%)`
+    ? `conic-gradient(${chartSegments.join(", ")})`
     : "#e5eaee";
 
   return (
@@ -313,7 +317,6 @@ const FSMDashboard = () => {
   const {
     loading,
     error,
-    summaryCards,
     statusBreakdown,
     monthlyTrend,
     recentReports,
@@ -338,34 +341,6 @@ const FSMDashboard = () => {
   return (
     <div className="dashboard-container fsm-dashboard-page" aria-busy={loading}>
       {error && <div className="fsm-dashboard-alert" role="alert">{error}</div>}
-
-      <div
-        className="summary-grid compact-summary-grid"
-        role="list"
-        aria-label="FSM issue summary"
-      >
-        {summaryCards.map((card) => (
-          <div
-            key={card.label}
-            className="summary-card"
-            role="listitem"
-            aria-label={`${card.label}: ${card.value}`}
-          >
-            <div className="card-top">
-              <div
-                className="card-icon"
-                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
-                aria-hidden="true"
-              >
-                {card.icon}
-              </div>
-              <div className="card-label">{card.label}</div>
-            </div>
-            <div className="card-value">{card.value}</div>
-            <div className="card-trend">{card.trend}</div>
-          </div>
-        ))}
-      </div>
 
       <section className="dashboard-card fsm-quick-actions-card" aria-labelledby="fsm-quick-actions-title">
         <div className="card-header-row">
