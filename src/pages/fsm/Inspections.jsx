@@ -1005,6 +1005,7 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
               <label>
                 <span>Issue Description</span>
                 <textarea
+                  className="issue-description-input"
                   value={item.issue.description}
                   rows={2}
                   placeholder="Describe the fault"
@@ -1222,6 +1223,7 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
             <label>
               <span>Issue Description</span>
               <textarea
+                className="issue-description-input"
                 value={item.issue.description}
                 rows={2}
                 placeholder="Describe the fault"

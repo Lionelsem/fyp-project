@@ -2462,6 +2462,10 @@ select.inspection-row-control {
   container-type: inline-size;
 }
 
+.issue-description-input {
+  text-align: center;
+}
+
 .issue-panel h4 {
   margin: 0;
   display: flex;
