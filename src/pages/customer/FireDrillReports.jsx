@@ -407,7 +407,7 @@ const FireDrillReports = () => {
               <div style={{ color: "#64748b", padding: "12px 0" }}>No fire drill records found.</div>
             ) : (
               <ResponsiveTableRegion
-                label="Fire drill reports"
+                label="Fire drill reports" 
                 className="fire-drill-history-table-wrapper responsive-table-region--cards"
               >
                 <table className="dashboard-table responsive-card-table">
