@@ -201,14 +201,14 @@ const getIssueBucket = (issue) => {
   const priority = normalizeText(issue.priority);
   const status = normalizeText(issue.status);
 
-  if (
-    status === normalizeText(ISSUE_STATUS.CLOSED) ||
-    status === normalizeText(ISSUE_STATUS.RESOLVED)
-  ) {
-    return "passed";
+  if (status === normalizeText(ISSUE_STATUS.CLOSED) || status === "completed") {
+    return "completed";
   }
-  if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") return "failed";
-  return "pending";
+  if (status === normalizeText(ISSUE_STATUS.RESOLVED)) return "resolved";
+  if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") {
+    return "critical";
+  }
+  return "inProgress";
 };
 
 const getIssueDate = (issue) =>
@@ -352,58 +352,6 @@ const getBuildingName = (buildingMap, buildingId, fallback) => {
   );
 };
 
-const buildSummaryCards = (issues) => {
-  const inProgressCount = issues.filter(
-    (issue) => normalizeText(issue.status) === normalizeText(ISSUE_STATUS.IN_PROGRESS)
-  ).length;
-  const closedCount = issues.filter(
-    (issue) => normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED)
-  ).length;
-  const urgentIssueCount = issues.filter((issue) => {
-    const priority = normalizeText(issue.priority);
-    const status = normalizeText(issue.status);
-    return (
-      status !== normalizeText(ISSUE_STATUS.CLOSED) &&
-      (priority === normalizeText(PRIORITY.HIGH) || priority === "critical")
-    );
-  }).length;
-
-  return [
-    {
-      label: "Inspection Issue Ticket",
-      value: issues.length,
-      icon: "\uD83D\uDCCB",
-      iconBg: "#ecfdf5",
-      iconColor: "#047857",
-      trend: "Live from Firestore"
-    },
-    {
-      label: "Pending",
-      value: inProgressCount,
-      icon: "\u23F3",
-      iconBg: "#fef3c7",
-      iconColor: "#b45309",
-      trend: `${inProgressCount} in progress`
-    },
-    {
-      label: "Completed",
-      value: closedCount,
-      icon: "\u2705",
-      iconBg: "#dbeafe",
-      iconColor: "#0284c7",
-      trend: "Closed after verification"
-    },
-    {
-      label: "Urgent Issues",
-      value: urgentIssueCount,
-      icon: "\uD83D\uDEA8",
-      iconBg: "#fee2e2",
-      iconColor: "#dc2626",
-      trend: "Requires immediate action"
-    }
-  ];
-};
-
 const buildStatusBreakdown = (issues) =>
   issues.reduce(
     (breakdown, issue) => {
@@ -414,7 +362,7 @@ const buildStatusBreakdown = (issues) =>
         [bucket]: breakdown[bucket] + 1
       };
     },
-    { total: 0, passed: 0, pending: 0, failed: 0 }
+    { total: 0, completed: 0, resolved: 0, inProgress: 0, critical: 0 }
   );
 
 const buildMonthlyTrend = (issues) => {
@@ -430,9 +378,10 @@ const buildMonthlyTrend = (issues) => {
         key,
         month: date.toLocaleString(undefined, { month: "short", year: "numeric" }),
         sortDate: new Date(date.getFullYear(), date.getMonth(), 1),
-        passed: 0,
-        pending: 0,
-        failed: 0
+        completed: 0,
+        resolved: 0,
+        inProgress: 0,
+        critical: 0
       });
     }
 
@@ -828,11 +777,6 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     [data.buildingFireDrills, data.fireDrills, data.fsmFireDrills]
   );
 
-  const summaryCards = useMemo(
-    () => buildSummaryCards(data.issues),
-    [data.issues]
-  );
-
   const statusBreakdown = useMemo(
     () => buildStatusBreakdown(data.issues),
     [data.issues]
@@ -871,7 +815,6 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     reports: liveReports,
     fireDrills: liveFireDrills,
     issues: data.issues,
-    summaryCards,
     statusBreakdown,
     monthlyTrend,
     recentReports,
