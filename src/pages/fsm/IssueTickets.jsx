@@ -135,13 +135,13 @@ const IssueTickets = () => {
   ];
 
   return (
-    <div className="dashboard-container issue-overview-page">
+    <div className="dashboard-container issue-ticket-page issue-overview-page">
       <nav className="page-breadcrumb" aria-label="Breadcrumb">
         <button type="button" onClick={() => navigate("/fsm/inspections")}>Inspections</button>
         <span aria-hidden="true">/</span>
         <span aria-current="page">Issue Tickets</span>
       </nav>
-      <div className="page-header">
+      <div className="issue-ticket-header">
         <div>
           <h1>Issue Tickets</h1>
           <p className="page-subtitle">Review inspection-linked issues and open the checklist to update them.</p>
