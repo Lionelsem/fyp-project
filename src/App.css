@@ -1683,6 +1683,22 @@ button {
   background: #f8fafc;
 }
 
+.verification-photo-preview-button {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.verification-photo-preview-button:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.55);
+  outline-offset: 3px;
+}
+
 .verification-fix-photo-upload {
   display: grid;
   gap: 8px;
@@ -2079,6 +2095,15 @@ button {
 .compact-photo-field__stack .issue-photo-preview { width: 92px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18); }
 .compact-photo-field__limit { color: #64748b; font-weight: 600; }
 
+.compact-photo-field--locked,
+.compact-photo-field--locked * {
+  cursor: not-allowed;
+}
+
+.compact-photo-field--locked {
+  opacity: 0.65;
+}
+
 .compact-photo-field__preview-button {
   display: block;
   width: 100%;
@@ -2364,6 +2389,7 @@ button {
   border-radius: 12px;
   border: 1px solid #d1d5db;
   padding: 10px 12px;
+  font-family: inherit;
   font-size: var(--text-md);
   color: #0f172a;
   background: #ffffff;
@@ -2460,10 +2486,6 @@ select.inspection-row-control {
   gap: 16px;
   container-name: issue-panel;
   container-type: inline-size;
-}
-
-.issue-description-input {
-  text-align: center;
 }
 
 .issue-panel h4 {

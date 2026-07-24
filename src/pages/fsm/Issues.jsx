@@ -140,33 +140,79 @@ const appendHistory = (issue, entries) => [
   ...entries.filter(Boolean)
 ];
 
-const EvidencePhotoBox = ({ label, urls, alt, onRemove, removableFrom = PHOTO_LIMIT }) => (
-  <div className="issue-ticket-photo-group">
-    <span>{label}</span>
-    <div className="issue-ticket-photo-grid">
-      {Array.from({ length: PHOTO_LIMIT }).map((_, index) => {
-        const src = urls[index];
-        return src ? (
-          <figure key={`${label}-${src}-${index}`}>
-            <img className="issue-ticket-detail-photo" src={src} alt={`${alt} ${index + 1}`} />
-            {onRemove && index >= removableFrom && (
-              <button
-                type="button"
-                className="photo-remove-btn issue-remove-btn"
-                onClick={() => onRemove(index - removableFrom)}
-                aria-label={`Remove selected ${alt} ${index + 1}`}
-              >
-                &times;
-              </button>
-            )}
-          </figure>
-        ) : (
-          <div key={`${label}-empty-${index}`} className="issue-ticket-detail-photo issue-ticket-detail-photo--empty" aria-label={`${alt} slot ${index + 1}`} />
-        );
-      })}
+const EvidencePhotoBox = ({ label, urls, alt, onRemove, removableFrom = PHOTO_LIMIT }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState(null);
+  const photos = (urls || []).filter(Boolean).slice(0, PHOTO_LIMIT);
+
+  useEffect(() => {
+    if (!previewPhoto) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setPreviewPhoto(null);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [previewPhoto]);
+
+  return (
+    <div className="issue-ticket-photo-group">
+      <span>{label}</span>
+      <div className={`compact-photo-field${expanded ? " compact-photo-field--expanded" : ""}`}>
+        <div className="compact-photo-field__summary">
+          {photos.length > 0 ? (
+            <button
+              type="button"
+              className="compact-photo-field__cover"
+              onClick={() => setExpanded((current) => !current)}
+              aria-expanded={expanded}
+              aria-label={`${expanded ? "Hide" : "View"} ${photos.length} ${label.toLowerCase()}`}
+            >
+              <img src={photos[0]} alt={`${alt} 1`} />
+              <span className="compact-photo-field__count">{photos.length}</span>
+            </button>
+          ) : (
+            <div className="compact-photo-field__empty" aria-label={`No ${label.toLowerCase()} uploaded`} />
+          )}
+        </div>
+        {expanded && photos.length > 0 && (
+          <div className="compact-photo-field__stack" aria-label={`${label} gallery`}>
+            {photos.map((src, index) => (
+              <figure key={`${label}-${src}-${index}`} className="inspection-photo-preview">
+                <button
+                  type="button"
+                  className="compact-photo-field__preview-button"
+                  onClick={() => setPreviewPhoto({ url: src, alt: `${alt} ${index + 1}` })}
+                  aria-label={`View ${label.toLowerCase()} ${index + 1} full size`}
+                >
+                  <img className="issue-photo-preview" src={src} alt={`${alt} ${index + 1}`} />
+                </button>
+                {onRemove && index >= removableFrom && (
+                  <button
+                    type="button"
+                    className="photo-remove-btn issue-remove-btn"
+                    onClick={() => onRemove(index - removableFrom)}
+                    aria-label={`Remove selected ${alt} ${index + 1}`}
+                  >
+                    &times;
+                  </button>
+                )}
+              </figure>
+            ))}
+          </div>
+        )}
+        <small className="compact-photo-field__limit">{photos.length} / {PHOTO_LIMIT} photos</small>
+      </div>
+      {previewPhoto && (
+        <div className="inspection-image-lightbox" role="presentation" onClick={() => setPreviewPhoto(null)}>
+          <div className="inspection-image-lightbox__dialog" role="dialog" aria-modal="true" aria-label="Full-size photo preview" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="inspection-image-lightbox__close" onClick={() => setPreviewPhoto(null)} aria-label="Close photo preview">&times;</button>
+            <img src={previewPhoto.url} alt={previewPhoto.alt} />
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const toDate = (value) => {
   if (!value) return null;
