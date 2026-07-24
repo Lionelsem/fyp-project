@@ -24,6 +24,8 @@ const snapshotDoc = (id, data) => ({ id, data: () => data });
 
 beforeEach(() => {
   jest.clearAllMocks();
+  addFeedbackReply.mockResolvedValue(undefined);
+  markFeedbackMessagesAsRead.mockResolvedValue(undefined);
   useAuthContext.mockReturnValue({
     user: {
       uid: "fsm-auth-1",

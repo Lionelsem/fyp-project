@@ -56,22 +56,61 @@ const MONTHS = [
   "July","August","September","October","November","December"
 ];
 
+export const getFireDrillReportDate = (drill = {}) =>
+  drill.actualDate ||
+  drill.conductedDate ||
+  drill.completedAt ||
+  drill.drillDate ||
+  "";
+
+export const isConductedFireDrill = (drill = {}) => {
+  if (drill.actualDate || drill.conductedDate || drill.completedAt) return true;
+  const status = String(drill.status || drill.performanceStatus || "").trim().toLowerCase();
+  return ["completed", "conducted", "submitted", "approved"].includes(status);
+};
+
+export const getFireDrillPhotoUrls = (drill = {}) => {
+  const candidates = [
+    ...(Array.isArray(drill.photoUrls) ? drill.photoUrls : []),
+    ...(Array.isArray(drill.photos) ? drill.photos : []),
+    drill.photoUrl,
+    drill.photo
+  ];
+
+  return Array.from(new Set(
+    candidates
+      .map((photo) => {
+        if (typeof photo === "string") return photo.trim();
+        return String(
+          photo?.url ||
+          photo?.downloadURL ||
+          photo?.downloadUrl ||
+          photo?.photoUrl ||
+          ""
+        ).trim();
+      })
+      .filter(Boolean)
+  ));
+};
+
 const filterDrillsByMonth = (drills, month, year) => {
   const pad = String(month).padStart(2, "0");
   const prefix = `${year}-${pad}`;
   return drills.filter((d) => {
-    const dateStr = d.drillDate || d.actualDate || "";
+    if (!isConductedFireDrill(d)) return false;
+    const dateStr = getFireDrillReportDate(d);
     if (typeof dateStr === "string" && dateStr.startsWith(prefix)) return true;
-    const date = parseDate(d.drillDate || d.actualDate);
+    const date = parseDate(dateStr);
     return date && date.getMonth() + 1 === month && date.getFullYear() === year;
   });
 };
 
 const filterDrillsByYear = (drills, year) =>
   drills.filter((d) => {
-    const dateStr = d.drillDate || d.actualDate || "";
+    if (!isConductedFireDrill(d)) return false;
+    const dateStr = getFireDrillReportDate(d);
     if (typeof dateStr === "string" && dateStr.startsWith(String(year))) return true;
-    const date = parseDate(d.drillDate || d.actualDate);
+    const date = parseDate(dateStr);
     return date && date.getFullYear() === year;
   });
 
@@ -91,7 +130,8 @@ const filterDrillsByDateRange = (drills, from, to) => {
   const fromDate = from ? new Date(from) : null;
   const toDate = to ? new Date(`${to}T23:59:59`) : null;
   return drills.filter((d) => {
-    const raw = d.drillDate || d.actualDate || "";
+    if (!isConductedFireDrill(d)) return false;
+    const raw = getFireDrillReportDate(d);
     const date = typeof raw === "string" && raw ? new Date(raw) : parseDate(raw);
     if (!date || Number.isNaN(date.getTime())) return false;
     if (fromDate && date < fromDate) return false;
@@ -129,6 +169,12 @@ const filterByBuildings = (items = [], buildingIds) => {
   if (!buildingIds || buildingIds.size === 0) return items;
   return items.filter((item) => buildingIds.has(normalizeId(item.buildingId)));
 };
+
+export const getMonthlyFireDrillsForBuildings = (drills, month, year, buildings) =>
+  filterByBuildings(filterDrillsByMonth(drills || [], month, year), getBuildingIds(buildings || []));
+
+export const getAnnualFireDrillsForBuildings = (drills, year, buildings) =>
+  filterByBuildings(filterDrillsByYear(drills || [], year), getBuildingIds(buildings || []));
 
 const getBuildingName = (buildingMap, buildingId) => {
   const building = buildingMap.get(buildingId);
@@ -424,6 +470,103 @@ const renderReportPhotoHtml = (url, alt) =>
     ? `<img class="report-photo" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" />`
     : `<span class="photo-fallback">-</span>`;
 
+const renderFireDrillDetailsHtml = (drills = [], buildingMap) =>
+  drills.map((drill, index) => {
+    const buildingName = getBuildingName(buildingMap, drill.buildingId) || drill.buildingName || "-";
+    const observations = drill.observations || drill.issueFound || "No observations recorded.";
+    const followUp = drill.followUpIssues || drill.recommendations || "";
+    const photoUrls = getFireDrillPhotoUrls(drill);
+
+    return `
+      <section class="drill-evidence">
+        <h3>Drill ${index + 1}: ${escapeHtml(buildingName)} — ${escapeHtml(fmtDate(getFireDrillReportDate(drill)))}</h3>
+        <p><strong>Observations:</strong> ${renderMultilineHtml(observations)}</p>
+        ${followUp ? `<p><strong>Follow-up / Recommendations:</strong> ${renderMultilineHtml(followUp)}</p>` : ""}
+        ${
+          photoUrls.length
+            ? `<div class="drill-photo-grid">${photoUrls.map((url, photoIndex) =>
+                renderReportPhotoHtml(url, `Fire drill ${index + 1} evidence ${photoIndex + 1}`)
+              ).join("")}</div>`
+            : `<p class="muted">No photographs were attached to this drill.</p>`
+        }
+      </section>
+    `;
+  }).join("");
+
+const getImageType = (contentType, url) => {
+  const normalizedType = String(contentType || "").toLowerCase();
+  const normalizedUrl = String(url || "").toLowerCase().split("?")[0];
+  if (normalizedType.includes("png") || normalizedUrl.endsWith(".png")) return "png";
+  if (normalizedType.includes("gif") || normalizedUrl.endsWith(".gif")) return "gif";
+  if (normalizedType.includes("bmp") || normalizedUrl.endsWith(".bmp")) return "bmp";
+  return "jpg";
+};
+
+const loadReportImage = async (docxNS, url) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Unable to download report photograph (${response.status}).`);
+  const data = new Uint8Array(await response.arrayBuffer());
+  return new docxNS.ImageRun({
+    data,
+    type: getImageType(response.headers.get("content-type"), url),
+    transformation: { width: 240, height: 180 }
+  });
+};
+
+const buildFireDrillEvidenceChildren = async ({
+  docxNS,
+  drills,
+  buildingMap,
+  h2,
+  para,
+  txt,
+  spacer
+}) => {
+  const { Paragraph } = docxNS;
+  const children = [];
+
+  for (let index = 0; index < drills.length; index += 1) {
+    const drill = drills[index];
+    const buildingName = getBuildingName(buildingMap, drill.buildingId) || drill.buildingName || "-";
+    children.push(
+      h2(`Drill ${index + 1}: ${buildingName} — ${fmtDate(getFireDrillReportDate(drill))}`),
+      para([
+        txt("Observations: ", { bold: true }),
+        txt(drill.observations || drill.issueFound || "No observations recorded.")
+      ])
+    );
+
+    const followUp = drill.followUpIssues || drill.recommendations;
+    if (followUp) {
+      children.push(para([
+        txt("Follow-up / Recommendations: ", { bold: true }),
+        txt(followUp)
+      ]));
+    }
+
+    const photoUrls = getFireDrillPhotoUrls(drill);
+    if (photoUrls.length === 0) {
+      children.push(para("No photographs were attached to this drill."));
+    } else {
+      for (const [photoIndex, url] of photoUrls.entries()) {
+        try {
+          const imageRun = await loadReportImage(docxNS, url);
+          children.push(new Paragraph({
+            children: [imageRun],
+            spacing: { before: 80, after: 80 }
+          }));
+        } catch (error) {
+          console.warn("Could not embed a fire drill photograph in the Word report.", error);
+          children.push(para(`Photograph ${photoIndex + 1}: ${url}`));
+        }
+      }
+    }
+    children.push(spacer());
+  }
+
+  return children;
+};
+
 const renderAppendixAHtml = (entries = []) => {
   if (entries.length === 0) {
     return "<p>No findings to report for this period.</p>";
@@ -691,7 +834,7 @@ export const generateMonthlyReport = async ({
   );
 
   const selectedBuildingIds = getBuildingIds(buildings);
-  const drills = filterByBuildings(filterDrillsByMonth(fireDrills, month, year), selectedBuildingIds);
+  const drills = getMonthlyFireDrillsForBuildings(fireDrills, month, year, buildings);
   const monthInspections = filterByBuildings(
     filterByMonth(inspections, "inspectionDate", month, year),
     selectedBuildingIds
@@ -718,6 +861,15 @@ export const generateMonthlyReport = async ({
   const buildingAddress = primaryBuilding?.address || "-";
 
   const today = new Date();
+  const fireDrillEvidenceChildren = await buildFireDrillEvidenceChildren({
+    docxNS,
+    drills,
+    buildingMap,
+    h2,
+    para,
+    txt,
+    spacer
+  });
 
   const children = [
     // ── Cover Header ──
@@ -819,7 +971,7 @@ export const generateMonthlyReport = async ({
                 String(idx + 1),
                 bldgName,
                 d.drillType || "Standard Fire Drill",
-                d.actualDate || d.drillDate || "-",
+                getFireDrillReportDate(d) || "-",
                 d.participants || "-",
                 d.totalEvacuationTime || d.evacuationTime || "-",
                 d.performanceStatus || d.status || "-"
@@ -828,23 +980,7 @@ export const generateMonthlyReport = async ({
             [400, 1600, 1400, 1200, 1000, 1600, 1160]
           ),
           spacer(),
-          ...drills
-            .filter((d) => d.observations || d.recommendations)
-            .map((d) => {
-              const bldg = buildingMap.get(d.buildingId);
-              const bldgName = bldg
-                ? (bldg.buildingName || bldg.building_name || d.buildingId)
-                : (d.buildingName || "-");
-              return [
-                ...(d.observations
-                  ? [para([txt(`${bldgName} — Observations: `, { bold: true }), txt(d.observations)])]
-                  : []),
-                ...(d.recommendations
-                  ? [para([txt(`${bldgName} — Recommendations: `, { bold: true }), txt(d.recommendations)])]
-                  : [])
-              ];
-            })
-            .flat()
+          ...fireDrillEvidenceChildren
         ]),
     spacer(),
     spacer(),
@@ -953,7 +1089,7 @@ export const generateMonthlyReportPdf = async ({
   const monthLabel = MONTHS[month - 1];
   const buildingMap = new Map(buildings.map((b) => [b.id, b]));
   const selectedBuildingIds = getBuildingIds(buildings);
-  const drills = filterByBuildings(filterDrillsByMonth(fireDrills, month, year), selectedBuildingIds);
+  const drills = getMonthlyFireDrillsForBuildings(fireDrills, month, year, buildings);
   const monthInspections = filterByBuildings(
     filterByMonth(inspections, "inspectionDate", month, year),
     selectedBuildingIds
@@ -991,7 +1127,7 @@ export const generateMonthlyReportPdf = async ({
     String(idx + 1),
     getBuildingName(buildingMap, drill.buildingId) || drill.buildingName || "-",
     drill.drillType || "Standard Fire Drill",
-    drill.actualDate || drill.drillDate || "-",
+    getFireDrillReportDate(drill) || "-",
     drill.participants || "-",
     drill.totalEvacuationTime || drill.evacuationTime || "-",
     drill.performanceStatus || drill.status || "-"
@@ -1077,6 +1213,22 @@ export const generateMonthlyReportPdf = async ({
             background: #ffffff;
           }
           .photo-fallback { color: #6b7280; font-size: 11px; }
+          .drill-evidence {
+            border: 1px solid #d1d5db;
+            padding: 10px;
+            margin: 10px 0 16px;
+            page-break-inside: avoid;
+          }
+          .drill-photo-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+          }
+          .drill-photo-grid .report-photo {
+            width: 160px;
+            max-height: 120px;
+          }
         </style>
       </head>
       <body>
@@ -1123,7 +1275,10 @@ export const generateMonthlyReportPdf = async ({
         <h2>Fire Drill Records</h2>
         ${
           drillRows.length
-            ? renderHtmlTable(["S/No", "Building", "Type", "Date", "Participants", "Evacuation Time", "Result"], drillRows)
+            ? `
+                ${renderHtmlTable(["S/No", "Building", "Type", "Date", "Participants", "Evacuation Time", "Result"], drillRows)}
+                ${renderFireDrillDetailsHtml(drills, buildingMap)}
+              `
             : "<p>No fire drills were conducted during this period.</p>"
         }
 
@@ -1177,14 +1332,19 @@ export const generateAnnualReport = async ({
   issues,
   generatedBy
 }) => {
+  if (!Array.isArray(buildings) || buildings.length !== 1) {
+    throw new Error("Select exactly one building before generating an annual report.");
+  }
+
   const docxNS = await loadDocx();
   const { Document, Packer } = docxNS;
   const { txt, para, centered, spacer, h1, h2, makeTable, infoTable } = buildHelpers(docxNS);
 
   const buildingMap = new Map(buildings.map((b) => [b.id, b]));
+  const selectedBuildingIds = getBuildingIds(buildings);
 
-  const yearDrills = filterDrillsByYear(fireDrills, year);
-  const yearIssues = filterByYear(issues, "createdAt", year);
+  const yearDrills = getAnnualFireDrillsForBuildings(fireDrills, year, buildings);
+  const yearIssues = filterByBuildings(filterByYear(issues, "createdAt", year), selectedBuildingIds);
 
   // One report per building group, or combined if multiple
   const primaryBuilding = buildings.length === 1 ? buildings[0] : null;
@@ -1282,7 +1442,7 @@ export const generateAnnualReport = async ({
               return [
                 String(idx + 1).padStart(2, "0"),
                 bldgName,
-                d.actualDate || d.drillDate || "-",
+                getFireDrillReportDate(d) || "-",
                 d.participants || "-",
                 d.totalEvacuationTime || d.evacuationTime || "-",
                 d.issueFound || d.observations || "N/A",
@@ -1432,7 +1592,8 @@ export const generateAnnualReport = async ({
 
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `FSM_Annual_Report_${year}.docx`);
+  const buildingFileName = buildingName.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
+  saveAs(blob, `FSM_Annual_Report_${buildingFileName}_${year}.docx`);
 };
 
 // ─── Custom Report ────────────────────────────────────────────────────────────

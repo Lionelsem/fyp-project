@@ -10,7 +10,8 @@ import {
   createCustomerFeedbackThread,
   updateFeedbackReply,
   deleteFeedbackReply,
-  deleteCustomerFeedbackThread
+  deleteCustomerFeedbackThread,
+  getCustomerFeedbackRecipients
 } from "../../services/feedbackService";
 
 const formatTimestamp = (timestamp) => {
@@ -34,7 +35,10 @@ const Feedbacks = () => {
   const [showEditReplyModal, setShowEditReplyModal] = useState(false);
   const [editingReply, setEditingReply] = useState(null);
   const [editedReplyText, setEditedReplyText] = useState("");
-  const [newThreadRecipient, setNewThreadRecipient] = useState("");
+  const [recipientOptions, setRecipientOptions] = useState([]);
+  const [selectedRecipientKey, setSelectedRecipientKey] = useState("");
+  const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
+  const [recipientError, setRecipientError] = useState("");
   const [newThreadSubject, setNewThreadSubject] = useState("");
   const [newThreadBody, setNewThreadBody] = useState("");
   const messagesThreadRef = useRef(null);
@@ -42,6 +46,11 @@ const Feedbacks = () => {
   const selectedThread = useMemo(
     () => threads.find((thread) => thread.id === selectedThreadId) || null,
     [threads, selectedThreadId]
+  );
+
+  const selectedRecipient = useMemo(
+    () => recipientOptions.find((recipient) => recipient.key === selectedRecipientKey) || null,
+    [recipientOptions, selectedRecipientKey]
   );
 
   useEffect(() => {
@@ -191,19 +200,21 @@ const Feedbacks = () => {
 
   const handleCreateThread = async (event) => {
     event.preventDefault();
-    if (!newThreadSubject.trim() || !newThreadBody.trim() || !user?.uid) return;
+    if (!newThreadSubject.trim() || !newThreadBody.trim() || !user?.uid || !selectedRecipient) {
+      return;
+    }
 
     try {
-      const assignedFsmId = newThreadRecipient.trim() || user.assignedFsmId || "";
       const threadRef = await createCustomerFeedbackThread({
         customerId: user.uid,
         customerName: user.fullName || user.displayName || user.email || "Customer",
         title: newThreadSubject.trim(),
-        recipient: newThreadRecipient.trim() || "Assigned FSM",
-        assignedFsmId,
+        recipient: selectedRecipient.fsmName,
+        assignedFsmId: selectedRecipient.fsmId,
         issueId: "",
-        building: "",
-        participants: [user.uid, assignedFsmId].filter(Boolean),
+        buildingId: selectedRecipient.buildingId,
+        building: selectedRecipient.buildingName,
+        participants: [user.uid, selectedRecipient.fsmId],
         createdBy: user.uid
       });
 
@@ -215,13 +226,39 @@ const Feedbacks = () => {
       });
 
       setShowNewMessageModal(false);
-      setNewThreadRecipient("");
+      setRecipientOptions([]);
+      setSelectedRecipientKey("");
+      setRecipientError("");
       setNewThreadSubject("");
       setNewThreadBody("");
       setSelectedThreadId(threadRef.id);
     } catch (error) {
       console.error("Failed to create new thread:", error);
       alert("Unable to create new conversation. Please try again.");
+    }
+  };
+
+  const handleOpenNewMessage = async () => {
+    setShowNewMessageModal(true);
+    setRecipientOptions([]);
+    setSelectedRecipientKey("");
+    setRecipientError("");
+    setIsLoadingRecipients(true);
+
+    try {
+      const recipients = await getCustomerFeedbackRecipients(user);
+      setRecipientOptions(recipients);
+      setSelectedRecipientKey(recipients[0]?.key || "");
+      if (recipients.length === 0) {
+        setRecipientError(
+          "No FSM is assigned to your account or building. Ask an administrator to complete the assignment."
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load assigned FSM:", error);
+      setRecipientError("Unable to load your assigned FSM. Please try again.");
+    } finally {
+      setIsLoadingRecipients(false);
     }
   };
 
@@ -236,10 +273,7 @@ const Feedbacks = () => {
           <button
             type="button"
             className={styles.newMessageButton}
-            onClick={() => {
-              setNewThreadRecipient("John Smith (FSM)");
-              setShowNewMessageModal(true);
-            }}
+            onClick={handleOpenNewMessage}
           >
             <span aria-hidden="true">+</span> New Message
           </button>
@@ -438,13 +472,23 @@ const Feedbacks = () => {
             <form onSubmit={handleCreateThread}>
               <div className={styles.formGroup}>
                 <label htmlFor="new-message-recipient">Recipient</label>
-                <input
+                <select
                   id="new-message-recipient"
-                  type="text"
-                  placeholder="Assigned FSM or team name"
-                  value={newThreadRecipient}
-                  onChange={(e) => setNewThreadRecipient(e.target.value)}
-                />
+                  value={selectedRecipientKey}
+                  onChange={(e) => setSelectedRecipientKey(e.target.value)}
+                  disabled={isLoadingRecipients || recipientOptions.length === 0}
+                >
+                  <option value="">
+                    {isLoadingRecipients ? "Loading assigned FSM..." : "Select assigned FSM"}
+                  </option>
+                  {recipientOptions.map((recipient) => (
+                    <option key={recipient.key} value={recipient.key}>
+                      {recipient.fsmName}
+                      {recipient.buildingName ? ` — ${recipient.buildingName}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {recipientError && <p role="alert">{recipientError}</p>}
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="new-message-subject">Subject</label>
@@ -476,7 +520,12 @@ const Feedbacks = () => {
                 <button
                   type="submit"
                   className={styles.submitButton}
-                  disabled={!newThreadSubject.trim() || !newThreadBody.trim()}
+                  disabled={
+                    !selectedRecipient ||
+                    !newThreadSubject.trim() ||
+                    !newThreadBody.trim() ||
+                    isLoadingRecipients
+                  }
                 >
                   Send Message
                 </button>

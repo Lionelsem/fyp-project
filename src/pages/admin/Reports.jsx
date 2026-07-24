@@ -108,12 +108,18 @@ const ModalHeader = ({ title, onClose, generating }) => (
   </div>
 );
 
-const ModalActions = ({ onCancel, onSubmit, generating, submitLabel = "Generate & Download" }) => (
+const ModalActions = ({
+  onCancel,
+  onSubmit,
+  generating,
+  disabled = false,
+  submitLabel = "Generate & Download"
+}) => (
   <div className="report-modal-actions">
     <button type="button" className="secondary-btn" onClick={onCancel} disabled={generating}>
       Cancel
     </button>
-    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating}>
+    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating || disabled}>
       {generating ? "Generating..." : submitLabel}
     </button>
   </div>
@@ -139,6 +145,7 @@ const AdminReports = () => {
   // Annual modal
   const [showAnnualModal, setShowAnnualModal] = useState(false);
   const [annualYear,      setAnnualYear]      = useState(CURRENT_YEAR);
+  const [annualBuilding,  setAnnualBuilding]  = useState("");
 
   // Custom modal
   const [showCustomModal,      setShowCustomModal]      = useState(false);
@@ -286,26 +293,43 @@ const AdminReports = () => {
   const openAnnualModal = () => {
     setGenerateError(null);
     setAnnualYear(CURRENT_YEAR);
+    setAnnualBuilding("");
     setShowAnnualModal(true);
   };
 
   const doGenerateAnnual = async () => {
+    if (!annualBuilding) {
+      setGenerateError("Please select a building for the annual report.");
+      return;
+    }
+
     setGenerating(true);
     setGenerateError(null);
     try {
       const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
+      const selectedAnnualBuilding = buildings.find((building) => building.id === annualBuilding);
+      if (!selectedAnnualBuilding) {
+        throw new Error("The selected building could not be found.");
+      }
+      const annualBuildings = [selectedAnnualBuilding];
+      const annualBuildingName =
+        selectedAnnualBuilding.buildingName ||
+        selectedAnnualBuilding.building_name ||
+        selectedAnnualBuilding.buildingId ||
+        selectedAnnualBuilding.id;
+
       await generateAnnualReport({
-        year: annualYear, buildings,
+        year: annualYear, buildings: annualBuildings,
         fireDrills: firedrills, inspections, inspectionResults,
         issues: issueList, generatedBy: generatedByName()
       });
       await createReport({
         reportId:    `REP-${annualYear}-ANN-${Date.now()}`,
         reportType:  "Annual",
-        buildingId:  null,
+        buildingId:  annualBuilding,
         generatedBy: user?.uid || "admin",
         generatedDate: new Date(),
-        reportTitle: `Annual Report ${annualYear}`,
+        reportTitle: `Annual Report ${annualYear} — ${annualBuildingName}`,
         status:   "Generated",
         priority: "Normal",
         period:   String(annualYear)
@@ -703,12 +727,28 @@ const AdminReports = () => {
                 marginBottom: "20px",
               }}
             >
-              Generates a full annual report covering all buildings for the selected year.
+              Select one building and year. The report will only include records belonging to that building.
             </p>
             <div className="form-field">
               <label className="form-label">Year</label>
               <select className="form-input" value={annualYear} onChange={(e) => setAnnualYear(Number(e.target.value))}>
                 {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="annual-report-building">Building</label>
+              <select
+                id="annual-report-building"
+                className="form-input"
+                value={annualBuilding}
+                onChange={(event) => setAnnualBuilding(event.target.value)}
+              >
+                <option value="">Select a building</option>
+                {buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {building.buildingName || building.building_name || building.buildingId || "Unnamed building"}
+                  </option>
+                ))}
               </select>
             </div>
             {generateError && (
@@ -722,7 +762,11 @@ const AdminReports = () => {
                 {generateError}
               </div>
             )}
-            <ModalActions onCancel={() => setShowAnnualModal(false)} onSubmit={doGenerateAnnual} generating={generating} />
+            <ModalActions
+              onCancel={() => setShowAnnualModal(false)}
+              onSubmit={doGenerateAnnual}
+              generating={generating}
+            />
           </div>
         </div>
       )}

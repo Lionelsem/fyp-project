@@ -26,6 +26,7 @@ jest.mock("../config/firebase", () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  doc.mockReturnValue({ path: "users/profile-1" });
   updateDoc.mockResolvedValue();
 });
 

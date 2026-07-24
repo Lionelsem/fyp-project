@@ -53,7 +53,7 @@ test("building submenu includes an explicit overview destination", () => {
     "href",
     "/fsm/fire-drill"
   );
-  expect(screen.getByRole("link", { name: "Comments/Feedbacks" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: /comments\/feedbacks/i })).toHaveAttribute(
     "href",
     "/fsm/feedbacks"
   );
