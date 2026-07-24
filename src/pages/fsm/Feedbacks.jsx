@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
+import Modal from "../../components/common/Modal";
 import styles from "../customer/Feedbacks.module.css";
 import {
   addFeedbackReply,
+  deleteFeedbackReply,
   listenToFeedbackThreadReplies,
   listenToFsmFeedbackThreads,
-  markFeedbackMessagesAsRead
+  markFeedbackMessagesAsRead,
+  updateFeedbackReply
 } from "../../services/feedbackService";
 
 const toDate = (value) => {
@@ -48,6 +51,9 @@ const Feedbacks = () => {
   const [replies, setReplies] = useState([]);
   const [replyText, setReplyText] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [mobileViewingThread, setMobileViewingThread] = useState(false);
+  const [editingReply, setEditingReply] = useState(null);
+  const [editedReplyText, setEditedReplyText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState("");
@@ -170,6 +176,45 @@ const Feedbacks = () => {
     }
   };
 
+  const closeEditReply = () => {
+    setEditingReply(null);
+    setEditedReplyText("");
+  };
+
+  const handleEditReply = (reply) => {
+    setEditingReply(reply);
+    setEditedReplyText(reply.message || "");
+  };
+
+  const handleSaveEditedReply = async () => {
+    const message = editedReplyText.trim();
+    if (!selectedThreadId || !editingReply?.id || !message || isSending) return;
+
+    setIsSending(true);
+    try {
+      await updateFeedbackReply(selectedThreadId, editingReply.id, { message });
+      closeEditReply();
+      setError("");
+    } catch (editError) {
+      console.error("Failed to update FSM feedback reply:", editError);
+      setError("Your message could not be updated. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!selectedThreadId || !replyId || !window.confirm("Delete this message?")) return;
+
+    try {
+      await deleteFeedbackReply(selectedThreadId, replyId);
+      setError("");
+    } catch (deleteError) {
+      console.error("Failed to delete FSM feedback reply:", deleteError);
+      setError("Your message could not be deleted. Please try again.");
+    }
+  };
+
   return (
     <div className={styles.feedbacksContainer}>
       <header className={styles.header}>
@@ -181,7 +226,11 @@ const Feedbacks = () => {
 
       {error && <div className="error-state" role="alert">{error}</div>}
 
-      <div className={styles.contentWrapper}>
+      <div
+        className={`${styles.contentWrapper} ${
+          mobileViewingThread ? styles.mobileConversationVisible : styles.mobileListVisible
+        }`}
+      >
         <div className={styles.messagesPanel}>
           <div className={styles.searchBox}>
             <label className={styles.visuallyHidden} htmlFor="fsm-feedback-search">
@@ -208,7 +257,10 @@ const Feedbacks = () => {
                 type="button"
                 key={thread.id}
                 className={`${styles.messageItem} ${selectedThreadId === thread.id ? styles.active : ""}`}
-                onClick={() => setSelectedThreadId(thread.id)}
+                onClick={() => {
+                  setSelectedThreadId(thread.id);
+                  setMobileViewingThread(true);
+                }}
                 aria-pressed={selectedThreadId === thread.id}
               >
                 <span className={styles.messageTitle}>{thread.title || "Customer feedback"}</span>
@@ -224,10 +276,21 @@ const Feedbacks = () => {
           {selectedThread ? (
             <>
               <div className={styles.conversationHeader}>
-                <h2>{selectedThread.title || "Customer feedback"}</h2>
-                <p className={styles.buildingInfo}>
-                  {[selectedThread.customerName, selectedThread.building].filter(Boolean).join(" · ") || "Customer conversation"}
-                </p>
+                <div className={styles.conversationHeaderInfo}>
+                  <button
+                    type="button"
+                    className={styles.mobileBackButton}
+                    onClick={() => setMobileViewingThread(false)}
+                  >
+                    ← Chats
+                  </button>
+                  <div>
+                    <h2>{selectedThread.title || "Customer feedback"}</h2>
+                    <p className={styles.buildingInfo}>
+                      {[selectedThread.customerName, selectedThread.building].filter(Boolean).join(" · ") || "Customer conversation"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className={styles.messagesThread} aria-live="polite" ref={messagesThreadRef}>
@@ -244,6 +307,26 @@ const Feedbacks = () => {
                           <strong>{reply.senderName || reply.sender || "Customer"}</strong>
                           <span className={styles.time}>{formatTimestamp(reply.createdAt)}</span>
                         </div>
+                        {reply.isOwn && (
+                          <div className={styles.messageActions}>
+                            <button
+                              type="button"
+                              className={styles.messageActionButton}
+                              onClick={() => handleEditReply(reply)}
+                              aria-label="Edit your message"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.messageActionButton}
+                              onClick={() => handleDeleteReply(reply.id)}
+                              aria-label="Delete your message"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <p className={styles.messageText}>{reply.message}</p>
                       {reply.isOwn && (
@@ -289,6 +372,40 @@ const Feedbacks = () => {
           )}
         </div>
       </div>
+
+      {editingReply && (
+        <Modal
+          title="Edit Message"
+          onClose={closeEditReply}
+          className={styles.feedbackModal}
+          bodyClassName={styles.feedbackModalBody}
+        >
+          <div className={styles.modalContent}>
+            <div className={styles.formGroup}>
+              <label htmlFor="fsm-edit-reply-text">Message</label>
+              <textarea
+                id="fsm-edit-reply-text"
+                value={editedReplyText}
+                onChange={(event) => setEditedReplyText(event.target.value)}
+                placeholder="Enter your message..."
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.cancelButton} onClick={closeEditReply}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.submitButton}
+                onClick={handleSaveEditedReply}
+                disabled={!editedReplyText.trim() || isSending}
+              >
+                {isSending ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

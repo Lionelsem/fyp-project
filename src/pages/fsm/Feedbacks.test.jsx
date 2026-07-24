@@ -4,9 +4,11 @@ import Feedbacks from "./Feedbacks";
 import { useAuthContext } from "../../context/AuthContext";
 import {
   addFeedbackReply,
+  deleteFeedbackReply,
   listenToFeedbackThreadReplies,
   listenToFsmFeedbackThreads,
-  markFeedbackMessagesAsRead
+  markFeedbackMessagesAsRead,
+  updateFeedbackReply
 } from "../../services/feedbackService";
 
 jest.mock("../../context/AuthContext", () => ({
@@ -15,17 +17,17 @@ jest.mock("../../context/AuthContext", () => ({
 
 jest.mock("../../services/feedbackService", () => ({
   addFeedbackReply: jest.fn(() => Promise.resolve()),
+  deleteFeedbackReply: jest.fn(() => Promise.resolve()),
   listenToFeedbackThreadReplies: jest.fn(),
   listenToFsmFeedbackThreads: jest.fn(),
-  markFeedbackMessagesAsRead: jest.fn(() => Promise.resolve())
+  markFeedbackMessagesAsRead: jest.fn(() => Promise.resolve()),
+  updateFeedbackReply: jest.fn(() => Promise.resolve())
 }));
 
 const snapshotDoc = (id, data) => ({ id, data: () => data });
 
 beforeEach(() => {
   jest.clearAllMocks();
-  addFeedbackReply.mockResolvedValue(undefined);
-  markFeedbackMessagesAsRead.mockResolvedValue(undefined);
   useAuthContext.mockReturnValue({
     user: {
       uid: "fsm-auth-1",
@@ -74,8 +76,8 @@ test("lets an FSM read and reply without creating customer conversations", async
   expect(screen.getByText("Can you clarify this item?")).toBeInTheDocument();
   expect(screen.getByText("Read")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /new message/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Edit your message" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Delete your message" })).toBeInTheDocument();
   expect(markFeedbackMessagesAsRead).toHaveBeenCalledWith(
     "thread-1",
     expect.any(Array),
@@ -94,5 +96,28 @@ test("lets an FSM read and reply without creating customer conversations", async
       createdBy: "fsm-auth-1",
       message: "I will send the clarification today."
     });
+  });
+});
+
+test("lets an FSM edit and delete only their own sent message", async () => {
+  window.confirm = jest.fn(() => true);
+  render(<Feedbacks />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Edit your message" }));
+  fireEvent.change(screen.getByLabelText("Message"), {
+    target: { value: "Updated clarification." }
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+  await waitFor(() => {
+    expect(updateFeedbackReply).toHaveBeenCalledWith("thread-1", "message-2", {
+      message: "Updated clarification."
+    });
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete your message" }));
+
+  await waitFor(() => {
+    expect(deleteFeedbackReply).toHaveBeenCalledWith("thread-1", "message-2");
   });
 });
