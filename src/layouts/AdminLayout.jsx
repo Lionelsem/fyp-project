@@ -1,5 +1,6 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import { useAuthContext } from "../context/AuthContext";
 import AdminNavbar from "../components/admin/AdminNavbar";
 import AdminSidebar from "../components/admin/AdminSidebar";
@@ -38,6 +39,7 @@ const AdminLayout = ({ children }) => {
 
   return (
     <div className="app-shell">
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
       <div className="app-body">
         <AdminSidebar profile={sidebarProfile} />
         <div className="app-main">

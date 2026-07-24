@@ -54,10 +54,17 @@ const AdminIssues = () => {
     };
   }, []);
 
-  const buildingMap = useMemo(
-    () => new Map(buildings.map((building) => [building.id, building.buildingName || building.building_name || building.buildingId])),
-    [buildings]
-  );
+  const buildingMap = useMemo(() => {
+    const map = new Map();
+    buildings.forEach((building) => {
+      const name = building.buildingName || building.building_name || "-";
+      map.set(building.id, name);
+      if (building.buildingId && building.buildingId !== building.id) {
+        map.set(building.buildingId, name);
+      }
+    });
+    return map;
+  }, [buildings]);
 
   const userMap = useMemo(
     () => new Map(users.map((user) => [user.uid, user.fullName || user.email])),
@@ -145,7 +152,6 @@ const AdminIssues = () => {
           <table className="dashboard-table">
             <thead>
               <tr>
-                <th>ISSUE ID</th>
                 <th>BUILDING</th>
                 <th>LOCATION</th>
                 <th>FINDING</th>
@@ -156,21 +162,20 @@ const AdminIssues = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                     Loading issues...
                   </td>
                 </tr>
               ) : filteredIssues.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                     No issues found.
                   </td>
                 </tr>
               ) : (
                 filteredIssues.map((issue) => (
                   <tr key={issue.id}>
-                    <td className="id-cell">{issue.issueId || issue.id}</td>
-                    <td>{buildingMap.get(issue.buildingId) || issue.buildingId || "Unknown"}</td>
+                    <td>{buildingMap.get(issue.buildingId) || "Unknown"}</td>
                     <td>{issue.location || "-"}</td>
                     <td>{issue.issueTitle || issue.issueDescription || "-"}</td>
                     <td>{userMap.get(issue.reportedBy) || issue.reportedBy || "-"}</td>

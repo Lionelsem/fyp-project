@@ -1,26 +1,139 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import * as XLSX from "xlsx";
 import { getAllUsers, deleteUser } from "../../services/userService";
+import { createUserAccount } from "../../services/authService";
+import { getAllBuildings } from "../../services/buildingService";
+import { ROLES } from "../../constants/roles";
+
+const normalizeHeader = (h) => String(h || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+
+const parseUserRow = (row) => {
+  const get = (keys) => {
+    for (const k of keys) {
+      const match = Object.keys(row).find((h) => normalizeHeader(h) === k);
+      if (match !== undefined && row[match] !== undefined && row[match] !== "") return String(row[match]).trim();
+    }
+    return "";
+  };
+  const rawRole = get(["role", "userrole", "type"]).toLowerCase();
+  let role = ROLES.FSM;
+  if (rawRole.includes("customer") || rawRole.includes("client")) role = ROLES.CUSTOMER;
+  else if (rawRole.includes("admin")) role = ROLES.ADMIN;
+  return {
+    firstName:   get(["firstname", "first", "fname"]),
+    lastName:    get(["lastname", "last", "lname", "surname"]),
+    email:       get(["email", "emailaddress"]),
+    phoneNumber: get(["phone", "phonenumber", "mobile", "contact"]),
+    role,
+    password:    get(["password", "pass", "pwd"])
+  };
+};
 
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
+  const [buildings, setBuildings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState("");
+  const importRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadData = async () => {
       try {
-        const userList = await getAllUsers();
+        const [userList, buildingList] = await Promise.all([getAllUsers(), getAllBuildings()]);
         setUsers(userList);
+        setBuildings(buildingList);
       } catch (error) {
         console.error("Failed to load users", error);
       } finally {
         setLoading(false);
       }
     };
-    loadUsers();
+    loadData();
   }, []);
+
+  const assignedBuildingsMap = useMemo(() => {
+    const map = new Map();
+    buildings.forEach((building) => {
+      if (!building.assignedFsmId) return;
+      const name = building.buildingName || building.building_name || "-";
+      if (!map.has(building.assignedFsmId)) {
+        map.set(building.assignedFsmId, []);
+      }
+      map.get(building.assignedFsmId).push(name);
+    });
+    return map;
+  }, [buildings]);
+
+  const getAssignedBuildings = (uid) => {
+    const names = assignedBuildingsMap.get(uid);
+    if (!names || names.length === 0) return "-";
+    return names.join(", ");
+  };
+
+  const handleImportExcel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true);
+    const toastId = toast.loading("Importing users...");
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(new Uint8Array(data));
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (rows.length === 0) {
+        toast.error("No data rows found in the file.", { id: toastId });
+        return;
+      }
+
+      let succeeded = 0;
+      let failed = 0;
+
+      for (const row of rows) {
+        const parsed = parseUserRow(row);
+        if (!parsed.firstName || !parsed.email || !parsed.password) {
+          failed += 1;
+          continue;
+        }
+        try {
+          await createUserAccount({
+            firstName:   parsed.firstName,
+            lastName:    parsed.lastName,
+            email:       parsed.email.toLowerCase(),
+            phoneNumber: parsed.phoneNumber,
+            role:        parsed.role,
+            password:    parsed.password
+          });
+          succeeded += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+
+      if (succeeded > 0) {
+        const [refreshed] = await Promise.all([getAllUsers()]);
+        setUsers(refreshed);
+      }
+
+      if (failed === 0) {
+        toast.success(`${succeeded} user${succeeded !== 1 ? "s" : ""} imported.`, { id: toastId });
+      } else {
+        toast(`${succeeded} imported, ${failed} skipped (missing required fields or duplicate email).`, {
+          id: toastId,
+          icon: "⚠️"
+        });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to read file.", { id: toastId });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -32,14 +145,31 @@ const ManageUsers = () => {
               Manage roles, permissions, and status for FSMs and customers.
             </p>
           </div>
-          <button
-            type="button"
-            className="primary-btn"
-            style={{ minWidth: "160px" }}
-            onClick={() => navigate("/users/create")}
-          >
-            + Add User
-          </button>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              style={{ display: "none" }}
+              onChange={handleImportExcel}
+            />
+            <button
+              type="button"
+              className="primary-btn"
+              disabled={importing}
+              onClick={() => importRef.current?.click()}
+            >
+              {importing ? "Importing..." : "Import Excel"}
+            </button>
+            <button
+              type="button"
+              className="primary-btn"
+              style={{ minWidth: "160px" }}
+              onClick={() => navigate("/users/create")}
+            >
+              + Add User
+            </button>
+          </div>
         </div>
       </div>
 
@@ -47,10 +177,9 @@ const ManageUsers = () => {
         <table className="dashboard-table" style={{ width: "100%" }}>
           <thead>
             <tr>
-              <th>USER ID</th>
               <th>NAME</th>
               <th>ROLE</th>
-              <th>ASSIGNED BUILDING</th>
+              <th>ASSIGNED BUILDINGS</th>
               <th>EMAIL</th>
               <th>STATUS</th>
               <th>ACTION</th>
@@ -72,10 +201,9 @@ const ManageUsers = () => {
             ) : (
               users.map((user) => (
                 <tr key={user.uid}>
-                  <td className="id-cell">{user.uid}</td>
                   <td>{user.fullName || "-"}</td>
                   <td>{user.role || "-"}</td>
-                  <td>{user.assignedBuilding || "-"}</td>
+                  <td>{getAssignedBuildings(user.uid)}</td>
                   <td>{user.email || "-"}</td>
                   <td>{user.status || "Active"}</td>
                   <td>
@@ -100,8 +228,10 @@ const ManageUsers = () => {
                           try {
                             await deleteUser(user.uid);
                             setUsers((prev) => prev.filter((item) => item.uid !== user.uid));
+                            toast.success("User deleted.");
                           } catch (deleteError) {
                             console.error("Failed to delete user", deleteError);
+                            toast.error("Failed to delete user.");
                           } finally {
                             setDeletingUserId("");
                           }

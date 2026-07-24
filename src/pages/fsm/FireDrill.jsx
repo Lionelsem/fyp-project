@@ -1020,7 +1020,7 @@ const FireDrill = () => {
             <table className="dashboard-table fire-drill-history-table">
               <thead>
                 <tr>
-                  <th>DRILL ID</th>
+                  <th>BUILDING</th>
                   <th>TYPE</th>
                   <th>DATE</th>
                   <th>STATUS</th>
@@ -1033,7 +1033,7 @@ const FireDrill = () => {
 
                   return (
                     <tr key={drill.id}>
-                      <td className="id-cell">{drill.id}</td>
+                      <td>{drill.buildingName}</td>
                       <td>{drill.drillType}</td>
                       <td>{formatDate(drill.actualDate || drill.conductedDate || drill.drillDate)}</td>
                       <td>

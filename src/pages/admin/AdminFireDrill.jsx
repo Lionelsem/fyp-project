@@ -90,21 +90,12 @@ const AdminFireDrill = () => {
   );
 
   const summary = useMemo(() => {
-    const totals = {
-      total: fireDrills.length,
-      scheduled: 0,
-      completed: 0,
-      review: 0
-    };
-
+    const totals = { total: fireDrills.length, scheduled: 0, completed: 0 };
     fireDrills.forEach((drill) => {
       const status = String(drill.status || drill.performanceStatus || "").trim().toLowerCase();
       if (status === "scheduled" || status === "pending") totals.scheduled += 1;
       else if (status === "completed" || status === "passed") totals.completed += 1;
-      else if (status === "review" || status === "failed") totals.review += 1;
-      else totals.review += 0;
     });
-
     return totals;
   }, [fireDrills]);
 
@@ -130,7 +121,7 @@ const AdminFireDrill = () => {
       {loading && <div className="loading-state">Loading fire drill records...</div>}
       {error && <div className="error-state">{error}</div>}
 
-      <div className="dashboard-grid" style={{ marginBottom: "24px" }}>
+      <div className="dashboard-grid" style={{ marginBottom: "24px", gridTemplateColumns: "repeat(3, 1fr)" }}>
         <div className="summary-card">
           <div className="card-label">Total Fire Drills</div>
           <div className="card-value">{summary.total}</div>
@@ -142,10 +133,6 @@ const AdminFireDrill = () => {
         <div className="summary-card">
           <div className="card-label">Completed</div>
           <div className="card-value">{summary.completed}</div>
-        </div>
-        <div className="summary-card">
-          <div className="card-label">Needs Review</div>
-          <div className="card-value">{summary.review}</div>
         </div>
       </div>
 

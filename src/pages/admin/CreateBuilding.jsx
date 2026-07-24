@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { createBuilding } from "../../services/buildingService";
 
 const initialForm = {
@@ -8,7 +9,6 @@ const initialForm = {
   address: "",
   storeys: "",
   occupantLoad: "",
-  assignedFsm: "",
   status: "Compliant"
 };
 
@@ -19,7 +19,6 @@ const normalizeBuildingPayload = (form) => ({
   address: form.address.trim(),
   noOfStoreys: form.storeys ? Number(form.storeys) : null,
   occupantLoad: String(form.occupantLoad || "").trim(),
-  assignedFsmId: String(form.assignedFsm || "").trim(),
   occupancyType: "",
   grossFloorAreaGfa: "",
   customerId: "",
@@ -29,7 +28,6 @@ const normalizeBuildingPayload = (form) => ({
 const CreateBuilding = () => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null);
   const navigate = useNavigate();
 
   const handleChange = (field) => (event) => {
@@ -38,10 +36,9 @@ const CreateBuilding = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setMessage(null);
 
     if (!form.buildingId || !form.buildingName || !form.address) {
-      setMessage({ type: "error", text: "Building ID, name, and address are required." });
+      toast.error("Building ID, name, and address are required.");
       return;
     }
 
@@ -49,13 +46,13 @@ const CreateBuilding = () => {
     try {
       const payload = normalizeBuildingPayload(form);
       await createBuilding(payload);
-      setMessage({ type: "success", text: "Building created successfully." });
+      toast.success("Building created successfully.");
       setForm(initialForm);
       navigate("/buildings");
     } catch (error) {
       console.error("Could not create building", error);
       const errorMessage = error.details || error.message || "Failed to create building.";
-      setMessage({ type: "error", text: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -148,16 +145,6 @@ const CreateBuilding = () => {
 
           <div className="form-grid">
             <div className="form-field">
-              <label className="form-label">Assigned FSM</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Jane Doe"
-                value={form.assignedFsm}
-                onChange={handleChange("assignedFsm")}
-              />
-            </div>
-            <div className="form-field">
               <label className="form-label">Status</label>
               <select className="form-input" value={form.status} onChange={handleChange("status")}> 
                 <option value="Compliant">Compliant</option>
@@ -166,12 +153,6 @@ const CreateBuilding = () => {
               </select>
             </div>
           </div>
-
-          {message && (
-            <div style={{ color: message.type === "error" ? "#b91c1c" : "#047857", fontWeight: 600 }}>
-              {message.text}
-            </div>
-          )}
 
           <button type="submit" className="primary-btn" disabled={loading}>
             {loading ? "Saving building..." : "Create Building"}

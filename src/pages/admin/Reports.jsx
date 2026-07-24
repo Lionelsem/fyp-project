@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { getAllBuildings } from "../../services/buildingService";
 import { getAllFireDrills } from "../../services/fireDrillService";
 import { getIssues } from "../../services/issueService";
@@ -15,6 +15,7 @@ import {
   generateMonthlyReportPdf
 } from "../../services/reportGeneratorService";
 import { getAllUsers } from "../../services/userService";
+import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 
 const MONTHS = [
@@ -78,18 +79,11 @@ const getStatusStyle = (status) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
-const getPriorityStyle = (priority) => {
-  const p = String(priority || "").toLowerCase();
-  if (p === "urgent") return { color: "#dc2626", backgroundColor: "#fef2f2" };
-  if (p === "high")   return { color: "#ea580c", backgroundColor: "#fff7ed" };
-  return { color: "#475569", backgroundColor: "#f1f5f9" };
-};
-
 const TABS = [
   { key: "recent",  label: "Recent Reports" },
-  { key: "monthly", label: "Monthly Summaries" },
-  { key: "annual",  label: "Annual Audits" },
-  { key: "custom",  label: "Custom" }
+  { key: "monthly", label: "Monthly Reports" },
+  { key: "annual",  label: "Annual Reports" },
+  { key: "custom",  label: "Custom Reports" }
 ];
 
 const ModalHeader = ({ title, onClose, generating }) => (
@@ -148,13 +142,12 @@ const AdminReports = () => {
   const [customBuilding,       setCustomBuilding]       = useState("all");
   const [customTitle,          setCustomTitle]          = useState("");
   const [customOpeningRemarks, setCustomOpeningRemarks] = useState("");
-  const [customPriority,       setCustomPriority]       = useState("Normal");
   const [customSections,       setCustomSections]       = useState(defaultSections("Monthly"));
 
   // Shared generating state
-  const [generating,     setGenerating]     = useState(false);
-  const [generateError,  setGenerateError]  = useState(null);
-  const [selectedReportRecord, setSelectedReportRecord] = useState(null);
+  const [generating,          setGenerating]          = useState(false);
+  const [generateError,       setGenerateError]       = useState(null);
+  const [downloadingReportId, setDownloadingReportId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -220,6 +213,48 @@ const AdminReports = () => {
       getAllInspectionResults()
     ]);
 
+  const handleDownloadReport = useCallback(async (report) => {
+    if (report.reportType === "Custom") {
+      toast("Custom reports cannot be re-downloaded. Please generate a new one.", { icon: "ℹ️" });
+      return;
+    }
+
+    setDownloadingReportId(report.id);
+    const toastId = toast.loading("Generating report...");
+    try {
+      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
+
+      if (report.reportType === "Monthly") {
+        const parts = String(report.period || "").split(" ");
+        const monthIndex = MONTHS.findIndex((m) => m === parts[0]);
+        const month = monthIndex >= 0 ? monthIndex + 1 : new Date().getMonth() + 1;
+        const year = parseInt(parts[1], 10) || CURRENT_YEAR;
+        const buildingsToUse = report.buildingId
+          ? buildings.filter((b) => b.id === report.buildingId)
+          : buildings;
+        await generateMonthlyReport({
+          month, year, buildings: buildingsToUse,
+          fireDrills: firedrills, inspections, inspectionResults,
+          issues: issueList, generatedBy: generatedByName()
+        });
+      } else if (report.reportType === "Annual") {
+        const year = parseInt(report.period, 10) || CURRENT_YEAR;
+        await generateAnnualReport({
+          year, buildings,
+          fireDrills: firedrills, inspections, inspectionResults,
+          issues: issueList, generatedBy: generatedByName()
+        });
+      }
+
+      toast.success("Downloaded successfully!", { id: toastId });
+    } catch (err) {
+      toast.error(err.message || "Failed to download report.", { id: toastId });
+    } finally {
+      setDownloadingReportId("");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildings, user]);
+
   // ── Monthly generate ──
   const openMonthlyModal = () => {
     setGenerateError(null);
@@ -254,7 +289,6 @@ const AdminReports = () => {
         generatedDate: new Date(),
         reportTitle: `Monthly Report — ${monthLabel} ${selectedYear}`,
         status:   "Generated",
-        priority: "Normal",
         period:   `${monthLabel} ${selectedYear}`
       });
       await refreshReports();
@@ -291,7 +325,6 @@ const AdminReports = () => {
         generatedDate: new Date(),
         reportTitle: `Annual Report ${annualYear}`,
         status:   "Generated",
-        priority: "Normal",
         period:   String(annualYear)
       });
       await refreshReports();
@@ -315,7 +348,6 @@ const AdminReports = () => {
     setCustomBuilding("all");
     setCustomTitle("");
     setCustomOpeningRemarks("");
-    setCustomPriority("Normal");
     setCustomSections(defaultSections("Monthly"));
     setShowCustomModal(true);
   };
@@ -378,7 +410,6 @@ const AdminReports = () => {
         generatedDate: new Date(),
         reportTitle: title,
         status:      "Generated",
-        priority:    customPriority,
         period:      periodLabel
       });
       await refreshReports();
@@ -407,7 +438,7 @@ const AdminReports = () => {
             </p>
           </div>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            <button type="button" className="secondary-btn" onClick={openMonthlyModal}>
+            <button type="button" className="primary-btn" onClick={openMonthlyModal}>
               Generate Monthly Report
             </button>
             <button type="button" className="primary-btn" onClick={openAnnualModal}>
@@ -434,7 +465,14 @@ const AdminReports = () => {
                 fontWeight: activeTab === tab.key ? "600" : "400",
                 color: activeTab === tab.key ? "#047857" : "#6b7280",
                 borderBottom: activeTab === tab.key ? "2px solid #047857" : "2px solid transparent",
-                marginBottom: "-1px", transition: "color 0.15s ease"
+                marginBottom: "-1px", transition: "color 0.15s ease, border-color 0.15s ease",
+                borderRadius: "4px 4px 0 0"
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.key) e.currentTarget.style.color = "#374151";
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.key) e.currentTarget.style.color = "#6b7280";
               }}
             >
               {tab.label}
@@ -464,19 +502,17 @@ const AdminReports = () => {
             <table className="dashboard-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  <th>REPORT ID</th>
-                  <th>TITLE / BUILDING</th>
+                  <th>REPORT NAME</th>
                   <th>DATE</th>
                   <th>GENERATED BY</th>
                   <th>STATUS</th>
-                  <th>PRIORITY</th>
                   <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredReports.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af" }}>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af" }}>
                       {search
                         ? "No reports match your search."
                         : "No reports yet. Use the buttons above to generate a report."}
@@ -485,7 +521,6 @@ const AdminReports = () => {
                 ) : (
                   filteredReports.map((report) => (
                     <tr key={report.id}>
-                      <td className="id-cell">{report.reportId || report.id}</td>
                       <td>
                         {report.reportTitle || (
                           report.buildingId
@@ -501,25 +536,22 @@ const AdminReports = () => {
                         </span>
                       </td>
                       <td>
-                        <span className="status-badge" style={getPriorityStyle(report.priority)}>
-                          {report.priority || "Normal"}
-                        </span>
-                      </td>
-                      <td>
                         <button
                           type="button"
-                          onClick={() => setSelectedReportRecord(report)}
+                          title={report.reportType === "Custom" ? "Custom reports cannot be re-downloaded" : "Download report"}
+                          disabled={downloadingReportId === report.id}
+                          onClick={() => handleDownloadReport(report)}
                           style={{
                             background: "none",
                             border: "none",
-                            color: "#047857",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "500",
-                            padding: 0
+                            color: downloadingReportId === report.id ? "#9ca3af" : "#047857",
+                            cursor: downloadingReportId === report.id ? "not-allowed" : "pointer",
+                            fontSize: "16px",
+                            padding: 0,
+                            lineHeight: 1
                           }}
                         >
-                          View
+                          {downloadingReportId === report.id ? "⏳" : "⬇️"}
                         </button>
                       </td>
                     </tr>
@@ -530,56 +562,6 @@ const AdminReports = () => {
           </div>
         )}
       </div>
-
-      {/* ── Monthly Modal ── */}
-      {selectedReportRecord && (
-        <div className="issue-ticket-modal-backdrop" onClick={() => setSelectedReportRecord(null)}>
-          <div className="issue-ticket-modal" style={{ width: "min(560px, 100%)" }} onClick={(e) => e.stopPropagation()}>
-            <ModalHeader
-              title={selectedReportRecord.reportTitle || selectedReportRecord.reportId || "Report Details"}
-              onClose={() => setSelectedReportRecord(null)}
-              generating={false}
-            />
-            <div style={{ display: "grid", gap: "12px" }}>
-              {[
-                ["Report ID", selectedReportRecord.reportId || selectedReportRecord.id],
-                ["Type", selectedReportRecord.reportType || "-"],
-                [
-                  "Building",
-                  selectedReportRecord.buildingId
-                    ? buildingMap.get(selectedReportRecord.buildingId) || selectedReportRecord.buildingId
-                    : "All Buildings"
-                ],
-                ["Period", selectedReportRecord.period || "-"],
-                ["Generated Date", formatDate(selectedReportRecord.generatedDate || selectedReportRecord.createdAt)],
-                ["Generated By", userMap.get(selectedReportRecord.generatedBy) || selectedReportRecord.generatedBy || "-"],
-                ["Status", selectedReportRecord.status || "Generated"],
-                ["Priority", selectedReportRecord.priority || "Normal"]
-              ].map(([label, value]) => (
-                <div key={label} className="detail-row">
-                  <span className="detail-label">{label}</span>
-                  <span className="detail-value">{value || "-"}</span>
-                </div>
-              ))}
-            </div>
-            {selectedReportRecord.reportFileUrl ? (
-              <a
-                className="primary-btn"
-                href={selectedReportRecord.reportFileUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{ display: "inline-flex", marginTop: "18px", textDecoration: "none" }}
-              >
-                Open File
-              </a>
-            ) : (
-              <p style={{ color: "#6b7280", fontSize: "13px", marginTop: "18px" }}>
-                No stored file URL is attached to this report record. Generate the report again to download a new Word or PDF file.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
 
       {showMonthlyModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowMonthlyModal(false)}>
@@ -741,14 +723,6 @@ const AdminReports = () => {
                 value={customTitle}
                 onChange={(e) => setCustomTitle(e.target.value)}
               />
-            </div>
-
-            {/* Priority */}
-            <div className="form-field">
-              <label className="form-label">Priority</label>
-              <select className="form-input" value={customPriority} onChange={(e) => setCustomPriority(e.target.value)}>
-                {["Low", "Normal", "High", "Urgent"].map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
             </div>
 
             {/* Opening remarks */}

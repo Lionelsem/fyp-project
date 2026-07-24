@@ -68,10 +68,17 @@ const AdminDashboard = () => {
     return () => { active = false; };
   }, []);
 
-  const buildingMap = useMemo(
-    () => new Map(buildings.map((b) => [b.id, b.buildingName || b.building_name || b.id])),
-    [buildings]
-  );
+  const buildingMap = useMemo(() => {
+    const map = new Map();
+    buildings.forEach((b) => {
+      const name = b.buildingName || b.building_name || "-";
+      map.set(b.id, name);
+      if (b.buildingId && b.buildingId !== b.id) {
+        map.set(b.buildingId, name);
+      }
+    });
+    return map;
+  }, [buildings]);
 
   // ── Computed stats ──
   const fsmCount        = useMemo(() => users.filter((u) => u.role === ROLES.FSM).length, [users]);
@@ -86,10 +93,6 @@ const AdminDashboard = () => {
     () => drills.filter((d) => String(d.status || "").toLowerCase() === "completed"),
     [drills]
   );
-  const pendingReports  = useMemo(
-    () => reports.filter((r) => ["draft", "pending"].includes(String(r.status || "").toLowerCase())),
-    [reports]
-  );
 
   const summaryCards = [
     { label: "Total Buildings",     value: buildings.length,                         icon: "🏢", iconBg: "#ecfdf5", iconColor: "#047857" },
@@ -98,8 +101,7 @@ const AdminDashboard = () => {
     { label: "Outstanding Issues",  value: openIssues.length + inProgressIssues.length, icon: "⚠️", iconBg: "#fffbeb", iconColor: "#b45309" },
     { label: "Resolved Issues",     value: resolvedIssues.length,                   icon: "✅", iconBg: "#ecfdf5", iconColor: "#047857" },
     { label: "Closed Issues",       value: closedIssues.length,                     icon: "🔒", iconBg: "#eef2ff", iconColor: "#4338ca" },
-    { label: "Completed Fire Drills",value: completedDrills.length,                 icon: "🚒", iconBg: "#fce7f3", iconColor: "#be185d" },
-    { label: "Pending Reports",     value: pendingReports.length,                   icon: "📄", iconBg: "#ffedd5", iconColor: "#c2410c" }
+    { label: "Completed Fire Drills",value: completedDrills.length,                 icon: "🚒", iconBg: "#fce7f3", iconColor: "#be185d" }
   ];
 
   // ── Recent records ──
@@ -174,7 +176,6 @@ const AdminDashboard = () => {
               <table className="dashboard-table">
                 <thead>
                   <tr>
-                    <th>ISSUE ID</th>
                     <th>BUILDING</th>
                     <th>FINDING</th>
                     <th>STATUS</th>
@@ -183,8 +184,7 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentIssues.map((issue) => (
                     <tr key={issue.id}>
-                      <td className="id-cell">{issue.issueId || issue.id}</td>
-                      <td>{buildingMap.get(issue.buildingId) || issue.buildingId || "-"}</td>
+                      <td>{buildingMap.get(issue.buildingId) || "-"}</td>
                       <td>{issue.issueTitle || issue.issueDescription || "-"}</td>
                       <td>
                         <span className="status-badge" style={statusStyle(issue.status)}>
