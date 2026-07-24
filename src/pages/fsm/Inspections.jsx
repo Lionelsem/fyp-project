@@ -690,8 +690,9 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue, expandTarget = true)
               issue: {
                 ...item.issue,
                 description: issue.issueDescription || item.issue?.description || "",
-<<<<<<< HEAD
                 rectification: issue.rectification || item.issue?.rectification || "",
+                verificationComments:
+                  issue.verificationComments || item.issue?.verificationComments || "",
                 priority: issue.priority || item.issue?.priority || "Medium",
                 status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
                 aiSuggestedPriority:
@@ -704,16 +705,6 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue, expandTarget = true)
               defectPhotoStoragePath:
                 issue.defectPhotoStoragePath || item.defectPhotoStoragePath || "",
               fixPhotoUrls: getFixPhotoUrls(issue),
-=======
-                rectification: issue.rectification || item.issue?.rectification || "",
-                verificationComments: issue.verificationComments || item.issue?.verificationComments || "",
-                priority: issue.priority || item.issue?.priority || "Medium",
-                status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
-                history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
-              },
-              defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
-              fixPhotoUrls: getFixPhotoUrls(issue),
->>>>>>> 837405b4ad03893d4612d95d7c7566efd0e9b9dd
               fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
               fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
               fixPhotoUploadedBy: issue.fixPhotoUploadedBy || ""
@@ -736,8 +727,9 @@ const mergeIssueTicketsIntoChecklist = (sourceChecklist, issues = []) =>
         issue: {
           ...item.issue,
           description: issue.issueDescription || item.issue?.description || "",
-<<<<<<< HEAD
           rectification: issue.rectification || item.issue?.rectification || "",
+          verificationComments:
+            issue.verificationComments || item.issue?.verificationComments || "",
           priority: issue.priority || item.issue?.priority || "Medium",
           status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
           aiSuggestedPriority:
@@ -750,16 +742,6 @@ const mergeIssueTicketsIntoChecklist = (sourceChecklist, issues = []) =>
         defectPhotoStoragePath:
           issue.defectPhotoStoragePath || item.defectPhotoStoragePath || "",
         fixPhotoUrls: getFixPhotoUrls(issue),
-=======
-          rectification: issue.rectification || item.issue?.rectification || "",
-          verificationComments: issue.verificationComments || item.issue?.verificationComments || "",
-          priority: issue.priority || item.issue?.priority || "Medium",
-          status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
-          history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
-        },
-        defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
-        fixPhotoUrls: getFixPhotoUrls(issue),
->>>>>>> 837405b4ad03893d4612d95d7c7566efd0e9b9dd
         fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
         fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
         fixPhotoUploadedBy: issue.fixPhotoUploadedBy || ""
@@ -1574,18 +1556,12 @@ const Inspections = () => {
   const [inspectionSubmitting, setInspectionSubmitting] = useState(false);
   const [isSubmitConfirmationOpen, setIsSubmitConfirmationOpen] = useState(false);
   const [editingIssueRowKey, setEditingIssueRowKey] = useState("");
-<<<<<<< HEAD
   const [issueEditSnapshot, setIssueEditSnapshot] = useState(null);
   const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
   const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
   const [priorityReviewEntries, setPriorityReviewEntries] = useState([]);
   const priorityReviewResolver = useRef(null);
-=======
-  const [issueEditSnapshot, setIssueEditSnapshot] = useState(null);
-  const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
-  const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
   const [verificationPhotoPreview, setVerificationPhotoPreview] = useState(null);
->>>>>>> 837405b4ad03893d4612d95d7c7566efd0e9b9dd
 
   const assignedBuilding =
     (verificationIssue?.buildingId
@@ -2708,14 +2684,9 @@ const Inspections = () => {
         issueKey,
         issueId: existingIssue.issueId || issueKey,
         issueDescription: item.issue.description || "",
-<<<<<<< HEAD
-        rectification: item.issue.rectification || "",
-        priority: finalPriority,
-=======
         rectification: item.issue.rectification || "",
         verificationComments: item.issue.verificationComments || "",
-        priority: item.issue.priority || existingIssue.priority || "Medium",
->>>>>>> 837405b4ad03893d4612d95d7c7566efd0e9b9dd
+        priority: finalPriority,
         status: item.issue.status || ISSUE_STATUS.OPEN,
         reportedBy: existingIssue.reportedBy || fsmId,
         issuePhotoUrl: defectPhotoUrls[0] || "",
@@ -3330,14 +3301,9 @@ const Inspections = () => {
             fixPhotoUploadedAt,
             fixPhotoUploadedBy,
             issueDescription: item.issue?.description || "",
-<<<<<<< HEAD
-            rectification: item.issue?.rectification || "",
-            priority: finalPriority,
-=======
             rectification: item.issue?.rectification || "",
             verificationComments: item.issue?.verificationComments || "",
-            priority: item.issue?.priority || "",
->>>>>>> 837405b4ad03893d4612d95d7c7566efd0e9b9dd
+            priority: finalPriority,
             issueStatus: item.issue?.status || "",
             manualVerificationRequired: !!item.isManualVerification,
             checkedAt: new Date(),
@@ -3435,14 +3401,9 @@ const Inspections = () => {
               reportedBy: fsmId,
               issueTitle: item.label,
               issueDescription: item.issue?.description || item.remark || "",
-<<<<<<< HEAD
-              rectification: item.issue?.rectification || "",
-              priority: finalPriority,
-=======
               rectification: item.issue?.rectification || "",
               verificationComments: item.issue?.verificationComments || "",
-              priority: item.issue?.priority || "High",
->>>>>>> 837405b4ad03893d4612d95d7c7566efd0e9b9dd
+              priority: finalPriority,
               status: item.issue?.status || ISSUE_STATUS.OPEN,
               issuePhotoUrl: photoUrl,
               defectPhotoUrl,
@@ -3876,14 +3837,13 @@ const Inspections = () => {
           onConfirm={confirmInspectionSubmit}
         />
       )}
-<<<<<<< HEAD
       {priorityReviewEntries.length > 0 && (
         <AiPriorityReviewModal
           entries={priorityReviewEntries}
           onCancel={() => closePriorityReview(null)}
           onConfirm={closePriorityReview}
         />
-=======
+      )}
       {verificationPhotoPreview && (
         <div className="inspection-image-lightbox" role="presentation" onClick={() => setVerificationPhotoPreview(null)}>
           <div className="inspection-image-lightbox__dialog" role="dialog" aria-modal="true" aria-label="Full-size verification photo" onClick={(event) => event.stopPropagation()}>
@@ -3891,7 +3851,6 @@ const Inspections = () => {
             <img src={verificationPhotoPreview.url} alt={verificationPhotoPreview.alt} />
           </div>
         </div>
->>>>>>> 837405b4ad03893d4612d95d7c7566efd0e9b9dd
       )}
       {(inspectionSubmitError || inspectionSubmitSuccess) && (
         <div className="issue-ticket-modal-backdrop inspection-notification-backdrop" role="presentation">
