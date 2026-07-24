@@ -247,7 +247,25 @@ const buildIssuePayload = (data) => ({
   fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
   verificationComments: data.verificationComments || "",
   ...(Array.isArray(data.history) ? { history: data.history } : {}),
-  aiRecommendation: data.aiRecommendation || ""
+  aiRecommendation: data.aiRecommendation || "",
+  ...(data.aiSuggestedPriority !== undefined
+    ? { aiSuggestedPriority: data.aiSuggestedPriority }
+    : {}),
+  ...(data.aiPriorityAssessmentId !== undefined
+    ? { aiPriorityAssessmentId: data.aiPriorityAssessmentId }
+    : {}),
+  ...(data.aiPriorityAccepted !== undefined
+    ? { aiPriorityAccepted: !!data.aiPriorityAccepted }
+    : {}),
+  ...(data.aiPriorityAssessedAt !== undefined
+    ? { aiPriorityAssessedAt: data.aiPriorityAssessedAt }
+    : {}),
+  ...(data.aiPolicyVersion !== undefined
+    ? { aiPolicyVersion: data.aiPolicyVersion }
+    : {}),
+  ...(data.aiPriorityInputHash !== undefined
+    ? { aiPriorityInputHash: data.aiPriorityInputHash }
+    : {})
 });
 
 const upsertByDocumentId = async (collectionName, documentId, payload) => {

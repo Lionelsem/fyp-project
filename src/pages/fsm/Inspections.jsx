@@ -18,6 +18,11 @@ import { upsertReport } from "../../services/reportService";
 import ImageSourcePicker from "../../components/common/ImageSourcePicker";
 import Modal from "../../components/common/Modal";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import AiPriorityReviewModal from "../../components/fsm/AiPriorityReviewModal";
+import {
+  assessIssuePriority,
+  recordIssuePriorityDecision
+} from "../../services/aiPriorityService";
 
 const initialChecklist = [
   {
@@ -681,9 +686,15 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue, expandTarget = true)
                 rectification: issue.rectification || item.issue?.rectification || "",
                 priority: issue.priority || item.issue?.priority || "Medium",
                 status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
+                aiSuggestedPriority:
+                  issue.aiSuggestedPriority || item.issue?.aiSuggestedPriority || "",
+                aiPriorityAccepted:
+                  issue.aiPriorityAccepted ?? item.issue?.aiPriorityAccepted ?? null,
                 history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
               },
               defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
+              defectPhotoStoragePath:
+                issue.defectPhotoStoragePath || item.defectPhotoStoragePath || "",
               fixPhotoUrls: getFixPhotoUrls(issue),
               fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
               fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
@@ -710,9 +721,15 @@ const mergeIssueTicketsIntoChecklist = (sourceChecklist, issues = []) =>
           rectification: issue.rectification || item.issue?.rectification || "",
           priority: issue.priority || item.issue?.priority || "Medium",
           status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
+          aiSuggestedPriority:
+            issue.aiSuggestedPriority || item.issue?.aiSuggestedPriority || "",
+          aiPriorityAccepted:
+            issue.aiPriorityAccepted ?? item.issue?.aiPriorityAccepted ?? null,
           history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
         },
         defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
+        defectPhotoStoragePath:
+          issue.defectPhotoStoragePath || item.defectPhotoStoragePath || "",
         fixPhotoUrls: getFixPhotoUrls(issue),
         fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
         fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
@@ -1254,6 +1271,12 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   <option value="Medium">Medium</option>
                   <option value="Low">Low</option>
                 </select>
+                {item.issue.aiSuggestedPriority && (
+                  <small className="ai-priority-field-note">
+                    AI suggested {item.issue.aiSuggestedPriority}
+                    {item.issue.aiPriorityAccepted === false ? " (overridden)" : ""}
+                  </small>
+                )}
               </label>
               <label className="issue-status-field">
                 <span>Status</span>
@@ -1498,6 +1521,8 @@ const Inspections = () => {
   const [issueEditSnapshot, setIssueEditSnapshot] = useState(null);
   const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
   const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
+  const [priorityReviewEntries, setPriorityReviewEntries] = useState([]);
+  const priorityReviewResolver = useRef(null);
 
   const assignedBuilding =
     (verificationIssue?.buildingId
@@ -1534,6 +1559,94 @@ const Inspections = () => {
     }),
     [buildingName, periodKey, user]
   );
+
+  const requestPriorityReview = (entries) =>
+    new Promise((resolve) => {
+      priorityReviewResolver.current = resolve;
+      setPriorityReviewEntries(entries);
+    });
+
+  const closePriorityReview = (priorities) => {
+    const resolve = priorityReviewResolver.current;
+    priorityReviewResolver.current = null;
+    setPriorityReviewEntries([]);
+    resolve?.(priorities);
+  };
+
+  useEffect(() => () => {
+    priorityReviewResolver.current?.(null);
+    priorityReviewResolver.current = null;
+  }, []);
+
+  const buildPriorityDraft = ({
+    category,
+    item,
+    issueKey,
+    relatedInspectionKey = inspectionKey,
+    photoPaths = []
+  }) => ({
+    issueId: issueKey,
+    inspectionKey: relatedInspectionKey,
+    buildingId: selectedBuilding,
+    floorId: selectedLevel,
+    categoryCode: category.id,
+    categoryName: category.title,
+    itemCode: item.code,
+    itemLabel: item.label,
+    condition: item.condition,
+    remark: item.remark || "",
+    issueDescription: item.issue?.description || item.remark || "",
+    rectification: item.issue?.rectification || "",
+    status: item.issue?.status || ISSUE_STATUS.OPEN,
+    photoPaths: uniqueValues(photoPaths)
+  });
+
+  const assessPriorityDraft = async ({ key, category, item, issueKey, relatedInspectionKey, photoPaths }) => {
+    try {
+      const assessment = await assessIssuePriority(
+        buildPriorityDraft({
+          category,
+          item,
+          issueKey,
+          relatedInspectionKey,
+          photoPaths
+        })
+      );
+      return {
+        key,
+        assessmentId: assessment.assessmentId,
+        suggestedPriority: assessment.suggestedPriority,
+        currentPriority: item.issue?.priority || "Medium",
+        itemLabel: item.label,
+        issueDescription: item.issue?.description || item.remark || "",
+        reused: !!assessment.reused
+      };
+    } catch (error) {
+      return {
+        key,
+        currentPriority: item.issue?.priority || "Medium",
+        error: error.message || "AI priority assessment was unavailable."
+      };
+    }
+  };
+
+  const recordPriorityDecisionSafely = async ({
+    assessment,
+    issueId,
+    finalPriority
+  }) => {
+    if (!assessment?.assessmentId || assessment.reused) return "";
+    try {
+      await recordIssuePriorityDecision({
+        assessmentId: assessment.assessmentId,
+        issueId,
+        finalPriority
+      });
+      return "";
+    } catch (error) {
+      return error.message || "The AI decision audit could not be recorded.";
+    }
+  };
 
   useEffect(() => {
     if (!isVerifyMode && !issueIdFromQuery && !location.state?.issue) {
@@ -2220,13 +2333,13 @@ const Inspections = () => {
       let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
       let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
       let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
+      let uploadedPhotos = [];
       const selectedPhotoFiles = [
         ...(item.photoFiles || []),
         ...(item.photoFile ? [item.photoFile] : [])
       ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
 
       if (selectedPhotoFiles.length > 0 && isFaultyItem) {
-        const uploadedPhotos = [];
         for (const file of selectedPhotoFiles) {
           const uploaded = await uploadFile(
             file,
@@ -2239,6 +2352,33 @@ const Inspections = () => {
         defectPhotoStoragePath = uploadedPhotos[uploadedPhotos.length - 1]?.path || "";
         defectPhotoUploadedAt = new Date();
         defectPhotoUploadedBy = fsmId;
+      }
+
+      let priorityAssessment = null;
+      let finalPriority = item.issue?.priority || "Medium";
+      let priorityWarning = "";
+      if (
+        isFaultyItem &&
+        ![ISSUE_STATUS.RESOLVED, ISSUE_STATUS.CLOSED].includes(item.issue?.status)
+      ) {
+        priorityAssessment = await assessPriorityDraft({
+          key: resultKey,
+          category,
+          item,
+          issueKey,
+          relatedInspectionKey: inspectionKey,
+          photoPaths: [
+            item.defectPhotoStoragePath,
+            ...uploadedPhotos.map((photo) => photo.path)
+          ].filter(Boolean)
+        });
+        if (priorityAssessment.error) {
+          priorityWarning = `AI priority was unavailable; kept ${finalPriority}.`;
+        } else if (!priorityAssessment.reused) {
+          const reviewed = await requestPriorityReview([priorityAssessment]);
+          if (!reviewed) return false;
+          finalPriority = reviewed[resultKey] || finalPriority;
+        }
       }
 
       const result = await upsertInspectionResult({
@@ -2269,7 +2409,7 @@ const Inspections = () => {
         defectPhotoUploadedBy,
         issueDescription: item.issue?.description || "",
         rectification: item.issue?.rectification || "",
-        priority: item.issue?.priority || "",
+        priority: finalPriority,
         issueStatus: item.issue?.status || "",
         manualVerificationRequired: !!item.isManualVerification,
         checkedAt: new Date(),
@@ -2329,7 +2469,7 @@ const Inspections = () => {
           issueTitle: item.label,
           issueDescription: item.issue?.description || item.remark || "",
           rectification: item.issue?.rectification || "",
-          priority: item.issue?.priority || "High",
+          priority: finalPriority,
           status: item.issue?.status || ISSUE_STATUS.OPEN,
           issuePhotoUrl: photoUrl,
           defectPhotoUrl: photoUrl,
@@ -2338,11 +2478,30 @@ const Inspections = () => {
           defectPhotoUploadedAt,
           defectPhotoUploadedBy,
           aiRecommendation: "",
+          ...(priorityAssessment?.assessmentId && !priorityAssessment.reused
+            ? {
+                aiSuggestedPriority: priorityAssessment.suggestedPriority,
+                aiPriorityAssessmentId: priorityAssessment.assessmentId,
+                aiPriorityAccepted:
+                  priorityAssessment.suggestedPriority === finalPriority,
+                aiPriorityAssessedAt: new Date()
+              }
+            : {}),
           ...(historyEntries.length ? { history: appendHistory(existingIssue, historyEntries) } : {})
         });
+        const auditWarning = await recordPriorityDecisionSafely({
+          assessment: priorityAssessment,
+          issueId: issueKey,
+          finalPriority
+        });
+        if (auditWarning) {
+          priorityWarning = "Issue saved, but the AI decision audit could not be recorded.";
+        }
       }
 
-      setInspectionSubmitSuccess(`${item.code} saved successfully.`);
+      setInspectionSubmitSuccess(
+        `${item.code} saved successfully.${priorityWarning ? ` ${priorityWarning}` : ""}`
+      );
       return true;
     } catch (err) {
       console.error("Checklist item save failed", err);
@@ -2431,6 +2590,32 @@ const Inspections = () => {
         fixPhotoUploadedBy = fsmId;
       }
 
+      let priorityAssessment = null;
+      let finalPriority = item.issue.priority || existingIssue.priority || "Medium";
+      let priorityWarning = "";
+      if (
+        ![ISSUE_STATUS.RESOLVED, ISSUE_STATUS.CLOSED].includes(item.issue.status)
+      ) {
+        priorityAssessment = await assessPriorityDraft({
+          key: issueKey,
+          category,
+          item,
+          issueKey,
+          relatedInspectionKey: existingIssue.inspectionKey || inspectionKey,
+          photoPaths: [
+            defectPhotoStoragePath,
+            ...uploadedPhotos.map((photo) => photo.path)
+          ].filter(Boolean)
+        });
+        if (priorityAssessment.error) {
+          priorityWarning = `AI priority was unavailable; kept ${finalPriority}.`;
+        } else if (!priorityAssessment.reused) {
+          const reviewed = await requestPriorityReview([priorityAssessment]);
+          if (!reviewed) return;
+          finalPriority = reviewed[issueKey] || finalPriority;
+        }
+      }
+
       const removedPhotoCount = previouslySavedPhotoUrls.filter((url) => !defectPhotoUrls.includes(url)).length;
       const photoHistoryEntries = [
         removedPhotoCount > 0
@@ -2456,7 +2641,7 @@ const Inspections = () => {
         issueId: existingIssue.issueId || issueKey,
         issueDescription: item.issue.description || "",
         rectification: item.issue.rectification || "",
-        priority: item.issue.priority || existingIssue.priority || "Medium",
+        priority: finalPriority,
         status: item.issue.status || ISSUE_STATUS.OPEN,
         reportedBy: existingIssue.reportedBy || fsmId,
         issuePhotoUrl: defectPhotoUrls[0] || "",
@@ -2484,7 +2669,16 @@ const Inspections = () => {
             updatedBy: fsmId,
             eventType: "photos_uploaded"
           }) : null
-        ])
+        ]),
+        ...(priorityAssessment?.assessmentId && !priorityAssessment.reused
+          ? {
+              aiSuggestedPriority: priorityAssessment.suggestedPriority,
+              aiPriorityAssessmentId: priorityAssessment.assessmentId,
+              aiPriorityAccepted:
+                priorityAssessment.suggestedPriority === finalPriority,
+              aiPriorityAssessedAt: new Date()
+            }
+          : {})
       };
 
       if (isClosing && statusChanged) {
@@ -2508,6 +2702,14 @@ const Inspections = () => {
       }
 
       await upsertIssue(updatedIssue);
+      const auditWarning = await recordPriorityDecisionSafely({
+        assessment: priorityAssessment,
+        issueId: issueKey,
+        finalPriority
+      });
+      if (auditWarning) {
+        priorityWarning = "Issue saved, but the AI decision audit could not be recorded.";
+      }
       const resultDocumentId = existingIssue.resultKey || existingIssue.resultId;
       if (resultDocumentId) {
         await updateInspectionResult(resultDocumentId, {
@@ -2563,7 +2765,9 @@ const Inspections = () => {
       );
       setEditingIssueRowKey("");
       setIssueEditSnapshot(null);
-      setInspectionSubmitSuccess("Issue updated from the inspection checklist.");
+      setInspectionSubmitSuccess(
+        `Issue updated from the inspection checklist.${priorityWarning ? ` ${priorityWarning}` : ""}`
+      );
     } catch (error) {
       setInspectionSubmitError(error.message || "Could not update issue.");
     } finally {
@@ -2775,7 +2979,7 @@ const Inspections = () => {
     try {
       setInspectionSubmitting(true);
       setInspectionSubmitError("");
-      const created = await upsertInspection({
+      const inspectionPayload = {
         inspectionKey,
         inspectionId: inspectionKey,
         buildingId: selectedBuilding,
@@ -2792,26 +2996,132 @@ const Inspections = () => {
         aiAssistanceUsed: false,
         aiSummary: "",
         status
+      };
+      let created = await upsertInspection({
+        ...inspectionPayload,
+        status: status === "Submitted" ? "Draft" : status
       });
+      const priorityPreparations = new Map();
+      const priorityReviewQueue = [];
+      const priorityWarnings = [];
+
+      if (status === "Submitted") {
+        for (const category of checklist) {
+          for (const item of category.items) {
+            if (
+              item.condition !== "Faulty" ||
+              [ISSUE_STATUS.RESOLVED, ISSUE_STATUS.CLOSED].includes(item.issue?.status)
+            ) {
+              continue;
+            }
+
+            const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
+            const issueKey = resultKey;
+            const defectPhotoUrls = uniqueValues([
+              ...(item.defectPhotoUrls || []),
+              item.photo
+            ]).slice(0, PHOTO_LIMIT);
+            const selectedPhotoFiles = [
+              ...(item.photoFiles || []),
+              ...(item.photoFile ? [item.photoFile] : [])
+            ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
+            const uploadedPhotos = [];
+            for (const file of selectedPhotoFiles) {
+              const uploaded = await uploadFile(
+                file,
+                getInspectionDefectPhotoFolder({
+                  inspectionKey,
+                  categoryId: category.id,
+                  itemId: item.id
+                })
+              );
+              if (uploaded?.url) uploadedPhotos.push(uploaded);
+            }
+            const preparedPhotoUrls = uniqueValues([
+              ...defectPhotoUrls,
+              ...uploadedPhotos.map((photo) => photo.url)
+            ]).slice(0, PHOTO_LIMIT);
+            const preparedStoragePath =
+              uploadedPhotos[uploadedPhotos.length - 1]?.path ||
+              item.defectPhotoStoragePath ||
+              "";
+            const assessment = await assessPriorityDraft({
+              key: resultKey,
+              category,
+              item,
+              issueKey,
+              relatedInspectionKey: inspectionKey,
+              photoPaths: [
+                item.defectPhotoStoragePath,
+                ...uploadedPhotos.map((photo) => photo.path)
+              ].filter(Boolean)
+            });
+            if (assessment.error) {
+              priorityWarnings.push(`${item.code}: AI unavailable; kept manual priority.`);
+            } else if (!assessment.reused) {
+              priorityReviewQueue.push(assessment);
+            }
+            priorityPreparations.set(resultKey, {
+              assessment,
+              finalPriority: item.issue?.priority || "Medium",
+              defectPhotoUrls: preparedPhotoUrls,
+              defectPhotoStoragePath: preparedStoragePath,
+              defectPhotoUploadedAt: uploadedPhotos.length
+                ? new Date()
+                : item.defectPhotoUploadedAt || null,
+              defectPhotoUploadedBy: uploadedPhotos.length
+                ? fsmId
+                : item.defectPhotoUploadedBy || "",
+              uploadedPhotos
+            });
+          }
+        }
+
+        if (priorityReviewQueue.length) {
+          const reviewedPriorities = await requestPriorityReview(priorityReviewQueue);
+          if (!reviewedPriorities) return;
+          priorityReviewQueue.forEach((assessment) => {
+            const prepared = priorityPreparations.get(assessment.key);
+            if (prepared) {
+              prepared.finalPriority =
+                reviewedPriorities[assessment.key] || prepared.finalPriority;
+            }
+          });
+        }
+
+        created = await upsertInspection(inspectionPayload);
+      }
 
       for (const category of checklist) {
         for (const item of category.items) {
           const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
+          const priorityPreparation = priorityPreparations.get(resultKey);
           const isFaultyItem = item.condition === "Faulty";
           const issueKey = isFaultyItem ? buildRecordKey(inspectionKey, category.id, item.id) : "";
-          let photoUrl = item.photo || "";
-          let defectPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
-          let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
-          let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
-          let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
+          let photoUrl = priorityPreparation?.defectPhotoUrls?.[0] || item.photo || "";
+          let defectPhotoUrls = priorityPreparation?.defectPhotoUrls ||
+            uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
+          let defectPhotoStoragePath =
+            priorityPreparation?.defectPhotoStoragePath ||
+            item.defectPhotoStoragePath ||
+            "";
+          let defectPhotoUploadedAt =
+            priorityPreparation?.defectPhotoUploadedAt ||
+            item.defectPhotoUploadedAt ||
+            null;
+          let defectPhotoUploadedBy =
+            priorityPreparation?.defectPhotoUploadedBy ||
+            item.defectPhotoUploadedBy ||
+            "";
           const selectedPhotoFiles = [
             ...(item.photoFiles || []),
             ...(item.photoFile ? [item.photoFile] : [])
           ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
+          const filesToUpload = priorityPreparation ? [] : selectedPhotoFiles;
+          const uploadedPhotos = priorityPreparation?.uploadedPhotos || [];
 
-          if (selectedPhotoFiles.length > 0 && isFaultyItem) {
-            const uploadedPhotos = [];
-            for (const file of selectedPhotoFiles) {
+          if (filesToUpload.length > 0 && isFaultyItem) {
+            for (const file of filesToUpload) {
               const uploaded = await uploadFile(
                 file,
                 getInspectionDefectPhotoFolder({
@@ -2827,7 +3137,7 @@ const Inspections = () => {
             defectPhotoStoragePath = uploadedPhotos[uploadedPhotos.length - 1]?.path || "";
             defectPhotoUploadedAt = new Date();
             defectPhotoUploadedBy = fsmId;
-          } else if (selectedPhotoFiles.length > 0) {
+          } else if (filesToUpload.length > 0) {
             console.warn("Skipped non-faulty checklist photo upload", {
               resultKey,
               itemCode: item.code,
@@ -2859,6 +3169,10 @@ const Inspections = () => {
           }
 
           const defectPhotoUrl = photoUrl;
+          const finalPriority =
+            priorityPreparation?.finalPriority ||
+            item.issue?.priority ||
+            "Medium";
 
           const result = await upsertInspectionResult({
             resultKey,
@@ -2893,7 +3207,7 @@ const Inspections = () => {
             fixPhotoUploadedBy,
             issueDescription: item.issue?.description || "",
             rectification: item.issue?.rectification || "",
-            priority: item.issue?.priority || "",
+            priority: finalPriority,
             issueStatus: item.issue?.status || "",
             manualVerificationRequired: !!item.isManualVerification,
             checkedAt: new Date(),
@@ -2933,10 +3247,10 @@ const Inspections = () => {
                 eventType: "status_update"
               }));
             }
-            if (selectedPhotoFiles.length > 0) {
+            if (uploadedPhotos.length > 0) {
               historyEntries.push(createAuditEntry({
                 status: item.issue?.status || ISSUE_STATUS.OPEN,
-                note: `${selectedPhotoFiles.length} defect photo(s) uploaded`,
+                note: `${uploadedPhotos.length} defect photo(s) uploaded`,
                 updatedBy: fsmId,
                 eventType: "photos_uploaded"
               }));
@@ -2992,7 +3306,7 @@ const Inspections = () => {
               issueTitle: item.label,
               issueDescription: item.issue?.description || item.remark || "",
               rectification: item.issue?.rectification || "",
-              priority: item.issue?.priority || "High",
+              priority: finalPriority,
               status: item.issue?.status || ISSUE_STATUS.OPEN,
               issuePhotoUrl: photoUrl,
               defectPhotoUrl,
@@ -3006,8 +3320,31 @@ const Inspections = () => {
               fixPhotoUploadedAt,
               fixPhotoUploadedBy,
               aiRecommendation: "",
+              ...(priorityPreparation?.assessment?.assessmentId &&
+              !priorityPreparation.assessment.reused
+                ? {
+                    aiSuggestedPriority:
+                      priorityPreparation.assessment.suggestedPriority,
+                    aiPriorityAssessmentId:
+                      priorityPreparation.assessment.assessmentId,
+                    aiPriorityAccepted:
+                      priorityPreparation.assessment.suggestedPriority ===
+                      finalPriority,
+                    aiPriorityAssessedAt: new Date()
+                  }
+                : {}),
               ...(historyEntries.length ? { history: appendHistory(existingIssue, historyEntries) } : {})
             });
+            const auditWarning = await recordPriorityDecisionSafely({
+              assessment: priorityPreparation?.assessment,
+              issueId: issueKey,
+              finalPriority
+            });
+            if (auditWarning) {
+              priorityWarnings.push(
+                `${item.code}: issue saved, but the AI audit was not recorded.`
+              );
+            }
           }
         }
       }
@@ -3037,7 +3374,11 @@ const Inspections = () => {
       console.log(`Inspection ${status.toLowerCase()}`, created.id);
       setInspectionSubmitSuccess(
         status === "Submitted"
-          ? "Inspection checklist submitted and monthly report record created successfully."
+          ? `Inspection checklist submitted and monthly report record created successfully.${
+              priorityWarnings.length
+                ? ` ${priorityWarnings.length} AI priority warning(s); manual priorities were retained where needed.`
+                : ""
+            }`
           : "Inspection checklist saved successfully."
       );
       setEditingIssueRowKey("");
@@ -3377,6 +3718,13 @@ const Inspections = () => {
           defectCount={summaryTotals.faulty}
           onCancel={() => setIsSubmitConfirmationOpen(false)}
           onConfirm={confirmInspectionSubmit}
+        />
+      )}
+      {priorityReviewEntries.length > 0 && (
+        <AiPriorityReviewModal
+          entries={priorityReviewEntries}
+          onCancel={() => closePriorityReview(null)}
+          onConfirm={closePriorityReview}
         />
       )}
       {(inspectionSubmitError || inspectionSubmitSuccess) && (

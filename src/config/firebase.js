@@ -3,6 +3,10 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
+import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider
+} from "firebase/app-check";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDTN8_lbfa7Z6tH8PS3VBDDw1qh2JPcnIQ",
@@ -15,6 +19,14 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const appCheckSiteKey = process.env.REACT_APP_FIREBASE_APP_CHECK_SITE_KEY;
+export const appCheck =
+  typeof window !== "undefined" && appCheckSiteKey
+    ? initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+        isTokenAutoRefreshEnabled: true
+      })
+    : null;
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);

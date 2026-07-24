@@ -19,6 +19,7 @@ const FSMLayout = ({ children }) => {
     reports: "Reports",
     building: "My Building",
     feedbacks: "Comments/Feedbacks",
+    "ai-priority-settings": "AI Priority Settings",
     profile: "Profile"
   };
   const pageTitle = pageTitleMap[section] || "Dashboard";

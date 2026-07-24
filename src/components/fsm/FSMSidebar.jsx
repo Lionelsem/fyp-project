@@ -23,7 +23,8 @@ const menuItems = [
       { path: "/fsm/fire-drill", label: "Fire Drill" }
     ]
   },
-  { path: "/fsm/feedbacks", label: "Comments/Feedbacks", icon: "\uD83D\uDCDD" }
+  { path: "/fsm/feedbacks", label: "Comments/Feedbacks", icon: "\uD83D\uDCDD" },
+  { path: "/fsm/ai-priority-settings", label: "AI Priority Settings", icon: "AI" }
 ];
 
 const FSMSidebar = ({
@@ -123,7 +124,7 @@ const FSMSidebar = ({
                       aria-controls={submenuId}
                     >
                       <span className="submenu-toggle-content">
-                        <span className="menu-icon">{item.icon}</span>
+                        <span className="menu-icon" aria-hidden="true">{item.icon}</span>
                         <span className="menu-label">{item.label}</span>
                       </span>
                       <span
@@ -162,7 +163,7 @@ const FSMSidebar = ({
                     }
                     onClick={onNavigate}
                   >
-                    <span className="menu-icon">{item.icon}</span>
+                    <span className="menu-icon" aria-hidden="true">{item.icon}</span>
                     <span className="menu-label">{item.label}</span>
                   </NavLink>
                 )}

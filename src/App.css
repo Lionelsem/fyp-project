@@ -9188,3 +9188,93 @@ select.responsive-control {
     gap: 8px;
   }
 }
+/* AI-assisted FSM priority review and policy settings */
+.ai-priority-review-modal {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.ai-priority-review-modal__body,
+.ai-priority-review-list {
+  display: grid;
+  gap: 16px;
+}
+
+.ai-priority-review-intro {
+  margin: 0;
+  color: #475569;
+}
+
+.ai-priority-review-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+  gap: 20px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ai-priority-review-item p {
+  margin: 6px 0;
+  color: #475569;
+}
+
+.ai-priority-review-item small {
+  color: #166534;
+  font-weight: 700;
+}
+
+.ai-priority-field-note {
+  display: block;
+  margin-top: 6px;
+  color: #166534;
+  font-weight: 700;
+}
+
+.ai-priority-review-item label,
+.ai-priority-review-item label span {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-priority-review-item select {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ai-priority-policy-form {
+  max-width: 860px;
+}
+
+.ai-priority-enable-field {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+
+.ai-priority-enable-field input {
+  margin-top: 4px;
+}
+
+.ai-priority-enable-field span {
+  display: grid;
+  gap: 4px;
+}
+
+.ai-priority-enable-field small {
+  color: #475569;
+}
+
+@media (max-width: 640px) {
+  .ai-priority-review-item {
+    grid-template-columns: 1fr;
+  }
+}

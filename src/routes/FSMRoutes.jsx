@@ -8,6 +8,7 @@ import IssueTickets from "../pages/fsm/IssueTickets";
 import FireDrill from "../pages/fsm/FireDrill";
 import MyBuilding from "../pages/fsm/MyBuilding";
 import Feedbacks from "../pages/fsm/Feedbacks";
+import AiPrioritySettings from "../pages/fsm/AiPrioritySettings";
 import Profile from "../pages/Profile";
 import ProtectedRoute from "./ProtectedRoute";
 import { ROLES } from "../constants/roles";
@@ -26,6 +27,7 @@ const FSMRoutes = () => {
           <Route path="/fsm/reports" element={<Navigate to="/fsm/building" replace />} />
           <Route path="/fsm/building" element={<MyBuilding />} />
           <Route path="/fsm/feedbacks" element={<Feedbacks />} />
+          <Route path="/fsm/ai-priority-settings" element={<AiPrioritySettings />} />
           <Route path="/fsm/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/fsm/dashboard" replace />} />
         </Routes>
