@@ -1032,9 +1032,9 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
               <h4>Issue Details <span className="issue-badge">Auto created when marked as Faulty</span></h4>
               <label>
                 <span>Issue Description</span>
-                <textarea
+                <input
+                  type="text"
                   value={item.issue.description}
-                  rows={2}
                   placeholder="Describe the fault"
                   onChange={(e) => onIssueUpdate(categoryId, item.id, { description: e.target.value })}
                 />
@@ -1255,9 +1255,9 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
             </div>
             <label>
               <span>Issue Description</span>
-              <textarea
+              <input
+                type="text"
                 value={item.issue.description}
-                rows={2}
                 placeholder="Describe the fault"
                 onChange={(e) => onIssueUpdate(categoryId, item.id, { description: e.target.value })}
                 disabled={!isIssueEditing}
@@ -1372,11 +1372,11 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
 const AppendixTable = ({ entries }) => (
   <section className="inspection-card appendix-card">
     <div className="card-title-row">
-      <p className="overline">Appendix A</p>
-      <h3>Findings & Rectification</h3>
+      <p className="overline">Inspection findings</p>
+      <h3>Remarks Summary</h3>
     </div>
     <ResponsiveTableRegion
-      label="Inspection findings and rectification appendix"
+      label="Inspection remarks summary"
       className="appendix-table-wrapper responsive-table-region--cards"
     >
       <table className="appendix-table responsive-card-table">
@@ -2019,15 +2019,6 @@ const Inspections = () => {
         [selectedLevel]: nextChecklist
       };
     });
-  };
-
-  const setRemarksForSelectedLevel = (value) => {
-    if (!selectedLevel) return;
-
-    setLevelRemarks((current) => ({
-      ...current,
-      [selectedLevel]: value
-    }));
   };
 
   const totalRows = useMemo(
@@ -3810,22 +3801,6 @@ const Inspections = () => {
 
           <AppendixTable entries={appendixEntries} />
 
-          <section className="inspection-card remarks-card">
-            <div className="card-title-row">
-              <p className="overline">General Observation</p>
-              <h3>Remarks</h3>
-            </div>
-            <label>
-              <span className="sr-only">General observation and remarks</span>
-              <textarea
-                value={generalRemarks}
-                rows={5}
-                placeholder="Add general observation or notes for this inspection..."
-                onChange={(e) => setRemarksForSelectedLevel(e.target.value)}
-                disabled={isChecklistReviewMode && !editIssueFromQuery}
-              />
-            </label>
-          </section>
         </div>
       </div>
       {isSubmitConfirmationOpen && (

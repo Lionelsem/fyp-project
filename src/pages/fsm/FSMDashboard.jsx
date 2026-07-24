@@ -76,7 +76,7 @@ const TrendChart = ({ items, loading }) => {
   const step = maximum / 5;
   const ticks = Array.from({ length: 6 }, (_, index) => maximum - (step * index));
   const canvasWidth = Math.max(360, items.length * 104);
-  const gridColumns = { gridTemplateColumns: `repeat(${items.length}, minmax(88px, 1fr))` };
+  const gridColumns = { gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` };
 
   return (
     <div
@@ -84,7 +84,7 @@ const TrendChart = ({ items, loading }) => {
       role="img"
       aria-label={`Issue trend chart. ${items.map((item) => `${item.label}: ${CHART_SERIES.map((series) => `${item[series.key] || 0} ${series.label.toLowerCase()}`).join(", ")}`).join(". ")}`}
     >
-      <div className="fsm-trend-canvas" style={{ minWidth: `${canvasWidth}px` }}>
+      <div className="fsm-trend-canvas" style={{ "--trend-min-width": `${canvasWidth}px` }}>
         <div className="fsm-trend-y-axis" aria-hidden="true">
           {ticks.map((tick, index) => (
             <span key={`${tick}-${index}`} style={{ top: `${index * 20}%` }}>
