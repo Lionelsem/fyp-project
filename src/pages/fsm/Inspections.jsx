@@ -10,7 +10,7 @@ import {
   upsertInspectionResult
 } from "../../services/inspectionService";
 import { addClosureVerification, getIssueById, upsertIssue } from "../../services/issueService";
-import { APPROVAL_STATUS, ISSUE_STATUS, REPORT_STATUS } from "../../constants/status";
+import { APPROVAL_STATUS, CHECKLIST_CONDITION, ISSUE_STATUS, REPORT_STATUS } from "../../constants/status";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
@@ -184,15 +184,20 @@ const inspectionInfo = {
 };
 
 const conditionOptions = [
-  { value: "Good", label: "Good" },
-  { value: "Faulty", label: "Faulty" },
-  { value: "N.A.", label: "N.A." }
+  { value: CHECKLIST_CONDITION.GOOD, label: CHECKLIST_CONDITION.GOOD },
+  { value: CHECKLIST_CONDITION.FAULTY, label: CHECKLIST_CONDITION.FAULTY },
+  { value: CHECKLIST_CONDITION.NOT_APPLICABLE, label: CHECKLIST_CONDITION.NOT_APPLICABLE }
 ];
 
 const validConditionValues = new Set(conditionOptions.map((option) => option.value));
 
 const normalizeChecklistCondition = (condition) =>
   validConditionValues.has(condition) ? condition : "";
+
+const getEffectiveChecklistCondition = (result, fallbackCondition = "") =>
+  result?.issueStatus === ISSUE_STATUS.CLOSED || result?.issue?.status === ISSUE_STATUS.CLOSED
+    ? CHECKLIST_CONDITION.GOOD
+    : normalizeChecklistCondition(result?.condition) || fallbackCondition;
 
 const buildAppendixEntriesFromChecklist = (checklist, fallbackLocation) =>
   checklist.flatMap((category) =>
@@ -447,9 +452,9 @@ const formatLastUpdated = () =>
   });
 
 const getPassFail = (condition) => {
-  if (condition === "Good") return "Pass";
-  if (condition === "Faulty") return "Fail";
-  if (condition === "N.A.") return "N.A.";
+  if (condition === CHECKLIST_CONDITION.GOOD) return "Pass";
+  if (condition === CHECKLIST_CONDITION.FAULTY) return "Fail";
+  if (condition === CHECKLIST_CONDITION.NOT_APPLICABLE) return CHECKLIST_CONDITION.NOT_APPLICABLE;
   return "";
 };
 
@@ -524,7 +529,7 @@ const hydrateChecklistFromPreviousMonth = (templateChecklist, previousResults = 
       return {
         ...item,
         condition: previousResult
-          ? normalizeChecklistCondition(previousResult.condition) || item.condition
+          ? getEffectiveChecklistCondition(previousResult, item.condition)
           : item.condition,
         remark: previousResult ? previousResult.remark || "" : item.remark || "",
         photo: "",
@@ -534,6 +539,7 @@ const hydrateChecklistFromPreviousMonth = (templateChecklist, previousResults = 
           ...item.issue,
           description: previousResult?.issueDescription || previousResult?.issue?.description || item.issue?.description || "",
           rectification: previousResult?.rectification || previousResult?.issue?.rectification || item.issue?.rectification || "",
+          verificationComments: previousResult?.verificationComments || previousResult?.issue?.verificationComments || "",
           priority: previousResult?.priority || previousResult?.issue?.priority || item.issue?.priority || "Medium",
           status: "Open",
           photo: ""
@@ -556,7 +562,7 @@ const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) 
 
       if (!savedResult) return item;
 
-      const condition = normalizeChecklistCondition(savedResult.condition) || item.condition;
+      const condition = getEffectiveChecklistCondition(savedResult, item.condition);
       const defectPhotoUrls = getDefectPhotoUrls(savedResult);
       const defectPhotoUrl = defectPhotoUrls[0] || "";
 
@@ -582,6 +588,7 @@ const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) 
           ...item.issue,
           description: savedResult.issueDescription || savedResult.issue?.description || "",
           rectification: savedResult.rectification || savedResult.issue?.rectification || "",
+          verificationComments: savedResult.verificationComments || savedResult.issue?.verificationComments || "",
           priority: savedResult.priority || savedResult.issue?.priority || item.issue?.priority || "Medium",
           status: savedResult.issueStatus || savedResult.issue?.status || "Open",
           photo: ""
@@ -679,6 +686,7 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue, expandTarget = true)
                 ...item.issue,
                 description: issue.issueDescription || item.issue?.description || "",
                 rectification: issue.rectification || item.issue?.rectification || "",
+                verificationComments: issue.verificationComments || item.issue?.verificationComments || "",
                 priority: issue.priority || item.issue?.priority || "Medium",
                 status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
                 history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
@@ -708,6 +716,7 @@ const mergeIssueTicketsIntoChecklist = (sourceChecklist, issues = []) =>
           ...item.issue,
           description: issue.issueDescription || item.issue?.description || "",
           rectification: issue.rectification || item.issue?.rectification || "",
+          verificationComments: issue.verificationComments || item.issue?.verificationComments || "",
           priority: issue.priority || item.issue?.priority || "Medium",
           status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
           history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
@@ -1005,7 +1014,6 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
               <label>
                 <span>Issue Description</span>
                 <textarea
-                  className="issue-description-input"
                   value={item.issue.description}
                   rows={2}
                   placeholder="Describe the fault"
@@ -1092,19 +1100,24 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
     setExpandedPhotoGroups((current) => ({ ...current, [group]: !current[group] }));
   };
 
-  const renderPhotoEvidence = ({ group, urls, label, alt, canAdd, onAdd, onRemove }) => {
+  const renderPhotoEvidence = ({ group, urls, label, alt, canAdd, locked = false, lockedMessage = "", onAdd, onRemove }) => {
     const expanded = expandedPhotoGroups[group];
     const hasPhotos = urls.length > 0;
     const atLimit = urls.length >= PHOTO_LIMIT;
 
     return (
-      <div className={`compact-photo-field${expanded ? " compact-photo-field--expanded" : ""}`}>
+      <div
+        className={`compact-photo-field${expanded ? " compact-photo-field--expanded" : ""}${locked ? " compact-photo-field--locked" : ""}`}
+        aria-disabled={locked || undefined}
+        title={locked ? lockedMessage : undefined}
+      >
         <div className="compact-photo-field__summary">
           {hasPhotos ? (
             <button
               type="button"
               className="compact-photo-field__cover"
-              onClick={() => togglePhotoGroup(group)}
+              onClick={() => { if (!locked) togglePhotoGroup(group); }}
+              disabled={locked}
               aria-expanded={expanded}
               aria-label={`${expanded ? "Hide" : "View"} ${urls.length} ${label.toLowerCase()}`}
             >
@@ -1130,7 +1143,8 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 <button
                   type="button"
                   className="compact-photo-field__preview-button"
-                  onClick={() => setPreviewPhoto({ url: photoUrl, alt: `${alt} ${index + 1}` })}
+                  onClick={() => { if (!locked) setPreviewPhoto({ url: photoUrl, alt: `${alt} ${index + 1}` }); }}
+                  disabled={locked}
                   aria-label={`View ${label.toLowerCase()} ${index + 1} full size`}
                 >
                   <img className="issue-photo-preview" src={photoUrl} alt={`${alt} ${index + 1}`} />
@@ -1223,7 +1237,6 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
             <label>
               <span>Issue Description</span>
               <textarea
-                className="issue-description-input"
                 value={item.issue.description}
                 rows={2}
                 placeholder="Describe the fault"
@@ -1269,6 +1282,19 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 </select>
               </label>
             </div>
+            {isClosedIssue && (
+              <label>
+                <span>Verification Comments</span>
+                <textarea
+                  value={item.issue.verificationComments || ""}
+                  rows={3}
+                  placeholder="Confirm the completed repair and closure checks"
+                  onChange={(e) => onIssueUpdate(categoryId, item.id, { verificationComments: e.target.value })}
+                  disabled={!isIssueEditing}
+                  required
+                />
+              </label>
+            )}
             <div className="issue-evidence-sections">
               <section className="issue-evidence-section" aria-label="Fault Photos Before">
                 <h5>Fault Photos (Before)</h5>
@@ -1285,11 +1311,21 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   >
                     !
                     <span id={`after-repair-help-${categoryId}-${item.id}`} role="tooltip">
-                      After-repair evidence is required before changing the status to Closed.
+                      After-repair evidence is available when the status is Closed.
                     </span>
                   </button>
                 </h5>
-                {renderPhotoEvidence({ group: "after", urls: afterPhotoUrls, label: "After-repair photos", alt: "After-repair evidence", canAdd: isIssueEditing, onAdd: (files) => onFixPhotoChange(categoryId, item.id, files), onRemove: (index) => onRemoveFixPhoto(categoryId, item.id, index) })}
+                {renderPhotoEvidence({
+                  group: "after",
+                  urls: afterPhotoUrls,
+                  label: "After-repair photos",
+                  alt: "After-repair evidence",
+                  canAdd: isIssueEditing && isClosedIssue,
+                  locked: !isClosedIssue,
+                  lockedMessage: `Available when status is ${ISSUE_STATUS.CLOSED}`,
+                  onAdd: (files) => onFixPhotoChange(categoryId, item.id, files),
+                  onRemove: (index) => onRemoveFixPhoto(categoryId, item.id, index)
+                })}
               </section>
             </div>
             <IssueHistoryTimeline history={item.issue?.history || []} />
@@ -1498,6 +1534,7 @@ const Inspections = () => {
   const [issueEditSnapshot, setIssueEditSnapshot] = useState(null);
   const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
   const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
+  const [verificationPhotoPreview, setVerificationPhotoPreview] = useState(null);
 
   const assignedBuilding =
     (verificationIssue?.buildingId
@@ -2377,6 +2414,11 @@ const Inspections = () => {
       const statusChanged = String(existingIssue.status || "") !== String(item.issue.status || "");
       const isClosing = item.issue.status === ISSUE_STATUS.CLOSED;
       const pendingFixPhotoFiles = item.fixPhotoFiles || [];
+      if (isClosing && !String(item.issue.verificationComments || "").trim()) {
+        setInspectionSubmitError("Please add verification comments before closing this issue.");
+        setInspectionSubmitting(false);
+        return;
+      }
       if (isClosing && getFixPhotoUrls(existingIssue).length === 0 && pendingFixPhotoFiles.length === 0) {
         setInspectionSubmitError("Please upload after-repair evidence before closing this issue.");
         setInspectionSubmitting(false);
@@ -2456,6 +2498,7 @@ const Inspections = () => {
         issueId: existingIssue.issueId || issueKey,
         issueDescription: item.issue.description || "",
         rectification: item.issue.rectification || "",
+        verificationComments: item.issue.verificationComments || "",
         priority: item.issue.priority || existingIssue.priority || "Medium",
         status: item.issue.status || ISSUE_STATUS.OPEN,
         reportedBy: existingIssue.reportedBy || fsmId,
@@ -2502,7 +2545,7 @@ const Inspections = () => {
           fixPhotoStoragePath,
           fixPhotoUploadedAt,
           fixPhotoUploadedBy,
-          verificationComments: item.issue.rectification || "Closed from inspection checklist",
+          verificationComments: item.issue.verificationComments,
           approvalStatus: APPROVAL_STATUS.APPROVED
         });
       }
@@ -2516,6 +2559,7 @@ const Inspections = () => {
           remark: item.remark || "",
           issueDescription: updatedIssue.issueDescription,
           rectification: updatedIssue.rectification,
+          verificationComments: updatedIssue.verificationComments,
           priority: updatedIssue.priority,
           issueStatus: updatedIssue.status,
           photoUrl: updatedIssue.defectPhotoUrl,
@@ -2674,6 +2718,7 @@ const Inspections = () => {
         issueId: verificationIssue.issueId || issueKey,
         reportedBy: verificationIssue.reportedBy || fsmId,
         status: ISSUE_STATUS.CLOSED,
+        condition: CHECKLIST_CONDITION.GOOD,
         defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
         defectPhotoUrls: getDefectPhotoUrls(verificationIssue),
         defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
@@ -2702,15 +2747,44 @@ const Inspections = () => {
         ])
       });
 
+      const resultDocumentId = verificationIssue.resultKey || verificationIssue.resultId;
+      if (resultDocumentId) {
+        await updateInspectionResult(resultDocumentId, {
+          condition: CHECKLIST_CONDITION.GOOD,
+          passFail: getPassFail(CHECKLIST_CONDITION.GOOD),
+          issueStatus: ISSUE_STATUS.CLOSED,
+          fixPhotoUrl,
+          fixPhotoUrls,
+          fixPhotoStoragePath,
+          fixPhotoUploadedAt,
+          fixPhotoUploadedBy
+        });
+      }
+
       setVerificationIssue((current) => ({
         ...current,
         status: ISSUE_STATUS.CLOSED,
+        condition: CHECKLIST_CONDITION.GOOD,
         fixPhotoUrl,
         fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy
       }));
+      setChecklistForSelectedLevel((current) =>
+        current.map((category) => ({
+          ...category,
+          items: category.items.map((item) =>
+            isIssueTargetRow(verificationIssue, category, item)
+              ? {
+                  ...item,
+                  condition: CHECKLIST_CONDITION.GOOD,
+                  issue: { ...item.issue, status: ISSUE_STATUS.CLOSED }
+                }
+              : item
+          )
+        }))
+      );
       setFixProofPhotoFile([]);
       setFixProofPhotoPreview([]);
       setInspectionSubmitSuccess("Verification submitted and issue closed successfully.");
@@ -2762,6 +2836,25 @@ const Inspections = () => {
         expanded: category.id === closingWithoutEvidence.category.id ? true : category.expanded,
         items: category.items.map((item) =>
           item.id === closingWithoutEvidence.item.id ? { ...item, expanded: true } : item
+        )
+      })));
+      return;
+    }
+
+    const closingWithoutComments = checklist
+      .flatMap((category) => category.items.map((item) => ({ category, item })))
+      .find(({ item }) =>
+        item.condition === CHECKLIST_CONDITION.FAULTY &&
+        item.issue?.status === ISSUE_STATUS.CLOSED &&
+        !String(item.issue?.verificationComments || "").trim()
+      );
+    if (status === "Submitted" && closingWithoutComments) {
+      setInspectionSubmitError("Please add verification comments before closing an issue.");
+      setChecklistForSelectedLevel((current) => current.map((category) => ({
+        ...category,
+        expanded: category.id === closingWithoutComments.category.id ? true : category.expanded,
+        items: category.items.map((item) =>
+          item.id === closingWithoutComments.item.id ? { ...item, expanded: true } : item
         )
       })));
       return;
@@ -2893,6 +2986,7 @@ const Inspections = () => {
             fixPhotoUploadedBy,
             issueDescription: item.issue?.description || "",
             rectification: item.issue?.rectification || "",
+            verificationComments: item.issue?.verificationComments || "",
             priority: item.issue?.priority || "",
             issueStatus: item.issue?.status || "",
             manualVerificationRequired: !!item.isManualVerification,
@@ -2967,7 +3061,7 @@ const Inspections = () => {
                 fixPhotoStoragePath,
                 fixPhotoUploadedAt,
                 fixPhotoUploadedBy,
-                verificationComments: item.issue?.rectification || "Closed from inspection checklist",
+                verificationComments: item.issue?.verificationComments || "",
                 approvalStatus: APPROVAL_STATUS.APPROVED
               });
             }
@@ -2992,6 +3086,7 @@ const Inspections = () => {
               issueTitle: item.label,
               issueDescription: item.issue?.description || item.remark || "",
               rectification: item.issue?.rectification || "",
+              verificationComments: item.issue?.verificationComments || "",
               priority: item.issue?.priority || "High",
               status: item.issue?.status || ISSUE_STATUS.OPEN,
               issuePhotoUrl: photoUrl,
@@ -3110,7 +3205,17 @@ const Inspections = () => {
                       {getDefectPhotoUrls(verificationIssue).map((photoUrl, index) => (
                         <figure key={`before-${photoUrl}-${index}`} className="verification-photo">
                           <figcaption>Before {index + 1}</figcaption>
-                          <img src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
+                          <button
+                            type="button"
+                            className="verification-photo-preview-button"
+                            onClick={() => setVerificationPhotoPreview({
+                              url: photoUrl,
+                              alt: `Original defect evidence ${index + 1}`
+                            })}
+                            aria-label={`View before photo ${index + 1}`}
+                          >
+                            <img src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
+                          </button>
                         </figure>
                       ))}
                     </div>
@@ -3123,7 +3228,17 @@ const Inspections = () => {
                         .map((photoUrl, index) => (
                           <figure key={`after-${photoUrl}-${index}`} className="verification-photo">
                             <figcaption>After {index + 1}</figcaption>
-                            <img src={photoUrl} alt={`Closure evidence ${index + 1}`} />
+                            <button
+                              type="button"
+                              className="verification-photo-preview-button"
+                              onClick={() => setVerificationPhotoPreview({
+                                url: photoUrl,
+                                alt: `Closure evidence ${index + 1}`
+                              })}
+                              aria-label={`View after photo ${index + 1}`}
+                            >
+                              <img src={photoUrl} alt={`Closure evidence ${index + 1}`} />
+                            </button>
                             {index >= getFixPhotoUrls(verificationIssue).length && (
                               <button
                                 type="button"
@@ -3378,6 +3493,14 @@ const Inspections = () => {
           onCancel={() => setIsSubmitConfirmationOpen(false)}
           onConfirm={confirmInspectionSubmit}
         />
+      )}
+      {verificationPhotoPreview && (
+        <div className="inspection-image-lightbox" role="presentation" onClick={() => setVerificationPhotoPreview(null)}>
+          <div className="inspection-image-lightbox__dialog" role="dialog" aria-modal="true" aria-label="Full-size verification photo" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="inspection-image-lightbox__close" onClick={() => setVerificationPhotoPreview(null)} aria-label="Close photo preview">&times;</button>
+            <img src={verificationPhotoPreview.url} alt={verificationPhotoPreview.alt} />
+          </div>
+        </div>
       )}
       {(inspectionSubmitError || inspectionSubmitSuccess) && (
         <div className="issue-ticket-modal-backdrop inspection-notification-backdrop" role="presentation">
