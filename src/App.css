@@ -269,8 +269,8 @@ button {
 
 .login-password-toggle:hover,
 .login-password-toggle:focus-visible {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: transparent;
+  color: #64748b;
 }
 
 .login-password-toggle svg {
@@ -6704,9 +6704,44 @@ textarea {
   min-width: 58rem;
 }
 
-.fsm-shell .sidebar-menu {
+.portal-sidebar-drawer > .admin-sidebar,
+.portal-sidebar-drawer .sidebar-menu {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.portal-sidebar-drawer > .admin-sidebar {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.portal-sidebar-drawer .sidebar-menu {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.portal-sidebar-drawer .sidebar-footer {
   flex: 0 0 auto;
-  overflow: visible;
+}
+
+.ai-priority-policy-form textarea {
+  height: var(--control-height);
+  min-height: var(--control-height);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre;
+  resize: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.portal-sidebar-drawer > .admin-sidebar::-webkit-scrollbar,
+.portal-sidebar-drawer .sidebar-menu::-webkit-scrollbar,
+.ai-priority-policy-form textarea::-webkit-scrollbar {
+  display: none;
 }
 
 /* Keep the longer customer navigation scrollable without showing a scrollbar. */
@@ -6721,7 +6756,18 @@ textarea {
   display: none;
 }
 
-.user-name,
+.user-info {
+  flex: 1 1 auto;
+}
+
+.user-name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
 .user-role {
   overflow: hidden;
   text-overflow: ellipsis;

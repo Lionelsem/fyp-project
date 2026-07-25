@@ -290,7 +290,7 @@ const IssueHistoryTimeline = ({ issue }) => {
               <span className={statusClassName(entry.status)}>{entry.status || "Update"}</span>
               <div>
                 <strong>{String(entry.eventType || "status update").replace(/_/g, " ")}</strong>
-                <p>{entry.updatedBy || "-"} · {formatDateTime(entry.updatedAt)}</p>
+                <p>{formatDateTime(entry.updatedAt)}</p>
                 {entry.note ? <small>{entry.note}</small> : null}
               </div>
             </li>
