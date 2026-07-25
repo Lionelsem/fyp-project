@@ -2,6 +2,8 @@ import React, { useState, useMemo } from "react";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 import Modal from "../../components/common/Modal";
 import { ISSUE_STATUS } from "../../constants/status";
+import { useAuthContext } from "../../context/AuthContext";
+import { useCustomerLiveData } from "../../hooks/useCustomerLiveData";
 
 const mockIssues = [
   {
@@ -77,16 +79,25 @@ const statusOptions = [
 ];
 
 const IssueProgress = () => {
+  const { user } = useAuthContext();
+  const { issues: liveIssues, loading, error } = useCustomerLiveData(user);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const itemsPerPage = 5;
-  const [loading] = useState(false);
-  const [error] = useState(null);
-
-  // Mock data - in production, this would come from Firestore
-  const issues = mockIssues;
+  const issues = useMemo(() => liveIssues.map((issue) => {
+    const updatedAt = issue.updatedAt?.toDate?.() || issue.updatedAt || issue.createdAt?.toDate?.() || issue.createdAt || issue.reportedAt?.toDate?.() || issue.reportedAt;
+    const date = updatedAt ? new Date(updatedAt) : null;
+    return {
+      ...issue,
+      issueId: issue.issueId || issue.id,
+      location: issue.location || issue.storey || issue.floor || "-",
+      finding: issue.issueTitle || issue.issueDescription || issue.finding || "-",
+      proposedRectification: issue.proposedRectification || issue.rectification || issue.recommendation || "-",
+      lastUpdated: date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" }) : "-"
+    };
+  }), [liveIssues]);
 
   const filteredIssues = useMemo(() => {
     const query = search.trim().toLowerCase();

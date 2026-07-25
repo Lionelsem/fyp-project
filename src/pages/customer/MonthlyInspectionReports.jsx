@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 import FeedbackHistory from "../../components/customer/FeedbackHistory";
 import { useAuthContext } from "../../context/AuthContext";
-import { addReportCustomerFeedback, getAllReports } from "../../services/reportService";
+import { addReportCustomerFeedback } from "../../services/reportService";
+import { useCustomerLiveData } from "../../hooks/useCustomerLiveData";
 
 const parseReportYear = (dateString) => {
   const yearMatch = String(dateString || "").match(/\b(?:19|20)\d{2}\b/);
@@ -198,15 +199,15 @@ const buildInspectionOverviewPdf = (report) => {
 
 const InspectionReports = () => {
   const { user } = useAuthContext();
+  const { reports: liveReports, inspections, issues, loading: liveLoading, error: liveError } = useCustomerLiveData(user);
   const [search, setSearch] = useState("");
 
   const [yearFilter, setYearFilter] = useState("");
 
   const [reports, setReports] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState("");
+  const loading = liveLoading;
+  const error = liveError;
 
   const [remarks, setRemarks] = useState("");
 
@@ -222,65 +223,10 @@ const InspectionReports = () => {
   const [isDownloadingPdf, setIsDownloadingPdf] =
     useState(false);
 
-  // Load live inspection data from Firestore
   useEffect(() => {
-    let active = true;
-
-    const loadReports = async () => {
-      try {
-        setLoading(true);
-
-        setError("");
-
-        const data = await getAllReports();
-
-        // Only display monthly inspection reports
-        const inspectionReports = (data || []).filter(
-          (report) => {
-            const type = String(
-              report.reportType ||
-                report.reportTitle ||
-                ""
-            ).toLowerCase();
-
-            return !type.includes("annual");
-          }
-        );
-
-        if (active) {
-          const normalizedReports =
-            inspectionReports.map(
-              normalizeInspectionReport
-            );
-
-          setReports(normalizedReports);
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load inspection reports:",
-          error
-        );
-
-        if (active) {
-          setError(
-            "Unable to load inspection reports from Firebase."
-          );
-
-          setReports([]);
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadReports();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const monthlyReports = liveReports.filter((report) => !String(report.reportType || report.reportTitle || "").toLowerCase().includes("annual"));
+    setReports(monthlyReports.map(normalizeInspectionReport));
+  }, [liveReports]);
 
   // Search and year filtering
   const filteredReports = useMemo(() => {
