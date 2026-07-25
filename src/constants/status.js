@@ -13,6 +13,12 @@ export const ISSUE_STATUS = {
   CLOSED: "Closed"
 };
 
+export const CHECKLIST_CONDITION = {
+  GOOD: "Good",
+  FAULTY: "Faulty",
+  NOT_APPLICABLE: "N.A."
+};
+
 export const PRIORITY = {
   LOW: "Low",
   MEDIUM: "Medium",

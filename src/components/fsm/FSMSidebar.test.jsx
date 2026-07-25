@@ -57,4 +57,8 @@ test("building submenu includes an explicit overview destination", () => {
     "href",
     "/fsm/feedbacks"
   );
+  expect(screen.getByRole("link", { name: "AI Priority Settings" })).toHaveAttribute(
+    "href",
+    "/fsm/ai-priority-settings"
+  );
 });

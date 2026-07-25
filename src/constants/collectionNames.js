@@ -14,6 +14,7 @@ export const COLLECTION_NAMES = {
   NOTIFICATIONS: "notifications",
   REPORTS: "reports",
   AI_AUDIT_LOGS: "aiAuditLogs",
+  AI_PRIORITY_POLICIES: "aiPriorityPolicies",
   CUSTOMER_FEEDBACK_THREADS: "customerFeedbackThreads",
   CUSTOMER_FEEDBACK_MESSAGES: "customerFeedbackMessages"
 };
