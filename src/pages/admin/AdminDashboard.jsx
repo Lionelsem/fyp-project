@@ -126,7 +126,10 @@ const AdminDashboard = () => {
   const compliant     = resolvedIssues.length + closedIssues.length;
   const pending       = inProgressIssues.length;
   const nonCompliant  = openIssues.length;
-  const totalIssues   = issues.length;
+  // Only issues in a tracked status (open/in progress/resolved/closed) count toward the
+  // chart — using issues.length here would include drafts and other untracked statuses,
+  // leaving a gap in the ring since no segment accounts for them.
+  const totalIssues   = compliant + pending + nonCompliant;
 
   const cDash = totalIssues > 0 ? (compliant    / totalIssues) * CIRCUMFERENCE : 0;
   const pDash = totalIssues > 0 ? (pending      / totalIssues) * CIRCUMFERENCE : 0;

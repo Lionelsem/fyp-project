@@ -79,12 +79,35 @@ const ManageBuildings = () => {
     [userMap]
   );
 
-  const handleFsmChange = async (buildingId, newFsmId) => {
-    setSavingFsmId(buildingId);
+  const handleFsmChange = async (building, newFsmId) => {
+    const currentFsmId = building.assignedFsmId || "";
+    if (newFsmId === currentFsmId) return;
+
+    const buildingName = building.buildingName || building.building_name || "this building";
+
+    if (newFsmId) {
+      if (!fsmUsers.some((fsm) => fsm.uid === newFsmId)) {
+        toast.error("Selected user is not a valid FSM.");
+        return;
+      }
+      if (currentFsmId) {
+        const confirmed = window.confirm(
+          `${buildingName} is currently assigned to ${getAssignedFsmName(currentFsmId)}. Reassign to ${getAssignedFsmName(newFsmId)}?`
+        );
+        if (!confirmed) return;
+      }
+    } else {
+      const confirmed = window.confirm(
+        `Remove ${getAssignedFsmName(currentFsmId)} from ${buildingName}?`
+      );
+      if (!confirmed) return;
+    }
+
+    setSavingFsmId(building.id);
     try {
-      await updateBuilding(buildingId, { assignedFsmId: newFsmId });
+      await updateBuilding(building.id, { assignedFsmId: newFsmId });
       setBuildings((prev) =>
-        prev.map((b) => (b.id === buildingId ? { ...b, assignedFsmId: newFsmId } : b))
+        prev.map((b) => (b.id === building.id ? { ...b, assignedFsmId: newFsmId } : b))
       );
       toast.success(newFsmId ? "FSM assigned successfully." : "FSM unassigned.");
     } catch (error) {
@@ -275,7 +298,7 @@ const ManageBuildings = () => {
                     <select
                       className="form-input"
                       value={building.assignedFsmId || ""}
-                      onChange={(e) => handleFsmChange(building.id, e.target.value)}
+                      onChange={(e) => handleFsmChange(building, e.target.value)}
                       disabled={savingFsmId === building.id}
                       style={{ minWidth: "160px" }}
                     >

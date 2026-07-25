@@ -15,6 +15,7 @@ import {
   generateMonthlyReportPdf
 } from "../../services/reportGeneratorService";
 import { getAllUsers } from "../../services/userService";
+import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
@@ -86,11 +87,37 @@ const getPriorityStyle = (priority) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
+// Reports are regenerated on demand from live data rather than stored as files,
+// so redownloading needs the original generation parameters. Older records saved
+// before this existed fall back to whatever top-level fields they already have.
+const getReportParams = (report) => {
+  if (report.reportParams) return report.reportParams;
+
+  if (report.reportType === "Monthly") {
+    if (!report.reportMonth || !report.reportYear) return null;
+    return {
+      month: Number(report.reportMonth),
+      year: Number(report.reportYear),
+      buildingId: report.buildingId || "all"
+    };
+  }
+
+  if (report.reportType === "Annual") {
+    const year = Number(report.reportYear) || Number(report.period);
+    if (!year) return null;
+    return { year, buildingId: "all" };
+  }
+
+  return null;
+};
+
+const canRedownloadReport = (report) => !!getReportParams(report);
+
 const TABS = [
   { key: "recent",  label: "Recent Reports" },
-  { key: "monthly", label: "Monthly Summaries" },
-  { key: "annual",  label: "Annual Audits" },
-  { key: "custom",  label: "Custom" }
+  { key: "monthly", label: "Monthly Reports" },
+  { key: "annual",  label: "Annual Reports" },
+  { key: "custom",  label: "Custom Report" }
 ];
 
 const ModalHeader = ({ title, onClose, generating }) => (
@@ -148,6 +175,7 @@ const AdminReports = () => {
   const [generating,     setGenerating]     = useState(false);
   const [generateError,  setGenerateError]  = useState(null);
   const [selectedReportRecord, setSelectedReportRecord] = useState(null);
+  const [redownloadingId, setRedownloadingId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -224,6 +252,59 @@ const AdminReports = () => {
       getAllInspectionResults()
     ]);
 
+  const handleRedownload = async (report, format = "docx") => {
+    const params = getReportParams(report);
+    if (!params) {
+      toast.error("This report predates redownload support. Generate a new one to get an updated file.");
+      return;
+    }
+
+    setRedownloadingId(report.id);
+    try {
+      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
+      const buildingsToUse = !params.buildingId || params.buildingId === "all"
+        ? buildings
+        : buildings.filter((b) => b.id === params.buildingId);
+      const generatedBy = userMap.get(report.generatedBy) || report.generatedBy || generatedByName();
+
+      if (report.reportType === "Monthly") {
+        const generator = format === "pdf" ? generateMonthlyReportPdf : generateMonthlyReport;
+        await generator({
+          month: params.month, year: params.year,
+          buildings: buildingsToUse, fireDrills: firedrills,
+          inspections, inspectionResults, issues: issueList, generatedBy
+        });
+      } else if (report.reportType === "Annual") {
+        await generateAnnualReport({
+          year: params.year, buildings: buildingsToUse,
+          fireDrills: firedrills, inspections, inspectionResults,
+          issues: issueList, generatedBy
+        });
+      } else {
+        await generateCustomReport({
+          reportType:     params.reportType,
+          sections:       params.sections,
+          month:          params.month,
+          year:           params.year,
+          dateFrom:       params.dateFrom,
+          dateTo:         params.dateTo,
+          customTitle:    params.customTitle,
+          openingRemarks: params.openingRemarks,
+          buildings:      buildingsToUse,
+          fireDrills:     firedrills,
+          inspections,
+          inspectionResults,
+          issues:         issueList,
+          generatedBy
+        });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to regenerate the report file.");
+    } finally {
+      setRedownloadingId(null);
+    }
+  };
+
   // ── Monthly generate ──
   const openMonthlyModal = () => {
     setGenerateError(null);
@@ -261,7 +342,8 @@ const AdminReports = () => {
         priority: "Normal",
         period:   `${monthLabel} ${selectedYear}`,
         reportMonth: selectedMonth,
-        reportYear: selectedYear
+        reportYear: selectedYear,
+        reportParams: { month: selectedMonth, year: selectedYear, buildingId: selectedBuilding }
       });
       await refreshReports();
       setShowMonthlyModal(false);
@@ -298,7 +380,9 @@ const AdminReports = () => {
         reportTitle: `Annual Report ${annualYear}`,
         status:   "Generated",
         priority: "Normal",
-        period:   String(annualYear)
+        period:   String(annualYear),
+        reportYear: annualYear,
+        reportParams: { year: annualYear, buildingId: "all" }
       });
       await refreshReports();
       setShowAnnualModal(false);
@@ -385,7 +469,18 @@ const AdminReports = () => {
         reportTitle: title,
         status:      "Generated",
         priority:    customPriority,
-        period:      periodLabel
+        period:      periodLabel,
+        reportParams: {
+          reportType:     customReportType,
+          sections:       customSections,
+          month:          customMonth,
+          year:           reportYear,
+          dateFrom:       customDateFrom,
+          dateTo:         customDateTo,
+          customTitle:    customTitle.trim() || null,
+          openingRemarks: customOpeningRemarks.trim() || null,
+          buildingId:     customBuilding
+        }
       });
       await refreshReports();
       setShowCustomModal(false);
@@ -530,10 +625,31 @@ const AdminReports = () => {
                 <div key={label} className="detail-row"><span className="detail-label">{label}</span><span className="detail-value">{value || "-"}</span></div>
               ))}
             </div>
-            {selectedReportRecord.reportFileUrl ? (
-              <a className="primary-btn" href={selectedReportRecord.reportFileUrl} target="_blank" rel="noreferrer" style={{ display: "inline-flex", marginTop: "18px", textDecoration: "none" }}>Open File</a>
+            {canRedownloadReport(selectedReportRecord) ? (
+              <div className="report-modal-actions" style={{ justifyContent: "flex-start", marginTop: "18px" }}>
+                {selectedReportRecord.reportType === "Monthly" && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => handleRedownload(selectedReportRecord, "pdf")}
+                    disabled={redownloadingId === selectedReportRecord.id}
+                  >
+                    {redownloadingId === selectedReportRecord.id ? "Preparing..." : "Redownload PDF"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => handleRedownload(selectedReportRecord, "docx")}
+                  disabled={redownloadingId === selectedReportRecord.id}
+                >
+                  {redownloadingId === selectedReportRecord.id
+                    ? "Preparing..."
+                    : selectedReportRecord.reportType === "Monthly" ? "Redownload Word" : "Redownload Report"}
+                </button>
+              </div>
             ) : (
-              <p style={{ color: "#6b7280", fontSize: "14px", marginTop: "18px" }}>No stored file URL is attached to this report record. Generate the report again to download a new Word or PDF file.</p>
+              <p style={{ color: "#6b7280", fontSize: "14px", marginTop: "18px" }}>This report predates redownload support. Generate the report again to get a new file.</p>
             )}
           </div>
         </div>

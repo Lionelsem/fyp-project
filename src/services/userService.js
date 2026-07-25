@@ -1,7 +1,8 @@
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where, updateDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { auth } from "../config/firebase";
+import { auth, functions } from "../config/firebase";
 import { updateEmail } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 import { normalizeNotificationPreferences } from "../constants/notificationPreferences";
 import {
@@ -116,5 +117,6 @@ export const updateNotificationPreferences = async (profileId, preferences) => {
 };
 
 export const deleteUser = async (uid) => {
-  await deleteDoc(doc(db, COLLECTION_NAMES.USERS, uid));
+  const deleteUserAccount = httpsCallable(functions, "deleteUserAccount");
+  await deleteUserAccount({ uid });
 };

@@ -10,6 +10,23 @@ import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion
 import UserAvatar from "../../components/common/UserAvatar";
 
 const normalizeHeader = (h) => String(h || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
+
+const isRowBlank = (parsed) =>
+  !parsed.firstName && !parsed.lastName && !parsed.email && !parsed.phoneNumber && !parsed.password;
+
+const validateUserRow = (parsed, existingEmails, seenEmails) => {
+  if (!parsed.firstName) return "missing first name";
+  if (!parsed.email) return "missing email";
+  if (!EMAIL_REGEX.test(parsed.email)) return "invalid email format";
+  if (!parsed.password) return "missing password";
+  if (parsed.password.length < MIN_PASSWORD_LENGTH) return `password too short (min ${MIN_PASSWORD_LENGTH} characters)`;
+  const emailLower = parsed.email.toLowerCase();
+  if (existingEmails.has(emailLower)) return "already registered";
+  if (seenEmails.has(emailLower)) return "duplicate email in file";
+  return null;
+};
 
 const parseUserRow = (row) => {
   const get = (keys) => {
@@ -93,27 +110,49 @@ const ManageUsers = () => {
         return;
       }
 
-      let succeeded = 0;
-      let failed = 0;
+      const existingEmails = new Set(
+        users.map((u) => String(u.email || "").toLowerCase()).filter(Boolean)
+      );
+      const seenEmails = new Set();
 
-      for (const row of rows) {
+      let succeeded = 0;
+      let skippedBlank = 0;
+      const failures = [];
+
+      for (const [index, row] of rows.entries()) {
         const parsed = parseUserRow(row);
-        if (!parsed.firstName || !parsed.email || !parsed.password) {
-          failed += 1;
+        if (isRowBlank(parsed)) {
+          skippedBlank += 1;
           continue;
         }
+
+        const rowLabel = parsed.email || `row ${index + 2}`;
+        const validationError = validateUserRow(parsed, existingEmails, seenEmails);
+        if (validationError) {
+          failures.push(`${rowLabel}: ${validationError}`);
+          continue;
+        }
+
+        const emailLower = parsed.email.toLowerCase();
+        seenEmails.add(emailLower);
+
         try {
           await createUserAccount({
             firstName:   parsed.firstName,
             lastName:    parsed.lastName,
-            email:       parsed.email.toLowerCase(),
+            email:       emailLower,
             phoneNumber: parsed.phoneNumber,
             role:        parsed.role,
             password:    parsed.password
           });
           succeeded += 1;
-        } catch {
-          failed += 1;
+          existingEmails.add(emailLower);
+        } catch (rowError) {
+          console.error(`Failed to import user ${rowLabel}`, rowError);
+          const reason = rowError.code === "auth/email-already-in-use"
+            ? "already registered"
+            : rowError.message || "unknown error";
+          failures.push(`${rowLabel}: ${reason}`);
         }
       }
 
@@ -122,13 +161,16 @@ const ManageUsers = () => {
         setUsers(refreshed);
       }
 
-      if (failed === 0) {
+      if (rows.length > 0 && skippedBlank === rows.length) {
+        toast.error("No data rows found in the file.", { id: toastId });
+      } else if (failures.length === 0) {
         toast.success(`${succeeded} user${succeeded !== 1 ? "s" : ""} imported.`, { id: toastId });
       } else {
-        toast(`${succeeded} imported, ${failed} skipped (missing required fields or duplicate email).`, {
-          id: toastId,
-          icon: "⚠️"
-        });
+        console.warn("Excel import skipped rows:", failures);
+        toast(
+          `${succeeded} imported, ${failures.length} skipped. First issue: ${failures[0]}`,
+          { id: toastId, icon: "⚠️", duration: 6000 }
+        );
       }
     } catch (err) {
       toast.error(err.message || "Failed to read file.", { id: toastId });
