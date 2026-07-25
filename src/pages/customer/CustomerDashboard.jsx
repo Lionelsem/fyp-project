@@ -1,87 +1,65 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { useAuthContext } from "../../context/AuthContext";
+import { useCustomerLiveData } from "../../hooks/useCustomerLiveData";
 
-const summaryCards = [
+const summaryCards = (issues) => [
   {
     label: "Open Issues",
-    value: 3,
+    value: issues.filter((issue) => String(issue.status || "").toLowerCase() === "open").length,
     icon: "⚠️",
     iconBg: "#fee2e2",
     iconColor: "#dc2626"
   },
   {
     label: "In Progress",
-    value: 5,
+    value: issues.filter((issue) => String(issue.status || "").toLowerCase() === "in progress").length,
     icon: "🔄",
     iconBg: "#fed7aa",
     iconColor: "#ea580c"
   },
   {
     label: "Resolved",
-    value: 12,
+    value: issues.filter((issue) => String(issue.status || "").toLowerCase() === "resolved").length,
     icon: "✅",
     iconBg: "#dcfce7",
     iconColor: "#16a34a"
   },
   {
     label: "Closed",
-    value: 48,
+    value: issues.filter((issue) => ["closed", "completed"].includes(String(issue.status || "").toLowerCase())).length,
     icon: "🔒",
     iconBg: "#eef2ff",
     iconColor: "#4338ca"
   }
 ];
 
-const recentIssues = [
-  {
-    location: "Lobby Level 1",
-    finding: "Fire Extinguisher Expired",
-    status: "Open",
-    statusColor: "#dc2626",
-    updated: "Today"
-  },
-  {
-    location: "Basement 2",
-    finding: "Blocked Fire Exit Route",
-    status: "In Progress",
-    statusColor: "#ea580c",
-    updated: "Yesterday"
-  },
-  {
-    location: "Level 4, South Wing",
-    finding: "Faulty Fire Alarm Panel Zone 3",
-    status: "Resolved",
-    statusColor: "#16a34a",
-    updated: "2 days ago"
-  },
-  {
-    location: "Roof Deck",
-    finding: "Hose Reel Pressure Low",
-    status: "Closed",
-    statusColor: "#4338ca",
-    updated: "5 days ago"
-  }
-];
+const issueDate = (issue) => issue.updatedAt?.toDate?.() || issue.updatedAt || issue.createdAt?.toDate?.() || issue.createdAt || issue.reportedAt?.toDate?.() || issue.reportedAt;
+const statusColor = (status) => ({ open: "#dc2626", "in progress": "#ea580c", resolved: "#16a34a", closed: "#4338ca" }[String(status || "").toLowerCase()] || "#475569");
+const formatDate = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" });
+};
 
 const latestReports = [
   {
     title: "Latest Monthly Report",
-    subtitle: "September 2026",
+    subtitle: "July 2026",
     icon: "📋",
     iconBg: "#ecfdf5",
     path: "/inspection-reports"
   },
   {
     title: "Latest Fire Drill",
-    subtitle: "August 15, 2026",
+    subtitle: "July 24, 2026",
     icon: "🚒",
     iconBg: "#fce7f3",
     path: "/fire-drill-reports"
   },
   {
     title: "Annual Safety Report",
-    subtitle: "Year 2025",
+    subtitle: "Year 2026",
     icon: "📊",
     iconBg: "#ecfdf5",
     path: "/annual-reports"
@@ -90,6 +68,23 @@ const latestReports = [
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
+  const { buildings, issues, reports, fireDrills, loading } = useCustomerLiveData(user);
+  const building = buildings[0];
+  const recentIssues = useMemo(() => [...issues]
+    .sort((first, second) => new Date(issueDate(second) || 0) - new Date(issueDate(first) || 0))
+    .slice(0, 5), [issues]);
+  const latestReports = useMemo(() => {
+    const latest = (items, type) => [...items].filter((item) => type(item)).sort((a, b) => new Date(b.createdAt?.toDate?.() || b.createdAt || 0) - new Date(a.createdAt?.toDate?.() || a.createdAt || 0))[0];
+    const monthly = latest(reports, (item) => !String(item.reportType || item.reportTitle || "").toLowerCase().includes("annual"));
+    const annual = latest(reports, (item) => String(item.reportType || item.reportTitle || "").toLowerCase().includes("annual"));
+    const drill = latest(fireDrills, () => true);
+    return [
+      { title: "Latest Monthly Report", subtitle: monthly ? (monthly.inspectionMonth || formatDate(monthly.createdAt)) : "No report available", icon: "📋", iconBg: "#ecfdf5", path: "/inspection-reports" },
+      { title: "Latest Fire Drill", subtitle: drill ? formatDate(drill.actualDate || drill.conductedDate || drill.drillDate) : "No drill available", icon: "🚒", iconBg: "#fce7f3", path: "/fire-drill-reports" },
+      { title: "Annual Safety Report", subtitle: annual ? (annual.period || formatDate(annual.createdAt)) : "No report available", icon: "📊", iconBg: "#ecfdf5", path: "/annual-reports" }
+    ];
+  }, [fireDrills, reports]);
 
   const handleFeedbackNavigation = () => {
     navigate("/feedbacks");
@@ -107,18 +102,18 @@ const CustomerDashboard = () => {
             <span className="building-icon">🏢</span>
             <div>
               <h3 className="building-label">MY BUILDING</h3>
-              <h2 className="building-name">Tech Park B</h2>
-              <p className="building-address">123 Corporate Blvd, District 9</p>
+              <h2 className="building-name">{building?.buildingName || building?.building_name || "My Building"}</h2>
+              <p className="building-address">{building?.address || "-"}</p>
             </div>
           </div>
           <div className="building-card-details">
             <div className="detail-row">
               <span className="detail-label">FSM Assigned</span>
-              <span className="detail-value">John Smith (USR-002)</span>
+              <span className="detail-value">{building?.assignedFsm || building?.assignedFsmName || "-"}</span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Next Inspection</span>
-              <span className="detail-value">Oct 15, 2028</span>
+              <span className="detail-value">{building?.nextInspection ? formatDate(building.nextInspection) : "-"}</span>
             </div>
           </div>
         </div>
@@ -129,7 +124,7 @@ const CustomerDashboard = () => {
         role="list"
         aria-label="Customer issue summary"
       >
-        {summaryCards.map((card) => (
+        {summaryCards(issues).map((card) => (
           <div
             key={card.label}
             className="summary-card"
@@ -156,7 +151,11 @@ const CustomerDashboard = () => {
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Issue Updates</h2>
-              <button type="button" className="view-all-link">
+              <button
+                type="button"
+                className="view-all-link"
+                onClick={() => navigate("/issue-progress")}
+              >
                 View all →
               </button>
             </div>
@@ -174,19 +173,19 @@ const CustomerDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {recentIssues.map((issue, index) => (
-                  <tr key={index}>
-                    <td data-label="Location">{issue.location}</td>
-                    <td data-label="Finding">{issue.finding}</td>
+                {loading ? <tr><td colSpan={4}>Loading live issues...</td></tr> : recentIssues.length === 0 ? <tr><td colSpan={4}>No issues found.</td></tr> : recentIssues.map((issue) => (
+                  <tr key={issue.id}>
+                    <td data-label="Location">{issue.location || issue.storey || "-"}</td>
+                    <td data-label="Finding">{issue.issueTitle || issue.issueDescription || issue.finding || "-"}</td>
                     <td data-label="Status">
                       <span
                         className="status-badge"
-                        style={{ color: issue.statusColor }}
+                        style={{ color: statusColor(issue.status) }}
                       >
                         {issue.status}
                       </span>
                     </td>
-                    <td data-label="Updated">{issue.updated}</td>
+                    <td data-label="Updated">{formatDate(issueDate(issue))}</td>
                   </tr>
                 ))}
               </tbody>

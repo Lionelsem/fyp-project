@@ -6,7 +6,12 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { checklist, findings, buildInspectionDates } = require("./historicalFsmFixtures");
+const {
+  checklist,
+  findings,
+  buildInspectionDates,
+  buildClosedIssueLifecycle
+} = require("./historicalFsmFixtures");
 
 const projectId = "fireguardcbre";
 const seedSource = "historical-fsm-rolling-v2";
@@ -67,13 +72,12 @@ const timestamp = (dateText, time = "09:30:00") => new Date(`${dateText}T${time}
 const addDays = (date, days) => new Date(date.getTime() + days * 86400000);
 const cleanId = (value) => String(value).replace(/[^a-zA-Z0-9_-]+/g, "-");
 
-const historyFor = (createdAt, resolvedAt, status, fsmId, description, rectification) => {
-  const history = [{ status: "Open", note: description, updatedBy: fsmId, updatedAt: createdAt, eventType: "issue_created" }];
-  if (status !== "Open") history.push({ status: "In Progress", note: "Rectification work assigned.", updatedBy: fsmId, updatedAt: addDays(createdAt, 1), eventType: "status_update" });
-  if (["Resolved", "Closed"].includes(status)) history.push({ status: "Resolved", note: rectification, updatedBy: fsmId, updatedAt: resolvedAt, eventType: "status_update" });
-  if (status === "Closed") history.push({ status: "Closed", note: "FSM inspected and accepted the completed rectification.", updatedBy: fsmId, updatedAt: addDays(resolvedAt, 1), eventType: "status_update" });
-  return history;
-};
+const historyFor = (createdAt, lifecycle, fsmId, description, rectification) => [
+  { status: "Open", note: description, updatedBy: fsmId, updatedAt: createdAt, eventType: "issue_created" },
+  { status: "In Progress", note: "Rectification work assigned.", updatedBy: fsmId, updatedAt: lifecycle.inProgressAt, eventType: "status_update" },
+  { status: "Resolved", note: rectification, updatedBy: fsmId, updatedAt: lifecycle.resolvedAt, eventType: "status_update" },
+  { status: "Closed", note: "FSM inspected and accepted the completed rectification.", updatedBy: fsmId, updatedAt: lifecycle.closedAt, eventType: "status_update" }
+];
 
 const write = (collection, id, data) => ({
   update: { name: `${documentRoot}/${collection}/${id}`, fields: encodeFields(data) }
@@ -92,9 +96,10 @@ const buildWrites = (building, fsmId) => {
     const floorId = `level-${index % floors + 1}`;
     const floorName = `Level ${index % floors + 1}`;
     const inspectionKey = `seed-hist-${cleanId(building.id)}-${dateText}`;
-    const [faultCategory, faultCode, title, description, rectification, priority, status, resolutionDays] = findings[index % findings.length];
+    const [faultCategory, faultCode, title, description, rectification, priority] = findings[index % findings.length];
     const issueKey = `${inspectionKey}__${faultCategory}__${faultCode}`;
-    const resolvedAt = resolutionDays ? addDays(createdAt, resolutionDays) : null;
+    const status = "Closed";
+    const lifecycle = buildClosedIssueLifecycle(createdAt);
 
     writes.push(write("inspections", inspectionKey, {
       inspectionKey, inspectionId: inspectionKey, buildingId: building.id, floorId, floorName, fsmId, periodKey,
@@ -125,29 +130,27 @@ const buildWrites = (building, fsmId) => {
       }));
     });
 
-    const history = historyFor(createdAt, resolvedAt, status, fsmId, description, rectification);
+    const history = historyFor(createdAt, lifecycle, fsmId, description, rectification);
     writes.push(write("issues", issueKey, {
       issueKey, issueId: issueKey, periodKey, reportedAt: createdAt, inspectionKey, inspectionId: inspectionKey,
       resultKey: issueKey, resultId: issueKey, buildingId: building.id, floorId, floorName,
       categoryCode: faultCategory, itemCode: faultCode, itemLabel: title, location: floorName,
       equipmentId: null, reportedBy: fsmId, issueTitle: title, issueDescription: description,
       rectification, priority, status, issuePhotoUrl: "", defectPhotoUrl: "", defectPhotoUrls: [],
-      fixPhotoUrl: "", fixPhotoUrls: [], verificationComments: resolvedAt ? "Rectification checked and accepted." : "",
-      history, resolvedAt: ["Resolved", "Closed"].includes(status) ? resolvedAt : null,
-      closedAt: status === "Closed" ? addDays(resolvedAt, 1) : null,
+      fixPhotoUrl: "", fixPhotoUrls: [], verificationComments: "Rectification checked and accepted.",
+      history, resolvedAt: lifecycle.resolvedAt,
+      closedAt: lifecycle.closedAt,
       createdAt, updatedAt: history[history.length - 1].updatedAt, seedSource
     }));
 
-    if (["Resolved", "Closed"].includes(status)) {
-      const verifiedAt = status === "Closed" ? addDays(resolvedAt, 1) : resolvedAt;
-      const verificationId = `seed-closure-${cleanId(building.id)}-${dateText}`;
-      writes.push(write("closureVerifications", verificationId, {
-        verificationId, issueId: issueKey, resultId: issueKey, verifiedBy: fsmId, approvedBy: fsmId,
-        beforePhotoUrl: "", afterPhotoUrl: "", defectPhotoUrl: "", defectPhotoUrls: [], fixPhotoUrl: "", fixPhotoUrls: [],
-        verificationComments: "Rectification inspected and accepted; item was serviceable at verification.",
-        approvalStatus: "Approved", verifiedAt, createdAt: verifiedAt, updatedAt: verifiedAt, seedSource
-      }));
-    }
+    const verificationId = `seed-closure-${cleanId(building.id)}-${dateText}`;
+    writes.push(write("closureVerifications", verificationId, {
+      verificationId, issueId: issueKey, resultId: issueKey, verifiedBy: fsmId, approvedBy: fsmId,
+      beforePhotoUrl: "", afterPhotoUrl: "", defectPhotoUrl: "", defectPhotoUrls: [], fixPhotoUrl: "", fixPhotoUrls: [],
+      verificationComments: "Rectification inspected and accepted; item was serviceable at verification.",
+      approvalStatus: "Approved", verifiedAt: lifecycle.closedAt,
+      createdAt: lifecycle.closedAt, updatedAt: lifecycle.closedAt, seedSource
+    }));
 
     const participants = 36 + index * 4;
     const drillId = `seed-drill-${cleanId(building.id)}-${dateText}`;
@@ -174,13 +177,27 @@ const main = async () => {
   const token = getAccessToken();
   const requestedBuilding = process.argv.find((item) => item.startsWith("--building="))?.split("=")[1];
   const [buildings, users] = await Promise.all([listCollection("buildings", token), listCollection("users", token)]);
-  const building = buildings.find((item) => requestedBuilding ? item.id === requestedBuilding : Boolean(item.assignedFsmId));
-  if (!building) throw new Error("No assigned building found. Use --building=DOCUMENT_ID or assign an FSM first.");
-  const fsmId = building.assignedFsmId;
-  const fsm = users.find((user) => [user.id, user.uid, user.authUid, user.fsmId, user.email, user.fullName].filter(Boolean).includes(fsmId));
-  if (!fsm) throw new Error(`Assigned FSM ${fsmId} was not found in users.`);
+  const selectedBuildings = requestedBuilding
+    ? buildings.filter((item) => item.id === requestedBuilding)
+    : buildings.filter((item) => Boolean(item.assignedFsmId));
+  if (selectedBuildings.length === 0) {
+    throw new Error("No assigned building found. Use --building=DOCUMENT_ID or assign an FSM first.");
+  }
 
-  const writes = buildWrites(building, fsmId);
+  const assignments = selectedBuildings.map((building) => {
+    const fsmId = building.assignedFsmId;
+    const fsm = users.find((user) =>
+      [user.id, user.uid, user.authUid, user.fsmId, user.email, user.fullName]
+        .filter(Boolean)
+        .includes(fsmId)
+    );
+    if (!fsm) throw new Error(`Assigned FSM ${fsmId} was not found in users.`);
+    return { building, fsm, fsmId };
+  });
+
+  const writes = assignments.flatMap(({ building, fsmId }) =>
+    buildWrites(building, fsmId)
+  );
   for (let offset = 0; offset < writes.length; offset += 400) {
     await request(`${apiRoot}:commit`, token, { method: "POST", body: JSON.stringify({ writes: writes.slice(offset, offset + 400) }) });
   }
@@ -189,7 +206,14 @@ const main = async () => {
     result[collection] = (result[collection] || 0) + 1;
     return result;
   }, {});
-  console.log(JSON.stringify({ seedSource, building: building.buildingName || building.id, fsm: fsm.fullName || fsm.email, counts }, null, 2));
+  console.log(JSON.stringify({
+    seedSource,
+    assignments: assignments.map(({ building, fsm }) => ({
+      building: building.buildingName || building.building_name || building.name || building.id,
+      fsm: fsm.fullName || fsm.email
+    })),
+    counts
+  }, null, 2));
 };
 
 main().catch((error) => {

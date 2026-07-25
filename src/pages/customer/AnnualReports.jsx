@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getAllReports, updateReport } from "../../services/reportService";
+import { Link } from "react-router-dom";
+import { addReportCustomerFeedback, getAllReports } from "../../services/reportService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import FeedbackHistory from "../../components/customer/FeedbackHistory";
+import { useAuthContext } from "../../context/AuthContext";
 
 const fallbackReports = [
   {
@@ -72,6 +75,8 @@ const escapePdfText = (value) => {
     .replace(/\)/g, "\\)");
 };
 
+// Retained for future report exports; the customer download serves the approved source document.
+// eslint-disable-next-line no-unused-vars
 const buildAnnualReportPdf = (report) => {
   const title = "Latest Annual Report";
   const lines = [
@@ -121,6 +126,7 @@ const buildAnnualReportPdf = (report) => {
 };
 
 const AnnualReports = () => {
+  const { user } = useAuthContext();
   const [reports, setReports] = useState([]);
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -179,7 +185,6 @@ const AnnualReports = () => {
   const [remarks, setRemarks] = useState(latestReport.customerComments || "");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
   const [remarksSavedMessage, setRemarksSavedMessage] = useState("");
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     setRemarks(latestReport.customerComments || "");
@@ -202,10 +207,19 @@ const AnnualReports = () => {
     setRemarksSavedMessage("");
 
     try {
-      await updateReport(latestReport.id, { customerComments: remarks });
+      const submittedAt = new Date();
+      const feedbackEntry = {
+        message: remarks.trim(),
+        submittedAt,
+        customerId: user?.uid || user?.authUid || "",
+        customerName: user?.fullName || user?.name || user?.email || "Customer"
+      };
+      await addReportCustomerFeedback(latestReport.id, remarks, user);
       setReports((currentReports) =>
         currentReports.map((report) =>
-          report.id === latestReport.id ? { ...report, customerComments: remarks } : report
+          report.id === latestReport.id
+            ? { ...report, customerComments: feedbackEntry.message, customerFeedbackUpdatedAt: submittedAt, customerFeedbackHistory: [...(report.customerFeedbackHistory || []), feedbackEntry] }
+            : report
         )
       );
       setRemarksSavedMessage("Remarks saved successfully.");
@@ -214,32 +228,6 @@ const AnnualReports = () => {
       console.error(error);
     } finally {
       setIsSavingRemarks(false);
-    }
-  };
-
-  const handleDownloadLatestAnnualPdf = () => {
-    if (!latestReport) {
-      alert("No annual report is selected.");
-      return;
-    }
-
-    setIsDownloadingPdf(true);
-    try {
-      const pdf = buildAnnualReportPdf(latestReport);
-      const blob = new Blob([pdf], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${latestReport.reportId || "annual-report"}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Failed to export annual report to PDF", error);
-      alert("Unable to download the annual report PDF right now.");
-    } finally {
-      setIsDownloadingPdf(false);
     }
   };
 
@@ -253,14 +241,13 @@ const AnnualReports = () => {
             </h4>
           </div>
           <div className="header-actions">
-            <button
-              type="button"
+            <a
               className="primary-btn"
-              onClick={handleDownloadLatestAnnualPdf}
-              disabled={isDownloadingPdf}
+              href="/FSM_Annual_Report_Pioneer_Tech_Hub_2026.docx"
+              download="FSM_Annual_Report_Pioneer_Tech_Hub_2026.docx"
             >
-              {isDownloadingPdf ? "Preparing PDF..." : "Download Latest Report"}
-            </button>
+              Download Latest Report
+            </a>
           </div>
         </div>
       </div>
@@ -364,6 +351,7 @@ const AnnualReports = () => {
                     {remarksSavedMessage}
                   </p>
                 )}
+                <FeedbackHistory record={latestReport} />
               </div>
             </div>
           </div>
@@ -467,9 +455,9 @@ const AnnualReports = () => {
             <p style={{ margin: "0 0 12px", color: "#64748b", lineHeight: "1.6" }}>
               If you need a formal copy or want a detailed explanation of any section, contact the fire safety team.
             </p>
-            <button type="button" className="secondary-btn" style={{ width: "100%" }}>
+            <Link to="/feedbacks" className="secondary-btn" style={{ width: "100%" }}>
               Contact Support
-            </button>
+            </Link>
           </div>
         </div>
       </div>

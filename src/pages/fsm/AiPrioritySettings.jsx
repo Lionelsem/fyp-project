@@ -113,8 +113,8 @@ const AiPrioritySettings = () => {
             <label className="form-field" key={priority}>
               <span className="form-label">{priority} priority definition *</span>
               <textarea
-                className="form-input"
-                rows={4}
+                className="form-input inspection-form-typography"
+                rows={1}
                 required
                 value={policy.definitions?.[priority] || ""}
                 onChange={(event) => setDefinition(priority, event.target.value)}
@@ -126,8 +126,8 @@ const AiPrioritySettings = () => {
           <label className="form-field">
             <span className="form-label">Additional organization instructions</span>
             <textarea
-              className="form-input"
-              rows={5}
+              className="form-input inspection-form-typography"
+              rows={1}
               value={policy.additionalInstructions || ""}
               onChange={(event) =>
                 setPolicy((current) => ({
