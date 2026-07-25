@@ -8,7 +8,6 @@ import ManageBuildings from "../pages/admin/ManageBuildings";
 import CreateBuilding from "../pages/admin/CreateBuilding";
 import EditBuilding from "../pages/admin/EditBuilding";
 import AdminFireDrill from "../pages/admin/AdminFireDrill";
-import FsmAssignment from "../pages/admin/FsmAssignment";
 import AdminIssues from "../pages/admin/AdminIssues";
 import EditUser from "../pages/admin/EditUser";
 import Reports from "../pages/admin/Reports";
@@ -29,7 +28,7 @@ const AdminRoutes = () => {
           <Route path="buildings" element={<ManageBuildings />} />
           <Route path="buildings/create" element={<CreateBuilding />} />
           <Route path="buildings/edit/:id" element={<EditBuilding />} />
-          <Route path="fsm-assignment" element={<FsmAssignment />} />
+          <Route path="fsm-assignment" element={<Navigate to="/buildings" replace />} />
           <Route path="issues-defects" element={<AdminIssues />} />
           <Route path="fire-drill" element={<AdminFireDrill />} />
           <Route path="reports" element={<Reports />} />

@@ -69,10 +69,17 @@ const AdminDashboard = () => {
     return () => { active = false; };
   }, []);
 
-  const buildingMap = useMemo(
-    () => new Map(buildings.map((b) => [b.id, b.buildingName || b.building_name || "Unnamed building"])),
-    [buildings]
-  );
+  const buildingMap = useMemo(() => {
+    const map = new Map();
+    buildings.forEach((b) => {
+      const name = b.buildingName || b.building_name || "Unnamed building";
+      map.set(b.id, name);
+      if (b.buildingId && b.buildingId !== b.id) {
+        map.set(b.buildingId, name);
+      }
+    });
+    return map;
+  }, [buildings]);
 
   // ── Computed stats ──
   const fsmCount        = useMemo(() => users.filter((u) => u.role === ROLES.FSM).length, [users]);
@@ -87,10 +94,6 @@ const AdminDashboard = () => {
     () => drills.filter((d) => String(d.status || "").toLowerCase() === "completed"),
     [drills]
   );
-  const pendingReports  = useMemo(
-    () => reports.filter((r) => ["draft", "pending"].includes(String(r.status || "").toLowerCase())),
-    [reports]
-  );
 
   const summaryCards = [
     { label: "Total Buildings",     value: buildings.length,                         icon: "🏢", iconBg: "#ecfdf5", iconColor: "#047857" },
@@ -99,8 +102,7 @@ const AdminDashboard = () => {
     { label: "Outstanding Issues",  value: openIssues.length + inProgressIssues.length, icon: "⚠️", iconBg: "#fffbeb", iconColor: "#b45309" },
     { label: "Resolved Issues",     value: resolvedIssues.length,                   icon: "✅", iconBg: "#ecfdf5", iconColor: "#047857" },
     { label: "Closed Issues",       value: closedIssues.length,                     icon: "🔒", iconBg: "#eef2ff", iconColor: "#4338ca" },
-    { label: "Completed Fire Drills",value: completedDrills.length,                 icon: "🚒", iconBg: "#fce7f3", iconColor: "#be185d" },
-    { label: "Pending Reports",     value: pendingReports.length,                   icon: "📄", iconBg: "#ffedd5", iconColor: "#c2410c" }
+    { label: "Completed Fire Drills",value: completedDrills.length,                 icon: "🚒", iconBg: "#fce7f3", iconColor: "#be185d" }
   ];
 
   // ── Recent records ──
@@ -124,7 +126,10 @@ const AdminDashboard = () => {
   const compliant     = resolvedIssues.length + closedIssues.length;
   const pending       = inProgressIssues.length;
   const nonCompliant  = openIssues.length;
-  const totalIssues   = issues.length;
+  // Only issues in a tracked status (open/in progress/resolved/closed) count toward the
+  // chart — using issues.length here would include drafts and other untracked statuses,
+  // leaving a gap in the ring since no segment accounts for them.
+  const totalIssues   = compliant + pending + nonCompliant;
 
   const cDash = totalIssues > 0 ? (compliant    / totalIssues) * CIRCUMFERENCE : 0;
   const pDash = totalIssues > 0 ? (pending      / totalIssues) * CIRCUMFERENCE : 0;

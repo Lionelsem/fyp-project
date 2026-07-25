@@ -1,7 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllBuildings, deleteBuilding } from "../../services/buildingService";
+import toast from "react-hot-toast";
+import * as XLSX from "xlsx";
+import { getAllBuildings, createBuilding, deleteBuilding, updateBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
+import { ROLES } from "../../constants/roles";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const statusStyles = {
@@ -10,12 +13,35 @@ const statusStyles = {
   "Non-Compliant": { backgroundColor: "#fee2e2", color: "#b91c1c" }
 };
 
+const normalizeHeader = (h) => String(h || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+
+const parseBuildingRow = (row) => {
+  const get = (keys) => {
+    for (const k of keys) {
+      const match = Object.keys(row).find((h) => normalizeHeader(h) === k);
+      if (match !== undefined && row[match] !== undefined && row[match] !== "") return String(row[match]).trim();
+    }
+    return "";
+  };
+  return {
+    buildingId:   get(["buildingid", "buildingcode", "id", "code"]),
+    buildingName: get(["buildingname", "name", "building"]),
+    address:      get(["address", "addr", "location"]),
+    storeys:      get(["storeys", "floors", "noofstoreys", "numberofstoreys"]),
+    occupantLoad: get(["occupantload", "occupants", "load", "capacity"]),
+    status:       get(["status"]) || "Compliant"
+  };
+};
+
 const ManageBuildings = () => {
   const [buildings, setBuildings] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [deletingBuildingId, setDeletingBuildingId] = useState("");
+  const [savingFsmId, setSavingFsmId] = useState("");
   const [search, setSearch] = useState("");
+  const importRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,31 +60,138 @@ const ManageBuildings = () => {
     loadData();
   }, []);
 
+  const fsmUsers = useMemo(() => users.filter((user) => user.role === ROLES.FSM), [users]);
+
   const userMap = useMemo(() => {
     const entries = users.flatMap((user) =>
       [user.uid, user.userId, user.id, user.authUid]
         .filter(Boolean)
-        .map((key) => [String(key), user.fullName || user.displayName || user.email || "Assigned FSM"])
+        .map((key) => [String(key), user.fullName || user.displayName || user.email || user.uid])
     );
     return new Map(entries);
   }, [users]);
 
-  const getAssignedFsmName = useCallback((assignedFsmId) => {
-    if (!assignedFsmId) {
-      return "Unassigned";
+  const getAssignedFsmName = useCallback(
+    (assignedFsmId) => {
+      if (!assignedFsmId) return "Unassigned";
+      return userMap.get(assignedFsmId) || assignedFsmId;
+    },
+    [userMap]
+  );
+
+  const handleFsmChange = async (building, newFsmId) => {
+    const currentFsmId = building.assignedFsmId || "";
+    if (newFsmId === currentFsmId) return;
+
+    const buildingName = building.buildingName || building.building_name || "this building";
+
+    if (newFsmId) {
+      if (!fsmUsers.some((fsm) => fsm.uid === newFsmId)) {
+        toast.error("Selected user is not a valid FSM.");
+        return;
+      }
+      if (currentFsmId) {
+        const confirmed = window.confirm(
+          `${buildingName} is currently assigned to ${getAssignedFsmName(currentFsmId)}. Reassign to ${getAssignedFsmName(newFsmId)}?`
+        );
+        if (!confirmed) return;
+      }
+    } else {
+      const confirmed = window.confirm(
+        `Remove ${getAssignedFsmName(currentFsmId)} from ${buildingName}?`
+      );
+      if (!confirmed) return;
     }
-    return userMap.get(String(assignedFsmId)) || "Assigned FSM";
-  }, [userMap]);
+
+    setSavingFsmId(building.id);
+    try {
+      await updateBuilding(building.id, { assignedFsmId: newFsmId });
+      setBuildings((prev) =>
+        prev.map((b) => (b.id === building.id ? { ...b, assignedFsmId: newFsmId } : b))
+      );
+      toast.success(newFsmId ? "FSM assigned successfully." : "FSM unassigned.");
+    } catch (error) {
+      console.error("Failed to update FSM assignment", error);
+      toast.error("Failed to update FSM assignment.");
+    } finally {
+      setSavingFsmId("");
+    }
+  };
+
+  const handleImportExcel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true);
+    const toastId = toast.loading("Importing buildings...");
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(new Uint8Array(data));
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (rows.length === 0) {
+        toast.error("No data rows found in the file.", { id: toastId });
+        return;
+      }
+
+      let succeeded = 0;
+      let failed = 0;
+      const imported = [];
+
+      for (const row of rows) {
+        const parsed = parseBuildingRow(row);
+        if (!parsed.buildingId || !parsed.buildingName || !parsed.address) {
+          failed += 1;
+          continue;
+        }
+        try {
+          const payload = {
+            buildingId:   parsed.buildingId,
+            buildingName: parsed.buildingName,
+            building_name: parsed.buildingName,
+            address:      parsed.address,
+            noOfStoreys:  parsed.storeys ? Number(parsed.storeys) : null,
+            occupantLoad: parsed.occupantLoad,
+            occupancyType: "",
+            grossFloorAreaGfa: "",
+            customerId: "",
+            status: parsed.status
+          };
+          const ref = await createBuilding(payload);
+          imported.push({ id: ref.id, ...payload });
+          succeeded += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+
+      if (succeeded > 0) {
+        const refreshed = await getAllBuildings();
+        setBuildings(refreshed);
+      }
+
+      if (failed === 0) {
+        toast.success(`${succeeded} building${succeeded !== 1 ? "s" : ""} imported.`, { id: toastId });
+      } else {
+        toast(`${succeeded} imported, ${failed} skipped (missing required fields).`, {
+          id: toastId,
+          icon: "⚠️"
+        });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to read file.", { id: toastId });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const filteredBuildings = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) {
-      return buildings;
-    }
+    if (!query) return buildings;
 
-    return buildings.filter((building) => {
-      return [
-        building.buildingId,
+    return buildings.filter((building) =>
+      [
         building.building_name,
         building.buildingName,
         building.address,
@@ -66,8 +199,8 @@ const ManageBuildings = () => {
         building.status
       ]
         .filter(Boolean)
-        .some((value) => value.toString().toLowerCase().includes(query));
-    });
+        .some((value) => value.toString().toLowerCase().includes(query))
+    );
   }, [buildings, getAssignedFsmName, search]);
 
   return (
@@ -80,13 +213,31 @@ const ManageBuildings = () => {
               Register and maintain building records across the portfolio.
             </p>
           </div>
-          <button
-            type="button"
-            className="primary-btn responsive-control"
-            onClick={() => navigate("/buildings/create")}
-          >
-            + Add Building
-          </button>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              style={{ display: "none" }}
+              onChange={handleImportExcel}
+            />
+            <button
+              type="button"
+              className="primary-btn"
+              disabled={importing}
+              onClick={() => importRef.current?.click()}
+            >
+              {importing ? "Importing..." : "Import Excel"}
+            </button>
+            <button
+              type="button"
+              className="primary-btn"
+              style={{ minWidth: "180px" }}
+              onClick={() => navigate("/buildings/create")}
+            >
+              + Add Building
+            </button>
+          </div>
         </div>
       </div>
 
@@ -143,7 +294,22 @@ const ManageBuildings = () => {
                   <td data-label="Address">{building.address || "-"}</td>
                   <td data-label="Storeys">{building.noOfStoreys || "-"}</td>
                   <td data-label="Occupant load">{building.occupantLoad || "-"}</td>
-                  <td data-label="Assigned FSM">{getAssignedFsmName(building.assignedFsmId)}</td>
+                  <td data-label="Assigned FSM">
+                    <select
+                      className="form-input"
+                      value={building.assignedFsmId || ""}
+                      onChange={(e) => handleFsmChange(building, e.target.value)}
+                      disabled={savingFsmId === building.id}
+                      style={{ minWidth: "160px" }}
+                    >
+                      <option value="">Unassigned</option>
+                      {fsmUsers.map((fsm) => (
+                        <option key={fsm.uid} value={fsm.uid}>
+                          {fsm.fullName || fsm.email}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <td data-label="Status">
                     <span
                       style={{
@@ -181,8 +347,10 @@ const ManageBuildings = () => {
                           try {
                             await deleteBuilding(building.id);
                             setBuildings((prev) => prev.filter((item) => item.id !== building.id));
+                            toast.success("Building deleted.");
                           } catch (deleteError) {
                             console.error("Failed to delete building", deleteError);
+                            toast.error("Failed to delete building.");
                           } finally {
                             setDeletingBuildingId("");
                           }

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { createUserAccount } from "../../services/authService";
 import { ROLES } from "../../constants/roles";
 
@@ -9,7 +10,8 @@ const initialForm = {
   email: "",
   phoneNumber: "",
   role: ROLES.FSM,
-  password: ""
+  password: "",
+  confirmPassword: ""
 };
 
 const normalizeUserPayload = (form) => ({
@@ -21,10 +23,15 @@ const normalizeUserPayload = (form) => ({
   password: form.password
 });
 
+const validatePassword = (password) => {
+  if (password.length < 8) return "Password must be at least 8 characters.";
+  if (!/\d/.test(password)) return "Password must contain at least one number.";
+  return null;
+};
+
 const CreateUser = () => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null);
   const navigate = useNavigate();
 
   const handleChange = (field) => (event) => {
@@ -33,24 +40,34 @@ const CreateUser = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setMessage(null);
 
     if (!form.firstName || !form.lastName || !form.email || !form.password) {
-      setMessage({ type: "error", text: "Please fill in all required fields." });
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    const passwordError = validatePassword(form.password);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      toast.error("Passwords do not match.");
       return;
     }
 
     setLoading(true);
     try {
       await createUserAccount(normalizeUserPayload(form));
-      setMessage({ type: "success", text: "User created successfully." });
+      toast.success("User created successfully.");
       setForm(initialForm);
       navigate("/users");
     } catch (error) {
       console.error("Could not create user", error);
       const errorCode = error.code ? `${error.code}: ` : "";
       const errorMessage = error.details || error.message || "Failed to create user.";
-      setMessage({ type: "error", text: `${errorCode}${errorMessage}` });
+      toast.error(`${errorCode}${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -125,19 +142,32 @@ const CreateUser = () => {
           <div className="form-grid">
             <div className="form-field">
               <label className="form-label">User Role *</label>
-              <select className="form-input" value={form.role} onChange={handleChange("role")}> 
+              <select className="form-input" value={form.role} onChange={handleChange("role")}>
                 <option value={ROLES.FSM}>{ROLES.FSM}</option>
                 <option value={ROLES.CUSTOMER}>{ROLES.CUSTOMER}</option>
               </select>
             </div>
+          </div>
+
+          <div className="form-grid">
             <div className="form-field">
               <label className="form-label">Password *</label>
               <input
                 type="password"
                 className="form-input"
-                placeholder="Enter initial password"
+                placeholder="Min 8 characters, include a number"
                 value={form.password}
                 onChange={handleChange("password")}
+              />
+            </div>
+            <div className="form-field">
+              <label className="form-label">Confirm Password *</label>
+              <input
+                type="password"
+                className="form-input"
+                placeholder="Re-enter password"
+                value={form.confirmPassword}
+                onChange={handleChange("confirmPassword")}
               />
             </div>
           </div>
@@ -146,15 +176,7 @@ const CreateUser = () => {
             Password setup is managed directly by the admin. No invitation email is sent automatically.
           </div>
 
-          {message && (
-            <div
-              className="admin-form-message"
-              style={{ color: message.type === "error" ? "#b91c1c" : "#047857" }}
-            >
-              {message.text}
-            </div>
-          )}
-
+          
           <button type="submit" className="primary-btn" disabled={loading}>
             {loading ? "Creating user..." : "Create User"}
           </button>

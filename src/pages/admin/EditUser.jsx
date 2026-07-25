@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import { getUserById, removeUserProfilePicture, updateUser, updateUserProfilePicture } from "../../services/userService";
 import { ROLES } from "../../constants/roles";
 import UserAvatar from "../../components/common/UserAvatar";
@@ -40,7 +41,7 @@ const EditUser = () => {
       try {
         const user = await getUserById(id);
         if (!user) {
-          setMessage({ type: "error", text: "User not found." });
+          toast.error("User not found.");
           return;
         }
 
@@ -56,7 +57,7 @@ const EditUser = () => {
         setPhotoURL(user.photoURL || "");
       } catch (error) {
         console.error("Failed to load user", error);
-        setMessage({ type: "error", text: "Could not load user details." });
+        toast.error("Could not load user details.");
       } finally {
         setLoading(false);
       }
@@ -107,10 +108,9 @@ const EditUser = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setMessage(null);
 
     if (!form.firstName || !form.lastName || !form.email) {
-      setMessage({ type: "error", text: "Please fill in all required fields." });
+      toast.error("Please fill in all required fields.");
       return;
     }
 
@@ -133,7 +133,7 @@ const EditUser = () => {
     } catch (error) {
       console.error("Could not update user", error);
       const errorMessage = error.details || error.message || "Failed to update user.";
-      setMessage({ type: "error", text: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -260,7 +260,6 @@ const EditUser = () => {
                 {message.text}
               </div>
             )}
-
             <button type="submit" className="primary-btn" disabled={saving}>
               {saving ? "Updating user..." : "Update User"}
             </button>

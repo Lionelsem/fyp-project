@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 import { getAllFireDrills } from "../../services/fireDrillService";
 import { getAllBuildings } from "../../services/buildingService";
-import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const toDate = (value) => {
   if (!value) return null;
@@ -64,10 +64,7 @@ const AdminFireDrill = () => {
 
     const loadData = async () => {
       try {
-        const [drillData, buildingData] = await Promise.all([
-          getAllFireDrills(),
-          getAllBuildings()
-        ]);
+        const [drillData, buildingData] = await Promise.all([getAllFireDrills(), getAllBuildings()]);
         if (!active) return;
         setFireDrills(drillData);
         setBuildings(buildingData);
@@ -103,7 +100,6 @@ const AdminFireDrill = () => {
       if (status === "scheduled" || status === "pending") totals.scheduled += 1;
       else if (status === "completed" || status === "passed") totals.completed += 1;
       else if (status === "review" || status === "failed") totals.review += 1;
-      else totals.review += 0;
     });
 
     return totals;
@@ -163,10 +159,7 @@ const AdminFireDrill = () => {
                   <p>{formatDate(drill.drillDate)}</p>
                   <p>{buildingMap.get(drill.buildingId) || drill.buildingName || "Building TBC"}</p>
                 </div>
-                <span
-                  className="fire-drill-status-badge"
-                  style={getStatusStyle(drill.status || drill.performanceStatus)}
-                >
+                <span className="fire-drill-status-badge" style={getStatusStyle(drill.status || drill.performanceStatus)}>
                   {drill.status || drill.performanceStatus || "Scheduled"}
                 </span>
               </div>
@@ -182,10 +175,7 @@ const AdminFireDrill = () => {
           <h2 className="section-title">Drill History</h2>
         </div>
         {historyDrills.length > 0 ? (
-          <ResponsiveTableRegion
-            label="Fire drill history"
-            className="fire-drill-history-table-wrapper responsive-table-region--cards"
-          >
+          <ResponsiveTableRegion label="Fire drill history" className="fire-drill-history-table-wrapper responsive-table-region--cards">
             <table className="dashboard-table responsive-card-table fire-drill-history-table">
               <thead>
                 <tr>
@@ -202,10 +192,7 @@ const AdminFireDrill = () => {
                     <td data-label="Building">{buildingMap.get(drill.buildingId) || drill.buildingName || "Building TBC"}</td>
                     <td data-label="Type">{drill.drillType || drill.task || "Fire Drill"}</td>
                     <td data-label="Status">
-                      <span
-                        className="fire-drill-status-badge"
-                        style={getStatusStyle(drill.status || drill.performanceStatus)}
-                      >
+                      <span className="fire-drill-status-badge" style={getStatusStyle(drill.status || drill.performanceStatus)}>
                         {drill.status || drill.performanceStatus || "Completed"}
                       </span>
                     </td>

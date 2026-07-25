@@ -15,6 +15,7 @@ import {
   generateMonthlyReportPdf
 } from "../../services/reportGeneratorService";
 import { getAllUsers } from "../../services/userService";
+import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
@@ -90,42 +91,52 @@ const getPriorityStyle = (priority) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
+// Reports are regenerated on demand from live data rather than stored as files,
+// so redownloading needs the original generation parameters. Older records saved
+// before this existed fall back to whatever top-level fields they already have.
+const getReportParams = (report) => {
+  if (report.reportParams) return report.reportParams;
+
+  if (report.reportType === "Monthly") {
+    if (!report.reportMonth || !report.reportYear) return null;
+    return {
+      month: Number(report.reportMonth),
+      year: Number(report.reportYear),
+      buildingId: report.buildingId || "all"
+    };
+  }
+
+  if (report.reportType === "Annual") {
+    const year = Number(report.reportYear) || Number(report.period);
+    if (!year) return null;
+    return { year, buildingId: report.buildingId || "all" };
+  }
+
+  return null;
+};
+
+const canRedownloadReport = (report) => !!getReportParams(report);
+
 const TABS = [
   { key: "recent",  label: "Recent Reports" },
-  { key: "monthly", label: "Monthly Summaries" },
-  { key: "annual",  label: "Annual Audits" },
-  { key: "custom",  label: "Custom" }
+  { key: "monthly", label: "Monthly Reports" },
+  { key: "annual",  label: "Annual Reports" },
+  { key: "custom",  label: "Custom Report" }
 ];
 
 const ModalHeader = ({ title, onClose, generating }) => (
   <div className="report-modal-header">
     <h2>{title}</h2>
-    <button
-      type="button"
-      className="report-modal-close"
-      onClick={onClose}
-      disabled={generating}
-      aria-label={`Close ${title}`}
-    >
+    <button type="button" className="report-modal-close" onClick={onClose} disabled={generating} aria-label={`Close ${title}`}>
       ✕
     </button>
   </div>
 );
 
-const ModalActions = ({
-  onCancel,
-  onSubmit,
-  generating,
-  disabled = false,
-  submitLabel = "Generate & Download"
-}) => (
+const ModalActions = ({ onCancel, onSubmit, generating, disabled = false, submitLabel = "Generate & Download" }) => (
   <div className="report-modal-actions">
-    <button type="button" className="secondary-btn" onClick={onCancel} disabled={generating}>
-      Cancel
-    </button>
-    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating || disabled}>
-      {generating ? "Generating..." : submitLabel}
-    </button>
+    <button type="button" className="secondary-btn" onClick={onCancel} disabled={generating}>Cancel</button>
+    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating || disabled}>{generating ? "Generating..." : submitLabel}</button>
   </div>
 );
 
@@ -169,6 +180,7 @@ const AdminReports = () => {
   const [generating,     setGenerating]     = useState(false);
   const [generateError,  setGenerateError]  = useState(null);
   const [selectedReportRecord, setSelectedReportRecord] = useState(null);
+  const [redownloadingId, setRedownloadingId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -245,6 +257,59 @@ const AdminReports = () => {
       getAllInspectionResults()
     ]);
 
+  const handleRedownload = async (report, format = "docx") => {
+    const params = getReportParams(report);
+    if (!params) {
+      toast.error("This report predates redownload support. Generate a new one to get an updated file.");
+      return;
+    }
+
+    setRedownloadingId(report.id);
+    try {
+      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
+      const buildingsToUse = !params.buildingId || params.buildingId === "all"
+        ? buildings
+        : buildings.filter((b) => b.id === params.buildingId);
+      const generatedBy = userMap.get(report.generatedBy) || report.generatedBy || generatedByName();
+
+      if (report.reportType === "Monthly") {
+        const generator = format === "pdf" ? generateMonthlyReportPdf : generateMonthlyReport;
+        await generator({
+          month: params.month, year: params.year,
+          buildings: buildingsToUse, fireDrills: firedrills,
+          inspections, inspectionResults, issues: issueList, generatedBy
+        });
+      } else if (report.reportType === "Annual") {
+        await generateAnnualReport({
+          year: params.year, buildings: buildingsToUse,
+          fireDrills: firedrills, inspections, inspectionResults,
+          issues: issueList, generatedBy
+        });
+      } else {
+        await generateCustomReport({
+          reportType:     params.reportType,
+          sections:       params.sections,
+          month:          params.month,
+          year:           params.year,
+          dateFrom:       params.dateFrom,
+          dateTo:         params.dateTo,
+          customTitle:    params.customTitle,
+          openingRemarks: params.openingRemarks,
+          buildings:      buildingsToUse,
+          fireDrills:     firedrills,
+          inspections,
+          inspectionResults,
+          issues:         issueList,
+          generatedBy
+        });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to regenerate the report file.");
+    } finally {
+      setRedownloadingId(null);
+    }
+  };
+
   // ── Monthly generate ──
   const openMonthlyModal = () => {
     setGenerateError(null);
@@ -286,7 +351,8 @@ const AdminReports = () => {
         priority: "Normal",
         period:   `${monthLabel} ${selectedYear}`,
         reportMonth: selectedMonth,
-        reportYear: selectedYear
+        reportYear: selectedYear,
+        reportParams: { month: selectedMonth, year: selectedYear, buildingId: selectedBuilding }
       });
       await refreshReports();
       setShowMonthlyModal(false);
@@ -340,7 +406,9 @@ const AdminReports = () => {
         reportTitle: `Annual Report ${annualYear} — ${annualBuildingName}`,
         status:   "Generated",
         priority: "Normal",
-        period:   String(annualYear)
+        period:   String(annualYear),
+        reportYear: annualYear,
+        reportParams: { year: annualYear, buildingId: annualBuilding }
       });
       await refreshReports();
       setShowAnnualModal(false);
@@ -428,7 +496,18 @@ const AdminReports = () => {
         reportTitle: title,
         status:      "Generated",
         priority:    customPriority,
-        period:      periodLabel
+        period:      periodLabel,
+        reportParams: {
+          reportType:     customReportType,
+          sections:       customSections,
+          month:          customMonth,
+          year:           reportYear,
+          dateFrom:       customDateFrom,
+          dateTo:         customDateTo,
+          customTitle:    customTitle.trim() || null,
+          openingRemarks: customOpeningRemarks.trim() || null,
+          buildingId:     customBuilding
+        }
       });
       await refreshReports();
       setShowCustomModal(false);
@@ -448,26 +527,14 @@ const AdminReports = () => {
         <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">Reports &amp; Analytics</h2>
-            <p
-              style={{
-                color: "#6b7280",
-                marginTop: "4px",
-                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
-              }}
-            >
+            <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "14px" }}>
               Global view of finalized inspections, monthly summaries, and annual audits.
             </p>
           </div>
           <div className="report-page-actions">
-            <button type="button" className="secondary-btn" onClick={openMonthlyModal}>
-              Generate Monthly Report
-            </button>
-            <button type="button" className="primary-btn" onClick={openAnnualModal}>
-              Generate Annual Report
-            </button>
-            <button type="button" className="primary-btn" onClick={openCustomModal}>
-              Custom Report
-            </button>
+            <button type="button" className="secondary-btn" onClick={openMonthlyModal}>Generate Monthly Report</button>
+            <button type="button" className="primary-btn" onClick={openAnnualModal}>Generate Annual Report</button>
+            <button type="button" className="primary-btn" onClick={openCustomModal}>Custom Report</button>
           </div>
         </div>
       </div>
@@ -480,15 +547,7 @@ const AdminReports = () => {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                padding: "10px 16px",
-                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
-                fontWeight: activeTab === tab.key ? "600" : "400",
-                color: activeTab === tab.key ? "#047857" : "#6b7280",
-                borderBottom: activeTab === tab.key ? "2px solid #047857" : "2px solid transparent",
-                marginBottom: "-1px", transition: "color 0.15s ease"
-              }}
+              className={`report-tab ${activeTab === tab.key ? "active" : ""}`}
             >
               {tab.label}
             </button>
@@ -523,10 +582,7 @@ const AdminReports = () => {
         ) : error ? (
           <div className="error-state">{error}</div>
         ) : (
-          <ResponsiveTableRegion
-            label="Generated reports"
-            className="fire-drill-history-table-wrapper responsive-table-region--cards"
-          >
+          <ResponsiveTableRegion label="Generated reports" className="fire-drill-history-table-wrapper responsive-table-region--cards">
             <table className="dashboard-table responsive-card-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
@@ -559,32 +615,10 @@ const AdminReports = () => {
                       </td>
                       <td data-label="Date">{formatDate(report.generatedDate || report.createdAt)}</td>
                       <td data-label="Generated By">{userMap.get(report.generatedBy) || report.generatedBy || "-"}</td>
-                      <td data-label="Status">
-                        <span className="status-badge" style={getStatusStyle(report.status)}>
-                          {report.status || "Generated"}
-                        </span>
-                      </td>
-                      <td data-label="Priority">
-                        <span className="status-badge" style={getPriorityStyle(report.priority)}>
-                          {report.priority || "Normal"}
-                        </span>
-                      </td>
+                      <td data-label="Status"><span className="status-badge" style={getStatusStyle(report.status)}>{report.status || "Generated"}</span></td>
+                      <td data-label="Priority"><span className="status-badge" style={getPriorityStyle(report.priority)}>{report.priority || "Normal"}</span></td>
                       <td data-label="Actions">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedReportRecord(report)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "#047857",
-                            cursor: "pointer",
-                            fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
-                            fontWeight: "500",
-                            padding: 0
-                          }}
-                        >
-                          View
-                        </button>
+                        <button type="button" onClick={() => setSelectedReportRecord(report)} className="link-button">View</button>
                       </td>
                     </tr>
                   ))
@@ -595,19 +629,11 @@ const AdminReports = () => {
         )}
       </div>
 
-      {/* ── Monthly Modal ── */}
+      {/* Report details modal */}
       {selectedReportRecord && (
         <div className="issue-ticket-modal-backdrop" onClick={() => setSelectedReportRecord(null)}>
-          <div
-            className="issue-ticket-modal"
-            style={{ width: "min(100%, 560px)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ModalHeader
-              title={selectedReportRecord.reportTitle || "Report Details"}
-              onClose={() => setSelectedReportRecord(null)}
-              generating={false}
-            />
+          <div className="issue-ticket-modal" style={{ width: "min(100%, 560px)" }} onClick={(e) => e.stopPropagation()}>
+            <ModalHeader title={selectedReportRecord.reportTitle || "Report Details"} onClose={() => setSelectedReportRecord(null)} generating={false} />
             <div style={{ display: "grid", gap: "12px" }}>
               {[
                 ["Type", selectedReportRecord.reportType || "-"],
@@ -623,119 +649,62 @@ const AdminReports = () => {
                 ["Status", selectedReportRecord.status || "Generated"],
                 ["Priority", selectedReportRecord.priority || "Normal"]
               ].map(([label, value]) => (
-                <div key={label} className="detail-row">
-                  <span className="detail-label">{label}</span>
-                  <span className="detail-value">{value || "-"}</span>
-                </div>
+                <div key={label} className="detail-row"><span className="detail-label">{label}</span><span className="detail-value">{value || "-"}</span></div>
               ))}
             </div>
-            {selectedReportRecord.reportFileUrl ? (
-              <a
-                className="primary-btn"
-                href={selectedReportRecord.reportFileUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{ display: "inline-flex", marginTop: "18px", textDecoration: "none" }}
-              >
-                Open File
-              </a>
+            {canRedownloadReport(selectedReportRecord) ? (
+              <div className="report-modal-actions" style={{ justifyContent: "flex-start", marginTop: "18px" }}>
+                {selectedReportRecord.reportType === "Monthly" && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => handleRedownload(selectedReportRecord, "pdf")}
+                    disabled={redownloadingId === selectedReportRecord.id}
+                  >
+                    {redownloadingId === selectedReportRecord.id ? "Preparing..." : "Redownload PDF"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => handleRedownload(selectedReportRecord, "docx")}
+                  disabled={redownloadingId === selectedReportRecord.id}
+                >
+                  {redownloadingId === selectedReportRecord.id
+                    ? "Preparing..."
+                    : selectedReportRecord.reportType === "Monthly" ? "Redownload Word" : "Redownload Report"}
+                </button>
+              </div>
             ) : (
-              <p
-                style={{
-                  color: "#6b7280",
-                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
-                  marginTop: "18px",
-                }}
-              >
-                No stored file URL is attached to this report record. Generate the report again to download a new Word or PDF file.
-              </p>
+              <p style={{ color: "#6b7280", fontSize: "14px", marginTop: "18px" }}>This report predates redownload support. Generate the report again to get a new file.</p>
             )}
           </div>
         </div>
       )}
 
+      {/* Monthly modal */}
       {showMonthlyModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowMonthlyModal(false)}>
-          <div
-            className="issue-ticket-modal"
-            style={{ width: "min(100%, 520px)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="issue-ticket-modal" style={{ width: "min(100%, 520px)" }} onClick={(e) => e.stopPropagation()}>
             <ModalHeader title="Generate Monthly Report" onClose={() => setShowMonthlyModal(false)} generating={generating} />
-            <p
-              style={{
-                color: "#6b7280",
-                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
-                marginBottom: "20px",
-              }}
-            >
-              Select the month, year, and optionally a specific building.
-            </p>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>Select the month, year, and optionally a specific building.</p>
             <div className="report-modal-grid">
-              <div className="form-field">
-                <label className="form-label">Month</label>
-                <select className="form-input" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
-                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                </select>
-              </div>
-              <div className="form-field">
-                <label className="form-label">Year</label>
-                <select className="form-input" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
-                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
+              <div className="form-field"><label className="form-label">Month</label><select className="form-input" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></div>
+              <div className="form-field"><label className="form-label">Year</label><select className="form-input" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div>
             </div>
-            <div className="form-field">
-              <label className="form-label">Building</label>
-              <select className="form-input" value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}>
-                <option value="all">All Buildings</option>
-                {buildings.map((b) => (
-                  <option key={b.id} value={b.id}>{b.buildingName || b.building_name || "Unnamed building"}</option>
-                ))}
-              </select>
-            </div>
-            {generateError && (
-              <div
-                className="error-state"
-                style={{
-                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
-                  padding: "10px 14px",
-                }}
-              >
-                {generateError}
-              </div>
-            )}
-            <div className="report-modal-actions">
-              <button type="button" className="secondary-btn" onClick={() => setShowMonthlyModal(false)} disabled={generating}>
-                Cancel
-              </button>
-              <button type="button" className="secondary-btn" onClick={() => doGenerateMonthly("pdf")} disabled={generating}>
-                {generating ? "Generating..." : "Download PDF"}
-              </button>
-              <button type="button" className="primary-btn" onClick={() => doGenerateMonthly("docx")} disabled={generating}>
-                {generating ? "Generating..." : "Download Word"}
-              </button>
-            </div>
+            <div className="form-field"><label className="form-label">Building</label><select className="form-input" value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}><option value="all">All Buildings</option>{buildings.map((b) => <option key={b.id} value={b.id}>{b.buildingName || b.building_name || "Unnamed building"}</option>)}</select></div>
+            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
+            <div className="report-modal-actions"><button type="button" className="secondary-btn" onClick={() => setShowMonthlyModal(false)} disabled={generating}>Cancel</button><button type="button" className="secondary-btn" onClick={() => doGenerateMonthly("pdf")} disabled={generating}>{generating ? "Generating..." : "Download PDF"}</button><button type="button" className="primary-btn" onClick={() => doGenerateMonthly("docx")} disabled={generating}>{generating ? "Generating..." : "Download Word"}</button></div>
           </div>
         </div>
       )}
 
-      {/* ── Annual Modal ── */}
+      {/* Annual modal */}
       {showAnnualModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowAnnualModal(false)}>
-          <div
-            className="issue-ticket-modal"
-            style={{ width: "min(100%, 480px)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="issue-ticket-modal" style={{ width: "min(100%, 480px)" }} onClick={(e) => e.stopPropagation()}>
             <ModalHeader title="Generate Annual Report" onClose={() => setShowAnnualModal(false)} generating={generating} />
-            <p
-              style={{
-                color: "#6b7280",
-                fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
-                marginBottom: "20px",
-              }}
-            >
+            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
               Select one building and year. The report will only include records belonging to that building.
             </p>
             <div className="form-field">
@@ -760,34 +729,21 @@ const AdminReports = () => {
                 ))}
               </select>
             </div>
-            {generateError && (
-              <div
-                className="error-state"
-                style={{
-                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
-                  padding: "10px 14px",
-                }}
-              >
-                {generateError}
-              </div>
-            )}
+            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
             <ModalActions
               onCancel={() => setShowAnnualModal(false)}
               onSubmit={doGenerateAnnual}
               generating={generating}
+              disabled={!annualBuilding}
             />
           </div>
         </div>
       )}
 
-      {/* ── Custom Modal ── */}
+      {/* Custom modal */}
       {showCustomModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowCustomModal(false)}>
-          <div
-            className="issue-ticket-modal report-custom-modal"
-            style={{ width: "min(100%, 680px)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="issue-ticket-modal report-custom-modal" style={{ width: "min(100%, 680px)" }} onClick={(e) => e.stopPropagation()}>
             <ModalHeader title="Custom Report" onClose={() => setShowCustomModal(false)} generating={generating} />
 
             {/* Report type */}
@@ -943,17 +899,7 @@ const AdminReports = () => {
               </div>
             </div>
 
-            {generateError && (
-              <div
-                className="error-state"
-                style={{
-                  fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
-                  padding: "10px 14px",
-                }}
-              >
-                {generateError}
-              </div>
-            )}
+            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
             <ModalActions onCancel={() => setShowCustomModal(false)} onSubmit={doGenerateCustom} generating={generating} />
           </div>
         </div>

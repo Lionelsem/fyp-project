@@ -69,6 +69,39 @@ exports.createUserAccount = functions.region("us-central1").https.onCall(async (
   }
 });
 
+exports.deleteUserAccount = functions.region("us-central1").https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentication required to delete users.");
+  }
+
+  const callerUid = context.auth.uid;
+  if (!(await isAdminUser(callerUid))) {
+    throw new functions.https.HttpsError("permission-denied", "Only administrators can delete user accounts.");
+  }
+
+  const { uid } = data;
+  if (!uid) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing user id.");
+  }
+
+  if (uid === callerUid) {
+    throw new functions.https.HttpsError("failed-precondition", "You cannot delete your own account.");
+  }
+
+  try {
+    await auth.deleteUser(uid);
+  } catch (error) {
+    if (error.code !== "auth/user-not-found") {
+      console.error("Error deleting auth user:", error);
+      throw new functions.https.HttpsError("internal", error.message || "Failed to delete authentication account.");
+    }
+  }
+
+  await db.collection("users").doc(uid).delete();
+
+  return { success: true };
+});
+
 exports.revokeUserSessions = functions.region("us-central1").https.onCall(async (_data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError(

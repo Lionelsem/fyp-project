@@ -7,7 +7,6 @@ const menuItems = [
   { path: "/dashboard", label: "Dashboard", icon: "📊" },
   { path: "/users", label: "Users", icon: "👥" },
   { path: "/buildings", label: "Buildings", icon: "🏢" },
-  { path: "/fsm-assignment", label: "FSM Assignment", icon: "👨‍🔧" },
   { path: "/issues-defects", label: "Issues / Defects", icon: "⚠️" },
   { path: "/fire-drill", label: "Fire Drill", icon: "🚒" },
   { path: "/reports", label: "Reports", icon: "📋" }

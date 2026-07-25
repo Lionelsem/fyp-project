@@ -55,10 +55,15 @@ const AdminIssues = () => {
     };
   }, []);
 
-  const buildingMap = useMemo(
-    () => new Map(buildings.map((building) => [building.id, building.buildingName || building.building_name || "Unnamed building"])),
-    [buildings]
-  );
+  const buildingMap = useMemo(() => {
+    const map = new Map();
+    buildings.forEach((building) => {
+      const name = building.buildingName || building.building_name || building.name || "Unnamed building";
+      if (building.id) map.set(building.id, name);
+      if (building.buildingId && building.buildingId !== building.id) map.set(building.buildingId, name);
+    });
+    return map;
+  }, [buildings]);
 
   const userMap = useMemo(
     () => new Map(users.map((user) => [user.uid, user.fullName || user.email])),
@@ -175,7 +180,7 @@ const AdminIssues = () => {
                     <td data-label="Building">{buildingMap.get(issue.buildingId) || "Unknown building"}</td>
                     <td data-label="Location">{issue.location || "-"}</td>
                     <td data-label="Finding">{issue.issueTitle || issue.issueDescription || "-"}</td>
-                    <td data-label="Reported by">{userMap.get(issue.reportedBy) || "Unknown user"}</td>
+                    <td data-label="Reported by">{userMap.get(issue.reportedBy) || issue.reportedBy || "Unknown user"}</td>
                     <td data-label="Status">
                       <span className="status-badge" style={getStatusStyle(issue.status)}>
                         {issue.status || "Unknown"}

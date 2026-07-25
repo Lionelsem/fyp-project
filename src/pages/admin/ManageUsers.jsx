@@ -1,28 +1,183 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import * as XLSX from "xlsx";
 import { getAllUsers, deleteUser } from "../../services/userService";
+import { createUserAccount } from "../../services/authService";
+import { getAllBuildings } from "../../services/buildingService";
+import { ROLES } from "../../constants/roles";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 import UserAvatar from "../../components/common/UserAvatar";
 
+const normalizeHeader = (h) => String(h || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
+
+const isRowBlank = (parsed) =>
+  !parsed.firstName && !parsed.lastName && !parsed.email && !parsed.phoneNumber && !parsed.password;
+
+const validateUserRow = (parsed, existingEmails, seenEmails) => {
+  if (!parsed.firstName) return "missing first name";
+  if (!parsed.email) return "missing email";
+  if (!EMAIL_REGEX.test(parsed.email)) return "invalid email format";
+  if (!parsed.password) return "missing password";
+  if (parsed.password.length < MIN_PASSWORD_LENGTH) return `password too short (min ${MIN_PASSWORD_LENGTH} characters)`;
+  const emailLower = parsed.email.toLowerCase();
+  if (existingEmails.has(emailLower)) return "already registered";
+  if (seenEmails.has(emailLower)) return "duplicate email in file";
+  return null;
+};
+
+const parseUserRow = (row) => {
+  const get = (keys) => {
+    for (const k of keys) {
+      const match = Object.keys(row).find((h) => normalizeHeader(h) === k);
+      if (match !== undefined && row[match] !== undefined && row[match] !== "") return String(row[match]).trim();
+    }
+    return "";
+  };
+  const rawRole = get(["role", "userrole", "type"]).toLowerCase();
+  let role = ROLES.FSM;
+  if (rawRole.includes("customer") || rawRole.includes("client")) role = ROLES.CUSTOMER;
+  else if (rawRole.includes("admin")) role = ROLES.ADMIN;
+  return {
+    firstName:   get(["firstname", "first", "fname"]),
+    lastName:    get(["lastname", "last", "lname", "surname"]),
+    email:       get(["email", "emailaddress"]),
+    phoneNumber: get(["phone", "phonenumber", "mobile", "contact"]),
+    role,
+    password:    get(["password", "pass", "pwd"])
+  };
+};
+
 const ManageUsers = () => {
   const [users, setUsers] = useState([]);
+  const [buildings, setBuildings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState("");
+  const importRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadData = async () => {
       try {
-        const userList = await getAllUsers();
+        const [userList, buildingList] = await Promise.all([getAllUsers(), getAllBuildings()]);
         setUsers(userList);
+        setBuildings(buildingList);
       } catch (error) {
         console.error("Failed to load users", error);
       } finally {
         setLoading(false);
       }
     };
-    loadUsers();
+    loadData();
   }, []);
+
+  const assignedBuildingsMap = useMemo(() => {
+    const map = new Map();
+    buildings.forEach((building) => {
+      if (!building.assignedFsmId) return;
+      const name = building.buildingName || building.building_name || "-";
+      if (!map.has(building.assignedFsmId)) {
+        map.set(building.assignedFsmId, []);
+      }
+      map.get(building.assignedFsmId).push(name);
+    });
+    return map;
+  }, [buildings]);
+
+  const getAssignedBuildings = (uid) => {
+    const names = assignedBuildingsMap.get(uid);
+    if (!names || names.length === 0) return "-";
+    return names.join(", ");
+  };
+
+  const handleImportExcel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true);
+    const toastId = toast.loading("Importing users...");
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(new Uint8Array(data));
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (rows.length === 0) {
+        toast.error("No data rows found in the file.", { id: toastId });
+        return;
+      }
+
+      const existingEmails = new Set(
+        users.map((u) => String(u.email || "").toLowerCase()).filter(Boolean)
+      );
+      const seenEmails = new Set();
+
+      let succeeded = 0;
+      let skippedBlank = 0;
+      const failures = [];
+
+      for (const [index, row] of rows.entries()) {
+        const parsed = parseUserRow(row);
+        if (isRowBlank(parsed)) {
+          skippedBlank += 1;
+          continue;
+        }
+
+        const rowLabel = parsed.email || `row ${index + 2}`;
+        const validationError = validateUserRow(parsed, existingEmails, seenEmails);
+        if (validationError) {
+          failures.push(`${rowLabel}: ${validationError}`);
+          continue;
+        }
+
+        const emailLower = parsed.email.toLowerCase();
+        seenEmails.add(emailLower);
+
+        try {
+          await createUserAccount({
+            firstName:   parsed.firstName,
+            lastName:    parsed.lastName,
+            email:       emailLower,
+            phoneNumber: parsed.phoneNumber,
+            role:        parsed.role,
+            password:    parsed.password
+          });
+          succeeded += 1;
+          existingEmails.add(emailLower);
+        } catch (rowError) {
+          console.error(`Failed to import user ${rowLabel}`, rowError);
+          const reason = rowError.code === "auth/email-already-in-use"
+            ? "already registered"
+            : rowError.message || "unknown error";
+          failures.push(`${rowLabel}: ${reason}`);
+        }
+      }
+
+      if (succeeded > 0) {
+        const [refreshed] = await Promise.all([getAllUsers()]);
+        setUsers(refreshed);
+      }
+
+      if (rows.length > 0 && skippedBlank === rows.length) {
+        toast.error("No data rows found in the file.", { id: toastId });
+      } else if (failures.length === 0) {
+        toast.success(`${succeeded} user${succeeded !== 1 ? "s" : ""} imported.`, { id: toastId });
+      } else {
+        console.warn("Excel import skipped rows:", failures);
+        toast(
+          `${succeeded} imported, ${failures.length} skipped. First issue: ${failures[0]}`,
+          { id: toastId, icon: "⚠️", duration: 6000 }
+        );
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to read file.", { id: toastId });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <div className="dashboard-container admin-page admin-page-stack">
@@ -34,13 +189,31 @@ const ManageUsers = () => {
               Manage roles, permissions, and status for FSMs and customers.
             </p>
           </div>
-          <button
-            type="button"
-            className="primary-btn responsive-control"
-            onClick={() => navigate("/users/create")}
-          >
-            + Add User
-          </button>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              style={{ display: "none" }}
+              onChange={handleImportExcel}
+            />
+            <button
+              type="button"
+              className="primary-btn"
+              disabled={importing}
+              onClick={() => importRef.current?.click()}
+            >
+              {importing ? "Importing..." : "Import Excel"}
+            </button>
+            <button
+              type="button"
+              className="primary-btn"
+              style={{ minWidth: "160px" }}
+              onClick={() => navigate("/users/create")}
+            >
+              + Add User
+            </button>
+          </div>
         </div>
       </div>
 
@@ -51,7 +224,7 @@ const ManageUsers = () => {
             <tr>
               <th>NAME</th>
               <th>ROLE</th>
-              <th>ASSIGNED BUILDING</th>
+              <th>ASSIGNED BUILDINGS</th>
               <th>EMAIL</th>
               <th>STATUS</th>
               <th>ACTION</th>
@@ -80,7 +253,7 @@ const ManageUsers = () => {
                     </span>
                   </td>
                   <td data-label="Role">{user.role || "-"}</td>
-                  <td data-label="Assigned building">{user.assignedBuilding || "-"}</td>
+                  <td data-label="Assigned building">{getAssignedBuildings(user.uid)}</td>
                   <td data-label="Email">{user.email || "-"}</td>
                   <td data-label="Status">{user.status || "Active"}</td>
                   <td data-label="Action">
@@ -105,8 +278,10 @@ const ManageUsers = () => {
                           try {
                             await deleteUser(user.uid);
                             setUsers((prev) => prev.filter((item) => item.uid !== user.uid));
+                            toast.success("User deleted.");
                           } catch (deleteError) {
                             console.error("Failed to delete user", deleteError);
+                            toast.error("Failed to delete user.");
                           } finally {
                             setDeletingUserId("");
                           }

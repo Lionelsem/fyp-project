@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import { getBuildingById, updateBuilding } from "../../services/buildingService";
 
 const initialForm = {
@@ -21,7 +22,6 @@ const normalizeBuildingPayload = (form) => ({
   address: form.address.trim(),
   noOfStoreys: form.storeys ? Number(form.storeys) : null,
   occupantLoad: String(form.occupantLoad || "").trim(),
-  assignedFsmId: String(form.assignedFsm || "").trim(),
   occupancyType: "",
   grossFloorAreaGfa: String(form.grossFloorArea || "").trim(),
   customerId: String(form.customerId || "").trim(),
@@ -33,7 +33,6 @@ const EditBuilding = () => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,7 +40,7 @@ const EditBuilding = () => {
       try {
         const building = await getBuildingById(id);
         if (!building) {
-          setMessage({ type: "error", text: "Building not found." });
+          toast.error("Building not found.");
           return;
         }
 
@@ -58,7 +57,7 @@ const EditBuilding = () => {
         });
       } catch (error) {
         console.error("Failed to load building", error);
-        setMessage({ type: "error", text: "Could not load building details." });
+        toast.error("Could not load building details.");
       } finally {
         setLoading(false);
       }
@@ -73,22 +72,21 @@ const EditBuilding = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setMessage(null);
 
     if (!form.buildingName || !form.address) {
-      setMessage({ type: "error", text: "Building name and address are required." });
+      toast.error("Building name and address are required.");
       return;
     }
 
     setSaving(true);
     try {
       await updateBuilding(id, normalizeBuildingPayload(form));
-      setMessage({ type: "success", text: "Building updated successfully." });
+      toast.success("Building updated successfully.");
       navigate("/buildings");
     } catch (error) {
       console.error("Could not update building", error);
       const errorMessage = error.details || error.message || "Failed to update building.";
-      setMessage({ type: "error", text: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -183,18 +181,8 @@ const EditBuilding = () => {
 
             <div className="form-grid">
               <div className="form-field">
-                <label className="form-label">Assigned FSM</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Jane Doe"
-                  value={form.assignedFsm}
-                  onChange={handleChange("assignedFsm")}
-                />
-              </div>
-              <div className="form-field">
                 <label className="form-label">Status</label>
-                <select className="form-input" value={form.status} onChange={handleChange("status")}> 
+                <select className="form-input" value={form.status} onChange={handleChange("status")}>
                   <option value="Compliant">Compliant</option>
                   <option value="Needs Review">Needs Review</option>
                   <option value="Non-Compliant">Non-Compliant</option>
@@ -202,15 +190,7 @@ const EditBuilding = () => {
               </div>
             </div>
 
-            {message && (
-              <div
-                className="admin-form-message"
-                style={{ color: message.type === "error" ? "#b91c1c" : "#047857" }}
-              >
-                {message.text}
-              </div>
-            )}
-
+            
             <button type="submit" className="primary-btn" disabled={saving}>
               {saving ? "Updating building..." : "Update Building"}
             </button>

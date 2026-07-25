@@ -2535,6 +2535,10 @@ select.inspection-row-control {
   container-type: inline-size;
 }
 
+.issue-description-input {
+  text-align: center;
+}
+
 .issue-panel h4 {
   margin: 0;
   display: flex;
@@ -6704,6 +6708,11 @@ textarea {
   min-width: 58rem;
 }
 
+.fsm-shell .sidebar-menu {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
 .portal-sidebar-drawer > .admin-sidebar,
 .portal-sidebar-drawer .sidebar-menu {
   scrollbar-width: none;
@@ -7232,6 +7241,29 @@ body.portal-drawer-open .portal-shell .main-content {
 
 .report-tabs > button {
   flex: 0 0 auto;
+}
+
+.report-tab {
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 10px 4px;
+  background: transparent;
+  color: #6b7280;
+  font-size: var(--text-md);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.report-tab:hover {
+  color: #0f172a;
+}
+
+.report-tab.active {
+  color: #009966;
+  border-bottom-color: #009966;
 }
 
 .report-type-options > button {

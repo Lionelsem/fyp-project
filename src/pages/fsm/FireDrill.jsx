@@ -1188,6 +1188,7 @@ const FireDrill = () => {
             <table className="dashboard-table responsive-card-table fire-drill-history-table">
               <thead>
                 <tr>
+                  <th>BUILDING</th>
                   <th>TYPE</th>
                   <th>DATE</th>
                   <th>ATTENDED</th>
@@ -1201,6 +1202,7 @@ const FireDrill = () => {
 
                   return (
                     <tr key={drill.id}>
+                      <td data-label="Building">{drill.buildingName}</td>
                       <td data-label="Type">{drill.drillType}</td>
                       <td data-label="Date">{formatDate(drill.actualDate || drill.conductedDate || drill.drillDate)}</td>
                       <td data-label="Attended">{drill.actualParticipants || drill.participants || "-"}</td>
