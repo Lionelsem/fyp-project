@@ -3,10 +3,10 @@ import { useAuthContext } from "../context/AuthContext";
 import Login from "../pages/auth/Login";
 
 const CenteredMessage = ({ title, message }) => (
-  <div style={{ textAlign: 'center', padding: '20px' }}>
+  <section className="centered-page-state" role={title ? "alert" : "status"}>
     {title && <h2>{title}</h2>}
     {message && <p>{message}</p>}
-  </div>
+  </section>
 );
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {

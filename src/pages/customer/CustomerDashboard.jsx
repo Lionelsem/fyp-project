@@ -1,4 +1,6 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const summaryCards = [
   {
@@ -67,42 +69,38 @@ const latestReports = [
     title: "Latest Monthly Report",
     subtitle: "September 2026",
     icon: "📋",
-    iconBg: "#ecfdf5"
+    iconBg: "#ecfdf5",
+    path: "/inspection-reports"
   },
   {
     title: "Latest Fire Drill",
     subtitle: "August 15, 2026",
     icon: "🚒",
-    iconBg: "#fce7f3"
+    iconBg: "#fce7f3",
+    path: "/fire-drill-reports"
   },
   {
     title: "Annual Safety Report",
     subtitle: "Year 2025",
     icon: "📊",
-    iconBg: "#ecfdf5"
+    iconBg: "#ecfdf5",
+    path: "/annual-reports"
   }
 ];
 
 const CustomerDashboard = () => {
-  return (
-    <div className="dashboard-container">
-      <div className="summary-grid">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="summary-card">
-            <div className="card-top">
-              <div
-                className="card-icon"
-                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
-              >
-                {card.icon}
-              </div>
-              <div className="card-label">{card.label}</div>
-            </div>
-            <div className="card-value">{card.value}</div>
-          </div>
-        ))}
-      </div>
+  const navigate = useNavigate();
 
+  const handleFeedbackNavigation = () => {
+    navigate("/feedbacks");
+  };
+
+  const handleReportNavigation = (path) => {
+    navigate(path);
+  };
+
+  return (
+    <div className="dashboard-container customer-dashboard-page role-dashboard-page">
       <div className="building-card-section">
         <div className="dashboard-card building-card">
           <div className="building-card-header">
@@ -126,7 +124,32 @@ const CustomerDashboard = () => {
         </div>
       </div>
 
-      
+      <div
+        className="summary-grid compact-summary-grid"
+        role="list"
+        aria-label="Customer issue summary"
+      >
+        {summaryCards.map((card) => (
+          <div
+            key={card.label}
+            className="summary-card"
+            role="listitem"
+            aria-label={`${card.label}: ${card.value}`}
+          >
+            <div className="card-top">
+              <div
+                className="card-icon"
+                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
+                aria-hidden="true"
+              >
+                {card.icon}
+              </div>
+              <div className="card-label">{card.label}</div>
+            </div>
+            <div className="card-value">{card.value}</div>
+          </div>
+        ))}
+      </div>
 
       <div className="dashboard-grid">
         <div className="content-left">
@@ -137,7 +160,11 @@ const CustomerDashboard = () => {
                 View all →
               </button>
             </div>
-            <table className="dashboard-table">
+            <ResponsiveTableRegion
+              label="Recent issue updates"
+              className="responsive-table-region--cards"
+            >
+              <table className="dashboard-table responsive-card-table">
               <thead>
                 <tr>
                   <th>LOCATION</th>
@@ -149,9 +176,9 @@ const CustomerDashboard = () => {
               <tbody>
                 {recentIssues.map((issue, index) => (
                   <tr key={index}>
-                    <td>{issue.location}</td>
-                    <td>{issue.finding}</td>
-                    <td>
+                    <td data-label="Location">{issue.location}</td>
+                    <td data-label="Finding">{issue.finding}</td>
+                    <td data-label="Status">
                       <span
                         className="status-badge"
                         style={{ color: issue.statusColor }}
@@ -159,11 +186,12 @@ const CustomerDashboard = () => {
                         {issue.status}
                       </span>
                     </td>
-                    <td>{issue.updated}</td>
+                    <td data-label="Updated">{issue.updated}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </ResponsiveTableRegion>
           </div>
         </div>
 
@@ -174,7 +202,12 @@ const CustomerDashboard = () => {
             </div>
             <div className="reports-container">
               {latestReports.map((report) => (
-                <button key={report.title} type="button" className="report-btn">
+                <button
+                  key={report.title}
+                  type="button"
+                  className="report-btn"
+                  onClick={() => handleReportNavigation(report.path)}
+                >
                   <div className="report-icon" style={{ backgroundColor: report.iconBg }}>
                     {report.icon}
                   </div>
@@ -189,10 +222,15 @@ const CustomerDashboard = () => {
           </div>
 
           <div className="dashboard-card comments-card">
-            <div className="card-header-row">
+            <button
+              type="button"
+              className="card-header-row"
+              onClick={handleFeedbackNavigation}
+              style={{ background: "none", border: "none", padding: 0, width: "100%", cursor: "pointer", textAlign: "left" }}
+            >
               <h2 className="section-title">Comments / Feedback</h2>
               <span className="card-icon">→</span>
-            </div>
+            </button>
             <p className="comments-subtitle">Request updates or clarify issues</p>
           </div>
         </div>

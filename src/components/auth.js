@@ -41,7 +41,7 @@ const Auth = () => {
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "auto" }}>
+    <div style={{ width: "min(100%, 400px)", margin: "auto" }}>
       <h2>Login</h2>
 
       <input
@@ -61,6 +61,12 @@ const Auth = () => {
 
       <button onClick={handleLogin}>Login</button>
       <button onClick={handleLogout}>Logout</button>
+
+      {userData && (
+        <p>
+          Signed in as {userData.fullName || userData.displayName || userData.email || "User"}
+        </p>
+      )}
 
     </div>
   );

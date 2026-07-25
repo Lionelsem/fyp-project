@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getAllBuildings } from "../../services/buildingService";
 import { getAllFireDrills } from "../../services/fireDrillService";
 import { getIssues } from "../../services/issueService";
@@ -15,8 +15,8 @@ import {
   generateMonthlyReportPdf
 } from "../../services/reportGeneratorService";
 import { getAllUsers } from "../../services/userService";
-import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -79,35 +79,33 @@ const getStatusStyle = (status) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
+const getPriorityStyle = (priority) => {
+  const p = String(priority || "").toLowerCase();
+  if (p === "urgent") return { color: "#dc2626", backgroundColor: "#fef2f2" };
+  if (p === "high")   return { color: "#ea580c", backgroundColor: "#fff7ed" };
+  return { color: "#475569", backgroundColor: "#f1f5f9" };
+};
+
 const TABS = [
   { key: "recent",  label: "Recent Reports" },
-  { key: "monthly", label: "Monthly Reports" },
-  { key: "annual",  label: "Annual Reports" },
-  { key: "custom",  label: "Custom Reports" }
+  { key: "monthly", label: "Monthly Summaries" },
+  { key: "annual",  label: "Annual Audits" },
+  { key: "custom",  label: "Custom" }
 ];
 
 const ModalHeader = ({ title, onClose, generating }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-    <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: 0 }}>{title}</h2>
-    <button
-      type="button"
-      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#6b7280" }}
-      onClick={onClose}
-      disabled={generating}
-    >
+  <div className="report-modal-header">
+    <h2>{title}</h2>
+    <button type="button" className="report-modal-close" onClick={onClose} disabled={generating} aria-label={`Close ${title}`}>
       ✕
     </button>
   </div>
 );
 
 const ModalActions = ({ onCancel, onSubmit, generating, submitLabel = "Generate & Download" }) => (
-  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
-    <button type="button" className="secondary-btn" onClick={onCancel} disabled={generating}>
-      Cancel
-    </button>
-    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating}>
-      {generating ? "Generating..." : submitLabel}
-    </button>
+  <div className="report-modal-actions">
+    <button type="button" className="secondary-btn" onClick={onCancel} disabled={generating}>Cancel</button>
+    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating}>{generating ? "Generating..." : submitLabel}</button>
   </div>
 );
 
@@ -120,6 +118,7 @@ const AdminReports = () => {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [search, setSearch]       = useState("");
+  const [reportMonthFilter, setReportMonthFilter] = useState("");
 
   // Monthly modal
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
@@ -142,12 +141,13 @@ const AdminReports = () => {
   const [customBuilding,       setCustomBuilding]       = useState("all");
   const [customTitle,          setCustomTitle]          = useState("");
   const [customOpeningRemarks, setCustomOpeningRemarks] = useState("");
+  const [customPriority,       setCustomPriority]       = useState("Normal");
   const [customSections,       setCustomSections]       = useState(defaultSections("Monthly"));
 
   // Shared generating state
-  const [generating,          setGenerating]          = useState(false);
-  const [generateError,       setGenerateError]       = useState(null);
-  const [downloadingReportId, setDownloadingReportId] = useState("");
+  const [generating,     setGenerating]     = useState(false);
+  const [generateError,  setGenerateError]  = useState(null);
+  const [selectedReportRecord, setSelectedReportRecord] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -173,7 +173,7 @@ const AdminReports = () => {
   }, []);
 
   const buildingMap = useMemo(
-    () => new Map(buildings.map((b) => [b.id, b.buildingName || b.building_name || b.id])),
+    () => new Map(buildings.map((b) => [b.id, b.buildingName || b.building_name || "Unnamed building"])),
     [buildings]
   );
   const userMap = useMemo(
@@ -187,6 +187,17 @@ const AdminReports = () => {
     else if (activeTab === "annual") list = list.filter((r) => r.reportType === "Annual");
     else if (activeTab === "custom") list = list.filter((r) => r.reportType === "Custom");
 
+    if (reportMonthFilter) {
+      const [filterYear, filterMonth] = reportMonthFilter.split("-").map(Number);
+      list = list.filter((report) => {
+        if (Number(report.reportYear) && Number(report.reportMonth)) {
+          return Number(report.reportYear) === filterYear && Number(report.reportMonth) === filterMonth;
+        }
+        const period = String(report.period || "").toLowerCase();
+        return period.includes(String(filterYear)) && period.includes(MONTHS[filterMonth - 1].toLowerCase());
+      });
+    }
+
     const q = search.trim().toLowerCase();
     if (!q) return list;
     return list.filter((r) => {
@@ -196,7 +207,7 @@ const AdminReports = () => {
       const status   = String(r.status || "").toLowerCase();
       return id.includes(q) || building.includes(q) || type.includes(q) || status.includes(q);
     });
-  }, [reports, activeTab, search, buildingMap]);
+  }, [reports, activeTab, search, reportMonthFilter, buildingMap]);
 
   const refreshReports = async () => {
     const updated = await getAllReports();
@@ -212,48 +223,6 @@ const AdminReports = () => {
       getIssues(),
       getAllInspectionResults()
     ]);
-
-  const handleDownloadReport = useCallback(async (report) => {
-    if (report.reportType === "Custom") {
-      toast("Custom reports cannot be re-downloaded. Please generate a new one.", { icon: "ℹ️" });
-      return;
-    }
-
-    setDownloadingReportId(report.id);
-    const toastId = toast.loading("Generating report...");
-    try {
-      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
-
-      if (report.reportType === "Monthly") {
-        const parts = String(report.period || "").split(" ");
-        const monthIndex = MONTHS.findIndex((m) => m === parts[0]);
-        const month = monthIndex >= 0 ? monthIndex + 1 : new Date().getMonth() + 1;
-        const year = parseInt(parts[1], 10) || CURRENT_YEAR;
-        const buildingsToUse = report.buildingId
-          ? buildings.filter((b) => b.id === report.buildingId)
-          : buildings;
-        await generateMonthlyReport({
-          month, year, buildings: buildingsToUse,
-          fireDrills: firedrills, inspections, inspectionResults,
-          issues: issueList, generatedBy: generatedByName()
-        });
-      } else if (report.reportType === "Annual") {
-        const year = parseInt(report.period, 10) || CURRENT_YEAR;
-        await generateAnnualReport({
-          year, buildings,
-          fireDrills: firedrills, inspections, inspectionResults,
-          issues: issueList, generatedBy: generatedByName()
-        });
-      }
-
-      toast.success("Downloaded successfully!", { id: toastId });
-    } catch (err) {
-      toast.error(err.message || "Failed to download report.", { id: toastId });
-    } finally {
-      setDownloadingReportId("");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildings, user]);
 
   // ── Monthly generate ──
   const openMonthlyModal = () => {
@@ -289,7 +258,10 @@ const AdminReports = () => {
         generatedDate: new Date(),
         reportTitle: `Monthly Report — ${monthLabel} ${selectedYear}`,
         status:   "Generated",
-        period:   `${monthLabel} ${selectedYear}`
+        priority: "Normal",
+        period:   `${monthLabel} ${selectedYear}`,
+        reportMonth: selectedMonth,
+        reportYear: selectedYear
       });
       await refreshReports();
       setShowMonthlyModal(false);
@@ -325,6 +297,7 @@ const AdminReports = () => {
         generatedDate: new Date(),
         reportTitle: `Annual Report ${annualYear}`,
         status:   "Generated",
+        priority: "Normal",
         period:   String(annualYear)
       });
       await refreshReports();
@@ -348,6 +321,7 @@ const AdminReports = () => {
     setCustomBuilding("all");
     setCustomTitle("");
     setCustomOpeningRemarks("");
+    setCustomPriority("Normal");
     setCustomSections(defaultSections("Monthly"));
     setShowCustomModal(true);
   };
@@ -410,6 +384,7 @@ const AdminReports = () => {
         generatedDate: new Date(),
         reportTitle: title,
         status:      "Generated",
+        priority:    customPriority,
         period:      periodLabel
       });
       await refreshReports();
@@ -424,73 +399,60 @@ const AdminReports = () => {
   const sectionDefs = customReportType === "Annual" ? ANNUAL_SECTIONS : MONTHLY_SECTIONS;
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-page admin-page-stack">
       {/* Header */}
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div
-          className="card-header-row"
-          style={{ justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}
-        >
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">Reports &amp; Analytics</h2>
             <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "14px" }}>
               Global view of finalized inspections, monthly summaries, and annual audits.
             </p>
           </div>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            <button type="button" className="primary-btn" onClick={openMonthlyModal}>
-              Generate Monthly Report
-            </button>
-            <button type="button" className="primary-btn" onClick={openAnnualModal}>
-              Generate Annual Report
-            </button>
-            <button type="button" className="primary-btn" onClick={openCustomModal}>
-              Custom Report
-            </button>
+          <div className="report-page-actions">
+            <button type="button" className="secondary-btn" onClick={openMonthlyModal}>Generate Monthly Report</button>
+            <button type="button" className="primary-btn" onClick={openAnnualModal}>Generate Annual Report</button>
+            <button type="button" className="primary-btn" onClick={openCustomModal}>Custom Report</button>
           </div>
         </div>
       </div>
 
       {/* Tabs + table */}
       <div className="dashboard-card">
-        <div style={{ display: "flex", gap: "4px", borderBottom: "1px solid #e5e7eb", marginBottom: "20px" }}>
+        <div className="report-tabs" aria-label="Report categories">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                padding: "10px 16px", fontSize: "14px",
-                fontWeight: activeTab === tab.key ? "600" : "400",
-                color: activeTab === tab.key ? "#047857" : "#6b7280",
-                borderBottom: activeTab === tab.key ? "2px solid #047857" : "2px solid transparent",
-                marginBottom: "-1px", transition: "color 0.15s ease, border-color 0.15s ease",
-                borderRadius: "4px 4px 0 0"
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.key) e.currentTarget.style.color = "#374151";
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.key) e.currentTarget.style.color = "#6b7280";
-              }}
+              className={`report-tab ${activeTab === tab.key ? "active" : ""}`}
             >
               {tab.label}
             </button>
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "center" }}>
-          <div className="search-box" style={{ flex: 1, maxWidth: "400px" }}>
+        <div className="report-toolbar">
+          <div className="search-box">
             <span className="search-icon">🔍</span>
             <input
               type="text"
               className="search-input"
-              placeholder="Search reports by ID, title, or building..."
+              placeholder="Search reports by title or building..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <label className="report-month-filter">
+            <span>Reporting month</span>
+            <span className="temporal-control report-temporal-control">
+              <input
+                type="month"
+                value={reportMonthFilter}
+                onChange={(event) => setReportMonthFilter(event.target.value)}
+              />
+            </span>
+          </label>
         </div>
 
         {loading ? (
@@ -498,21 +460,22 @@ const AdminReports = () => {
         ) : error ? (
           <div className="error-state">{error}</div>
         ) : (
-          <div className="fire-drill-history-table-wrapper">
-            <table className="dashboard-table" style={{ width: "100%" }}>
+          <ResponsiveTableRegion label="Generated reports" className="fire-drill-history-table-wrapper responsive-table-region--cards">
+            <table className="dashboard-table responsive-card-table" style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  <th>REPORT NAME</th>
+                  <th>TITLE / BUILDING</th>
                   <th>DATE</th>
                   <th>GENERATED BY</th>
                   <th>STATUS</th>
+                  <th>PRIORITY</th>
                   <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredReports.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af" }}>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af" }}>
                       {search
                         ? "No reports match your search."
                         : "No reports yet. Use the buttons above to generate a report."}
@@ -521,247 +484,123 @@ const AdminReports = () => {
                 ) : (
                   filteredReports.map((report) => (
                     <tr key={report.id}>
-                      <td>
+                      <td data-label="Title / Building">
                         {report.reportTitle || (
                           report.buildingId
-                            ? buildingMap.get(report.buildingId) || report.buildingId
+                            ? buildingMap.get(report.buildingId) || "Unknown building"
                             : "All Buildings"
                         )}
                       </td>
-                      <td>{formatDate(report.generatedDate || report.createdAt)}</td>
-                      <td>{userMap.get(report.generatedBy) || report.generatedBy || "-"}</td>
-                      <td>
-                        <span className="status-badge" style={getStatusStyle(report.status)}>
-                          {report.status || "Generated"}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          title={report.reportType === "Custom" ? "Custom reports cannot be re-downloaded" : "Download report"}
-                          disabled={downloadingReportId === report.id}
-                          onClick={() => handleDownloadReport(report)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: downloadingReportId === report.id ? "#9ca3af" : "#047857",
-                            cursor: downloadingReportId === report.id ? "not-allowed" : "pointer",
-                            fontSize: "16px",
-                            padding: 0,
-                            lineHeight: 1
-                          }}
-                        >
-                          {downloadingReportId === report.id ? "⏳" : "⬇️"}
-                        </button>
+                      <td data-label="Date">{formatDate(report.generatedDate || report.createdAt)}</td>
+                      <td data-label="Generated By">{userMap.get(report.generatedBy) || report.generatedBy || "-"}</td>
+                      <td data-label="Status"><span className="status-badge" style={getStatusStyle(report.status)}>{report.status || "Generated"}</span></td>
+                      <td data-label="Priority"><span className="status-badge" style={getPriorityStyle(report.priority)}>{report.priority || "Normal"}</span></td>
+                      <td data-label="Actions">
+                        <button type="button" onClick={() => setSelectedReportRecord(report)} className="link-button">View</button>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTableRegion>
         )}
       </div>
 
-      {showMonthlyModal && (
-        <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowMonthlyModal(false)}>
-          <div className="issue-ticket-modal" style={{ width: "min(520px, 100%)" }} onClick={(e) => e.stopPropagation()}>
-            <ModalHeader title="Generate Monthly Report" onClose={() => setShowMonthlyModal(false)} generating={generating} />
-            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
-              Select the month, year, and optionally a specific building.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <div className="form-field">
-                <label className="form-label">Month</label>
-                <select className="form-input" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
-                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                </select>
-              </div>
-              <div className="form-field">
-                <label className="form-label">Year</label>
-                <select className="form-input" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
-                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
+      {/* Report details modal */}
+      {selectedReportRecord && (
+        <div className="issue-ticket-modal-backdrop" onClick={() => setSelectedReportRecord(null)}>
+          <div className="issue-ticket-modal" style={{ width: "min(100%, 560px)" }} onClick={(e) => e.stopPropagation()}>
+            <ModalHeader title={selectedReportRecord.reportTitle || "Report Details"} onClose={() => setSelectedReportRecord(null)} generating={false} />
+            <div style={{ display: "grid", gap: "12px" }}>
+              {[
+                ["Type", selectedReportRecord.reportType || "-"],
+                [
+                  "Building",
+                  selectedReportRecord.buildingId
+                    ? buildingMap.get(selectedReportRecord.buildingId) || "Unknown building"
+                    : "All Buildings"
+                ],
+                ["Period", selectedReportRecord.period || "-"],
+                ["Generated Date", formatDate(selectedReportRecord.generatedDate || selectedReportRecord.createdAt)],
+                ["Generated By", userMap.get(selectedReportRecord.generatedBy) || selectedReportRecord.generatedBy || "-"],
+                ["Status", selectedReportRecord.status || "Generated"],
+                ["Priority", selectedReportRecord.priority || "Normal"]
+              ].map(([label, value]) => (
+                <div key={label} className="detail-row"><span className="detail-label">{label}</span><span className="detail-value">{value || "-"}</span></div>
+              ))}
             </div>
-            <div className="form-field">
-              <label className="form-label">Building</label>
-              <select className="form-input" value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}>
-                <option value="all">All Buildings</option>
-                {buildings.map((b) => (
-                  <option key={b.id} value={b.id}>{b.buildingName || b.building_name || b.id}</option>
-                ))}
-              </select>
-            </div>
-            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px", flexWrap: "wrap" }}>
-              <button type="button" className="secondary-btn" onClick={() => setShowMonthlyModal(false)} disabled={generating}>
-                Cancel
-              </button>
-              <button type="button" className="secondary-btn" onClick={() => doGenerateMonthly("pdf")} disabled={generating}>
-                {generating ? "Generating..." : "Download PDF"}
-              </button>
-              <button type="button" className="primary-btn" onClick={() => doGenerateMonthly("docx")} disabled={generating}>
-                {generating ? "Generating..." : "Download Word"}
-              </button>
-            </div>
+            {selectedReportRecord.reportFileUrl ? (
+              <a className="primary-btn" href={selectedReportRecord.reportFileUrl} target="_blank" rel="noreferrer" style={{ display: "inline-flex", marginTop: "18px", textDecoration: "none" }}>Open File</a>
+            ) : (
+              <p style={{ color: "#6b7280", fontSize: "14px", marginTop: "18px" }}>No stored file URL is attached to this report record. Generate the report again to download a new Word or PDF file.</p>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── Annual Modal ── */}
+      {/* Monthly modal */}
+      {showMonthlyModal && (
+        <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowMonthlyModal(false)}>
+          <div className="issue-ticket-modal" style={{ width: "min(100%, 520px)" }} onClick={(e) => e.stopPropagation()}>
+            <ModalHeader title="Generate Monthly Report" onClose={() => setShowMonthlyModal(false)} generating={generating} />
+            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>Select the month, year, and optionally a specific building.</p>
+            <div className="report-modal-grid">
+              <div className="form-field"><label className="form-label">Month</label><select className="form-input" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></div>
+              <div className="form-field"><label className="form-label">Year</label><select className="form-input" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div>
+            </div>
+            <div className="form-field"><label className="form-label">Building</label><select className="form-input" value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}><option value="all">All Buildings</option>{buildings.map((b) => <option key={b.id} value={b.id}>{b.buildingName || b.building_name || "Unnamed building"}</option>)}</select></div>
+            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
+            <div className="report-modal-actions"><button type="button" className="secondary-btn" onClick={() => setShowMonthlyModal(false)} disabled={generating}>Cancel</button><button type="button" className="secondary-btn" onClick={() => doGenerateMonthly("pdf")} disabled={generating}>{generating ? "Generating..." : "Download PDF"}</button><button type="button" className="primary-btn" onClick={() => doGenerateMonthly("docx")} disabled={generating}>{generating ? "Generating..." : "Download Word"}</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* Annual modal */}
       {showAnnualModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowAnnualModal(false)}>
-          <div className="issue-ticket-modal" style={{ width: "min(480px, 100%)" }} onClick={(e) => e.stopPropagation()}>
+          <div className="issue-ticket-modal" style={{ width: "min(100%, 480px)" }} onClick={(e) => e.stopPropagation()}>
             <ModalHeader title="Generate Annual Report" onClose={() => setShowAnnualModal(false)} generating={generating} />
-            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
-              Generates a full annual report covering all buildings for the selected year.
-            </p>
-            <div className="form-field">
-              <label className="form-label">Year</label>
-              <select className="form-input" value={annualYear} onChange={(e) => setAnnualYear(Number(e.target.value))}>
-                {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>Generates a full annual report covering all buildings for the selected year.</p>
+            <div className="form-field"><label className="form-label">Year</label><select className="form-input" value={annualYear} onChange={(e) => setAnnualYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div>
             {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
             <ModalActions onCancel={() => setShowAnnualModal(false)} onSubmit={doGenerateAnnual} generating={generating} />
           </div>
         </div>
       )}
 
-      {/* ── Custom Modal ── */}
+      {/* Custom modal */}
       {showCustomModal && (
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowCustomModal(false)}>
-          <div
-            className="issue-ticket-modal"
-            style={{ width: "min(680px, 100%)", maxHeight: "90vh", overflowY: "auto" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="issue-ticket-modal report-custom-modal" style={{ width: "min(100%, 680px)" }} onClick={(e) => e.stopPropagation()}>
             <ModalHeader title="Custom Report" onClose={() => setShowCustomModal(false)} generating={generating} />
 
             {/* Report type */}
-            <div className="form-field">
-              <label className="form-label">Report Type</label>
-              <div style={{ display: "flex", gap: "10px" }}>
-                {["Monthly", "Annual", "DateRange"].map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => handleCustomTypeChange(type)}
-                    style={{
-                      padding: "8px 18px", borderRadius: "6px", fontSize: "13px", fontWeight: "500",
-                      cursor: "pointer", border: "2px solid",
-                      borderColor: customReportType === type ? "#047857" : "#e5e7eb",
-                      backgroundColor: customReportType === type ? "#ecfdf5" : "#fff",
-                      color: customReportType === type ? "#047857" : "#374151"
-                    }}
-                  >
-                    {type === "DateRange" ? "Date Range" : type}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <div className="form-field"><label className="form-label">Report Type</label><div className="report-type-options">{["Monthly", "Annual", "DateRange"].map((type) => (<button key={type} type="button" onClick={() => handleCustomTypeChange(type)} className={`report-type-btn ${customReportType === type ? "active" : ""}`}>{type === "DateRange" ? "Date Range" : type}</button>))}</div></div>
 
             {/* Time scope inputs */}
-            {customReportType === "Monthly" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="form-field">
-                  <label className="form-label">Month</label>
-                  <select className="form-input" value={customMonth} onChange={(e) => setCustomMonth(Number(e.target.value))}>
-                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
-                </div>
-                <div className="form-field">
-                  <label className="form-label">Year</label>
-                  <select className="form-input" value={customYear} onChange={(e) => setCustomYear(Number(e.target.value))}>
-                    {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-              </div>
-            )}
+            {customReportType === "Monthly" && (<div className="report-modal-grid"><div className="form-field"><label className="form-label">Month</label><select className="form-input" value={customMonth} onChange={(e) => setCustomMonth(Number(e.target.value))}>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></div><div className="form-field"><label className="form-label">Year</label><select className="form-input" value={customYear} onChange={(e) => setCustomYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div></div>)}
 
-            {customReportType === "Annual" && (
-              <div className="form-field">
-                <label className="form-label">Year</label>
-                <select className="form-input" value={customAnnualYear} onChange={(e) => setCustomAnnualYear(Number(e.target.value))}>
-                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-            )}
+            {customReportType === "Annual" && (<div className="form-field"><label className="form-label">Year</label><select className="form-input" value={customAnnualYear} onChange={(e) => setCustomAnnualYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div>)}
 
-            {customReportType === "DateRange" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div className="form-field">
-                  <label className="form-label">From Date</label>
-                  <input type="date" className="form-input" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} />
-                </div>
-                <div className="form-field">
-                  <label className="form-label">To Date</label>
-                  <input type="date" className="form-input" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} />
-                </div>
-              </div>
-            )}
+            {customReportType === "DateRange" && (<div className="report-modal-grid"><div className="form-field"><label className="form-label">From Date</label><span className="temporal-control form-input form-temporal-control"><input type="date" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} /></span></div><div className="form-field"><label className="form-label">To Date</label><span className="temporal-control form-input form-temporal-control"><input type="date" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} /></span></div></div>)}
 
             {/* Building */}
-            <div className="form-field">
-              <label className="form-label">Building</label>
-              <select className="form-input" value={customBuilding} onChange={(e) => setCustomBuilding(e.target.value)}>
-                <option value="all">All Buildings</option>
-                {buildings.map((b) => (
-                  <option key={b.id} value={b.id}>{b.buildingName || b.building_name || b.id}</option>
-                ))}
-              </select>
-            </div>
+            <div className="form-field"><label className="form-label">Building</label><select className="form-input" value={customBuilding} onChange={(e) => setCustomBuilding(e.target.value)}><option value="all">All Buildings</option>{buildings.map((b) => <option key={b.id} value={b.id}>{b.buildingName || b.building_name || "Unnamed building"}</option>)}</select></div>
 
             {/* Custom title */}
-            <div className="form-field">
-              <label className="form-label">Report Title <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Q2 Fire Safety Summary — Building A"
-                value={customTitle}
-                onChange={(e) => setCustomTitle(e.target.value)}
-              />
-            </div>
+            <div className="form-field"><label className="form-label">Report Title <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label><input type="text" className="form-input" placeholder="e.g. Q2 Fire Safety Summary — Building A" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} /></div>
+
+            {/* Priority */}
+            <div className="form-field"><label className="form-label">Priority</label><select className="form-input" value={customPriority} onChange={(e) => setCustomPriority(e.target.value)}>{["Low", "Normal", "High", "Urgent"].map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
 
             {/* Opening remarks */}
-            <div className="form-field">
-              <label className="form-label">Opening Remarks <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label>
-              <textarea
-                className="form-input"
-                rows={3}
-                placeholder="Additional notes that will appear at the top of the report..."
-                value={customOpeningRemarks}
-                onChange={(e) => setCustomOpeningRemarks(e.target.value)}
-                style={{ resize: "vertical", minHeight: "72px" }}
-              />
-            </div>
+            <div className="form-field"><label className="form-label">Opening Remarks <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label><textarea className="form-input" rows={3} placeholder="Additional notes that will appear at the top of the report..." value={customOpeningRemarks} onChange={(e) => setCustomOpeningRemarks(e.target.value)} style={{ resize: "vertical", minHeight: "72px" }} /></div>
 
             {/* Section toggles */}
-            <div className="form-field">
-              <label className="form-label">Sections to Include</label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", marginTop: "8px" }}>
-                {Object.entries(sectionDefs).map(([key, { label }]) => (
-                  <label
-                    key={key}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px", color: "#374151" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!customSections[key]}
-                      onChange={() => toggleSection(key)}
-                      style={{ accentColor: "#047857", width: "16px", height: "16px" }}
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </div>
+            <div className="form-field"><label className="form-label">Sections to Include</label><div className="report-section-grid">{Object.entries(sectionDefs).map(([key, { label }]) => (<label key={key} className="report-section-item"><input type="checkbox" checked={!!customSections[key]} onChange={() => toggleSection(key)} />{label}</label>))}</div></div>
 
-            {generateError && (
-              <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>
-            )}
+            {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
             <ModalActions onCancel={() => setShowCustomModal(false)} onSubmit={doGenerateCustom} generating={generating} />
           </div>
         </div>

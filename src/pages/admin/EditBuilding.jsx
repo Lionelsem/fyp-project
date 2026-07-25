@@ -67,8 +67,8 @@ const EditBuilding = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.buildingId || !form.buildingName || !form.address) {
-      toast.error("Building ID, name, and address are required.");
+    if (!form.buildingName || !form.address) {
+      toast.error("Building name and address are required.");
       return;
     }
 
@@ -87,9 +87,9 @@ const EditBuilding = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ maxWidth: "960px", margin: "0 auto" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+    <div className="dashboard-container admin-page admin-record-page">
+      <div className="dashboard-card admin-record-card">
+        <div className="card-header-row admin-record-header">
           <div>
             <h2 className="section-title">Edit Building</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -98,36 +98,20 @@ const EditBuilding = () => {
           </div>
           <button
             type="button"
-            className="primary-btn"
+            className="primary-btn admin-record-back-button"
             onClick={() => navigate("/buildings")}
-            style={{
-              height: "40px",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
           >
             ← Back to Buildings
           </button>
         </div>
 
         {loading ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: "#6b7280" }}>
+          <div className="admin-record-loading">
             Loading building details...
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: "24px", padding: "20px 0" }}>
+          <form className="admin-record-form" onSubmit={handleSubmit}>
             <div className="form-grid">
-              <div className="form-field">
-                <label className="form-label">Building ID *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. BLD-001"
-                  value={form.buildingId}
-                  onChange={handleChange("buildingId")}
-                />
-              </div>
               <div className="form-field">
                 <label className="form-label">Building Name *</label>
                 <input
@@ -141,7 +125,7 @@ const EditBuilding = () => {
             </div>
 
             <div className="form-grid">
-              <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+              <div className="form-field admin-record-field--wide">
                 <label className="form-label">Address *</label>
                 <input
                   type="text"
@@ -187,6 +171,7 @@ const EditBuilding = () => {
               </div>
             </div>
 
+            
             <button type="submit" className="primary-btn" disabled={saving}>
               {saving ? "Updating building..." : "Update Building"}
             </button>

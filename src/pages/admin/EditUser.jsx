@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { getUserById, updateUser } from "../../services/userService";
+import { getUserById, removeUserProfilePicture, updateUser, updateUserProfilePicture } from "../../services/userService";
 import { ROLES } from "../../constants/roles";
+import UserAvatar from "../../components/common/UserAvatar";
+import { useAuthContext } from "../../context/AuthContext";
 
 const initialForm = {
   firstName: "",
@@ -26,7 +28,13 @@ const EditUser = () => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [photoURL, setPhotoURL] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [removePhoto, setRemovePhoto] = useState(false);
   const navigate = useNavigate();
+  const { user: currentUser, updateLocalProfile } = useAuthContext();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -46,6 +54,7 @@ const EditUser = () => {
           role: user.role || ROLES.FSM,
           status: user.status || "Active"
         });
+        setPhotoURL(user.photoURL || "");
       } catch (error) {
         console.error("Failed to load user", error);
         toast.error("Could not load user details.");
@@ -57,8 +66,44 @@ const EditUser = () => {
     loadUser();
   }, [id]);
 
+  useEffect(() => () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+  }, [photoPreview]);
+
   const handleChange = (field) => (event) => {
     setForm({ ...form, [field]: event.target.value });
+  };
+
+  const handlePhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage({ type: "error", text: "Please choose an image file." });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Profile picture must be 5 MB or smaller." });
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setRemovePhoto(false);
+    setMessage(null);
+    event.target.value = "";
+  };
+
+  const cancelPhotoChange = () => {
+    setPhotoFile(null);
+    setPhotoPreview("");
+    setRemovePhoto(false);
+    setMessage(null);
+  };
+
+  const markPhotoForRemoval = () => {
+    setPhotoFile(null);
+    setPhotoPreview("");
+    setRemovePhoto(true);
+    setMessage(null);
   };
 
   const handleSubmit = async (event) => {
@@ -72,7 +117,18 @@ const EditUser = () => {
     setSaving(true);
     try {
       await updateUser(id, normalizeUserPayload(form));
-      toast.success("User updated successfully.");
+      if (photoFile) {
+        const savedPhotoURL = await updateUserProfilePicture(id, photoFile, photoURL);
+        if (id === currentUser?.uid || id === currentUser?.profileId) {
+          updateLocalProfile({ photoURL: savedPhotoURL });
+        }
+      } else if (removePhoto) {
+        await removeUserProfilePicture(id, photoURL);
+        if (id === currentUser?.uid || id === currentUser?.profileId) {
+          updateLocalProfile({ photoURL: "" });
+        }
+      }
+      setMessage({ type: "success", text: "User updated successfully." });
       navigate("/users");
     } catch (error) {
       console.error("Could not update user", error);
@@ -84,9 +140,9 @@ const EditUser = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ maxWidth: "960px", margin: "0 auto" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+    <div className="dashboard-container admin-page admin-record-page">
+      <div className="dashboard-card admin-record-card">
+        <div className="card-header-row admin-record-header">
           <div>
             <h2 className="section-title">Edit User</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -95,25 +151,43 @@ const EditUser = () => {
           </div>
           <button
             type="button"
-            className="primary-btn"
+            className="primary-btn admin-record-back-button"
             onClick={() => navigate("/users")}
-            style={{
-              height: "40px",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
           >
             ← Back to Users
           </button>
         </div>
 
         {loading ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: "#6b7280" }}>
+          <div className="admin-record-loading">
             Loading user details...
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: "24px", padding: "20px 0" }}>
+          <form className="admin-record-form" onSubmit={handleSubmit}>
+            <div className="admin-profile-photo-field">
+              <UserAvatar
+                className="admin-edit-user-avatar"
+                photoURL={removePhoto ? "" : photoPreview || photoURL}
+                name={`${form.firstName} ${form.lastName}`.trim() || "User"}
+              />
+              <div>
+                <label className="profile-photo-button">
+                  {(photoURL && !removePhoto) || photoFile ? "Change profile picture" : "Upload profile picture"}
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handlePhotoChange} />
+                </label>
+                {(photoFile || removePhoto) && (
+                  <button type="button" className="secondary-btn admin-photo-action" onClick={cancelPhotoChange}>
+                    Cancel change
+                  </button>
+                )}
+                {photoURL && !removePhoto && !photoFile && (
+                  <button type="button" className="danger-button admin-photo-action" onClick={markPhotoForRemoval}>
+                    Remove picture
+                  </button>
+                )}
+                <p className="admin-photo-help">Admin only · JPG, PNG, WebP or GIF · max 5 MB</p>
+              </div>
+            </div>
             <div className="form-grid">
               <div className="form-field">
                 <label className="form-label">First Name *</label>
@@ -178,6 +252,14 @@ const EditUser = () => {
               </div>
             </div>
 
+            {message && (
+              <div
+                className="admin-form-message"
+                style={{ color: message.type === "error" ? "#b91c1c" : "#047857" }}
+              >
+                {message.text}
+              </div>
+            )}
             <button type="submit" className="primary-btn" disabled={saving}>
               {saving ? "Updating user..." : "Update User"}
             </button>

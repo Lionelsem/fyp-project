@@ -6,6 +6,8 @@ import { getAllUsers, deleteUser } from "../../services/userService";
 import { createUserAccount } from "../../services/authService";
 import { getAllBuildings } from "../../services/buildingService";
 import { ROLES } from "../../constants/roles";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import UserAvatar from "../../components/common/UserAvatar";
 
 const normalizeHeader = (h) => String(h || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
 
@@ -136,9 +138,9 @@ const ManageUsers = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+    <div className="dashboard-container admin-page admin-page-stack">
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">User Management</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -174,7 +176,8 @@ const ManageUsers = () => {
       </div>
 
       <div className="dashboard-card">
-        <table className="dashboard-table" style={{ width: "100%" }}>
+        <ResponsiveTableRegion label="Users" className="responsive-table-region--cards">
+          <table className="dashboard-table responsive-card-table">
           <thead>
             <tr>
               <th>NAME</th>
@@ -201,13 +204,18 @@ const ManageUsers = () => {
             ) : (
               users.map((user) => (
                 <tr key={user.uid}>
-                  <td>{user.fullName || "-"}</td>
-                  <td>{user.role || "-"}</td>
-                  <td>{getAssignedBuildings(user.uid)}</td>
-                  <td>{user.email || "-"}</td>
-                  <td>{user.status || "Active"}</td>
-                  <td>
-                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <td data-label="Name">
+                    <span className="admin-user-name-cell">
+                      <UserAvatar className="admin-user-list-avatar" photoURL={user.photoURL} name={user.fullName || "User"} />
+                      {user.fullName || "-"}
+                    </span>
+                  </td>
+                  <td data-label="Role">{user.role || "-"}</td>
+                  <td data-label="Assigned building">{getAssignedBuildings(user.uid)}</td>
+                  <td data-label="Email">{user.email || "-"}</td>
+                  <td data-label="Status">{user.status || "Active"}</td>
+                  <td data-label="Action">
+                    <div className="compact-row-actions">
                       <button
                         type="button"
                         className="secondary-btn action-icon-btn"
@@ -245,7 +253,8 @@ const ManageUsers = () => {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </ResponsiveTableRegion>
       </div>
     </div>
   );

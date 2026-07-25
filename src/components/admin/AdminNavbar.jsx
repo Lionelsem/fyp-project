@@ -1,6 +1,13 @@
 import React, { useMemo } from "react";
+import NotificationPopover from "../common/NotificationPopover";
 
-const AdminNavbar = ({ pageTitle = "Admin Dashboard" }) => {
+const AdminNavbar = ({
+  pageTitle = "Admin Dashboard",
+  isMenuOpen = false,
+  menuButtonRef,
+  menuControlsId,
+  onMenuToggle
+}) => {
   const today = useMemo(
     () =>
       new Date().toLocaleDateString(undefined, {
@@ -15,18 +22,26 @@ const AdminNavbar = ({ pageTitle = "Admin Dashboard" }) => {
   return (
     <nav className="admin-navbar">
       <div className="navbar-left">
+        <button
+          ref={menuButtonRef}
+          type="button"
+          className="icon-btn portal-menu-button"
+          aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={isMenuOpen}
+          aria-controls={menuControlsId}
+          onClick={onMenuToggle}
+          title={isMenuOpen ? "Close menu" : "Open menu"}
+        >
+          <span aria-hidden="true">&#9776;</span>
+        </button>
         <h1 className="navbar-title">{pageTitle}</h1>
       </div>
 
       <div className="navbar-right">
-        <button
-          type="button"
-          className="icon-btn notification-btn"
-          title="Notifications"
-        >
-          🔔
-        </button>
-        <div className="date-display">Today, {today}</div>
+        <NotificationPopover />
+        <div className="date-display" aria-label={`Today's date: ${today}`}>
+          <span className="date-display-prefix">Today, </span>{today}
+        </div>
       </div>
     </nav>
   );

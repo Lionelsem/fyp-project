@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ROLES } from "../../constants/roles";
 import { getAllBuildings, updateBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const FsmAssignment = () => {
   const [buildings, setBuildings] = useState([]);
@@ -59,8 +60,14 @@ const FsmAssignment = () => {
   }, [selectedBuilding]);
 
   const getFsmName = (userId) => {
-    const user = users.find((item) => item.uid === userId || item.userId === userId);
-    return user?.fullName || user?.email || userId || "Unassigned";
+    if (!userId) return "Unassigned";
+    const normalizedId = String(userId);
+    const user = users.find((item) =>
+      [item.uid, item.userId, item.id, item.authUid]
+        .filter(Boolean)
+        .some((candidate) => String(candidate) === normalizedId)
+    );
+    return user?.fullName || user?.displayName || user?.email || "Assigned FSM";
   };
 
   const selectedFsmName = getFsmName(selectedFsmId);
@@ -96,9 +103,9 @@ const FsmAssignment = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div className="card-header-row">
+    <div className="dashboard-container admin-page admin-page-stack">
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">FSM Assignment</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -113,7 +120,13 @@ const FsmAssignment = () => {
           <div className="card-header-row" style={{ marginBottom: "16px" }}>
             <div>
               <h3 className="section-title">New Assignment</h3>
-              <p style={{ color: "#6b7280", marginTop: "6px", fontSize: "14px" }}>
+              <p
+                style={{
+                  color: "#6b7280",
+                  marginTop: "6px",
+                  fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                }}
+              >
                 Select a building and FSM to create the next assignment.
               </p>
             </div>
@@ -131,7 +144,7 @@ const FsmAssignment = () => {
                   <option value="">Select building</option>
                   {buildings.map((building) => (
                     <option key={building.id} value={building.id}>
-                      {building.buildingName || building.building_name || building.buildingId}
+                      {building.buildingName || building.building_name || "Unnamed building"}
                     </option>
                   ))}
                 </select>
@@ -176,7 +189,13 @@ const FsmAssignment = () => {
             <div className="card-header-row" style={{ alignItems: "flex-start" }}>
               <div>
                 <h3 className="section-title">Current Assignment</h3>
-                <p style={{ color: "#6b7280", marginTop: "6px", fontSize: "14px" }}>
+                <p
+                  style={{
+                    color: "#6b7280",
+                    marginTop: "6px",
+                    fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                  }}
+                >
                   Details for the selected building.
                 </p>
               </div>
@@ -194,7 +213,13 @@ const FsmAssignment = () => {
                     .slice(0, 2)}
                 </div>
                 <div>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a" }}>
+                  <div
+                    style={{
+                      fontSize: "clamp(1rem, 0.95rem + 0.35vw, 1.125rem)",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                    }}
+                  >
                     {selectedFsmId ? selectedFsmName : "No FSM Assigned"}
                   </div>
                   <div style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -213,7 +238,15 @@ const FsmAssignment = () => {
             <div className="card-header-row">
               <h2 className="section-title">Assignment History</h2>
             </div>
-            <table className="dashboard-table">
+            <ResponsiveTableRegion label="FSM assignment history" className="responsive-table-region--cards">
+              <table className="dashboard-table responsive-card-table assignment-history-table">
+              <colgroup>
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "28%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>DATE</th>
@@ -239,20 +272,21 @@ const FsmAssignment = () => {
                 ) : (
                   buildings.map((building) => (
                     <tr key={building.id}>
-                      <td>{building.updatedAt ? new Date(building.updatedAt.seconds * 1000).toLocaleDateString() : "—"}</td>
-                      <td>{building.buildingName || building.building_name || building.buildingId || "Unknown"}</td>
-                      <td>
+                      <td data-label="Date">{building.updatedAt ? new Date(building.updatedAt.seconds * 1000).toLocaleDateString() : "—"}</td>
+                      <td data-label="Building">{building.buildingName || building.building_name || "Unknown building"}</td>
+                      <td data-label="Action">
                         <span className="status-pill" style={{ backgroundColor: building.assignedFsmId ? "#ecfdf5" : "#f8fafc", color: building.assignedFsmId ? "#047857" : "#475569", borderColor: building.assignedFsmId ? "#d1fae5" : "#e5e7eb" }}>
                           {building.assignedFsmId ? "Assigned" : "Unassigned"}
                         </span>
                       </td>
-                      <td>{getFsmName(building.assignedFsmId)}</td>
-                      <td style={{ color: "#6b7280" }}>System Auto</td>
+                      <td data-label="FSM">{getFsmName(building.assignedFsmId)}</td>
+                      <td data-label="Performed by" style={{ color: "#6b7280" }}>System Auto</td>
                     </tr>
                   ))
                 )}
               </tbody>
-            </table>
+              </table>
+            </ResponsiveTableRegion>
           </div>
         </div>
       </div>

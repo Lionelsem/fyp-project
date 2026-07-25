@@ -1,11 +1,18 @@
 import * as fs from "./firestoreService";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 
 export const createReport = async (data) => {
   const docRef = await fs.addReport(data);
   return { id: docRef.id, ...data };
+};
+
+export const updateReport = async (id, data) => {
+  return await updateDoc(doc(db, COLLECTION_NAMES.REPORTS, id), {
+    ...data,
+    updatedAt: serverTimestamp()
+  });
 };
 
 export const upsertReport = async (documentId, data) => {

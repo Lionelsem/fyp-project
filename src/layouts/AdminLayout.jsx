@@ -1,9 +1,9 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
 import { useAuthContext } from "../context/AuthContext";
 import AdminNavbar from "../components/admin/AdminNavbar";
 import AdminSidebar from "../components/admin/AdminSidebar";
+import PortalShell from "../components/common/PortalShell";
 
 const AdminLayout = ({ children }) => {
   const location = useLocation();
@@ -34,20 +34,21 @@ const AdminLayout = ({ children }) => {
   const sidebarProfile = {
     name: displayName,
     role: user?.role ? user.role.replace(/_/g, " ") : "Admin",
-    initials
+    initials,
+    photoURL: user?.photoURL
   };
 
   return (
-    <div className="app-shell">
-      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
-      <div className="app-body">
-        <AdminSidebar profile={sidebarProfile} />
-        <div className="app-main">
-          <AdminNavbar pageTitle={pageTitle} />
-          <main className="main-content">{children}</main>
-        </div>
-      </div>
-    </div>
+    <PortalShell
+      pageTitle={pageTitle}
+      profile={sidebarProfile}
+      NavbarComponent={AdminNavbar}
+      SidebarComponent={AdminSidebar}
+      shellClassName="admin-shell"
+      contentClassName="admin-main-content"
+    >
+      {children}
+    </PortalShell>
   );
 };
 

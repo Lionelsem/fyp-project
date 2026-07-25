@@ -10,6 +10,7 @@ const EMPTY_DATA = {
   buildings: [],
   inspections: [],
   reports: [],
+  buildingReports: [],
   fireDrills: [],
   fsmFireDrills: [],
   buildingFireDrills: [],
@@ -20,6 +21,7 @@ const EMPTY_LOADED = {
   buildings: true,
   inspections: true,
   reports: true,
+  buildingReports: true,
   fireDrills: true,
   fsmFireDrills: true,
   buildingFireDrills: true,
@@ -30,6 +32,7 @@ const PENDING_LOADED = {
   buildings: false,
   inspections: false,
   reports: false,
+  buildingReports: false,
   fireDrills: true,
   fsmFireDrills: false,
   buildingFireDrills: false,
@@ -104,25 +107,36 @@ const formatDate = (value) => {
   const date = toDate(value);
   if (!date) return "-";
 
-  return date.toLocaleDateString(undefined, {
-    month: "short",
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
+    month: "short",
     year: "numeric"
   });
 };
 
 const formatTime = (value) => {
   if (typeof value === "string" && value.trim()) {
-    return value.trim();
+    const text = value.trim();
+    const timeMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+
+    if (!timeMatch) return text;
+
+    let hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const meridiem = timeMatch[3]?.toUpperCase();
+
+    if (meridiem === "PM" && hours < 12) hours += 12;
+    if (meridiem === "AM" && hours === 12) hours = 0;
+
+    const displayHour = String(((hours + 11) % 12) + 1).padStart(2, "0");
+    return `${displayHour}:${String(minutes).padStart(2, "0")} ${hours >= 12 ? "PM" : "AM"}`;
   }
 
   const date = toDate(value);
   if (!date) return "Time TBC";
 
-  return date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  const displayHour = String(((date.getHours() + 11) % 12) + 1).padStart(2, "0");
+  return `${displayHour}:${String(date.getMinutes()).padStart(2, "0")} ${date.getHours() >= 12 ? "PM" : "AM"}`;
 };
 
 const parseTimeParts = (value) => {
@@ -187,17 +201,22 @@ const getIssueBucket = (issue) => {
   const priority = normalizeText(issue.priority);
   const status = normalizeText(issue.status);
 
-  if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") return "failed";
-  if (status === normalizeText(ISSUE_STATUS.CLOSED)) return "passed";
-  return "pending";
+  if (status === normalizeText(ISSUE_STATUS.CLOSED) || status === "completed") {
+    return "completed";
+  }
+  if (status === normalizeText(ISSUE_STATUS.RESOLVED)) return "resolved";
+  if (priority === normalizeText(PRIORITY.HIGH) || priority === "critical") {
+    return "critical";
+  }
+  return "inProgress";
 };
 
 const getIssueDate = (issue) =>
   toDate(
-    issue.updatedAt ||
-    issue.createdAt ||
     issue.reportedAt ||
+    issue.createdAt ||
     issue.inspectionDate ||
+    issue.updatedAt ||
     issue.fixPhotoUploadedAt ||
     issue.defectPhotoUploadedAt
   );
@@ -224,6 +243,28 @@ const getStatusStyle = (status) => {
   return { statusColor: "#475569", statusBg: "#f1f5f9" };
 };
 
+const normalizeDashboardStatus = (status) => {
+  const displayStatus = String(status || "").trim();
+  const normalized = normalizeText(displayStatus);
+
+  if (
+    normalized === normalizeText(ISSUE_STATUS.CLOSED) ||
+    normalized === normalizeText(ISSUE_STATUS.RESOLVED)
+  ) {
+    return "Resolved";
+  }
+
+  if (normalized === normalizeText(ISSUE_STATUS.IN_PROGRESS)) {
+    return "In Progress";
+  }
+
+  if (normalized === normalizeText(ISSUE_STATUS.OPEN)) return "Open";
+  if (normalized === normalizeText(ISSUE_STATUS.DRAFT)) return "Draft";
+  if (normalized === normalizeText("Submitted")) return "Submitted";
+
+  return displayStatus || "Submitted";
+};
+
 const getPriorityColor = (priority) => {
   const normalized = normalizeText(priority);
   if (normalized === "critical" || normalized === normalizeText(PRIORITY.HIGH)) {
@@ -233,6 +274,20 @@ const getPriorityColor = (priority) => {
     return "#b45309";
   }
   return "#666";
+};
+
+const getPriorityBackground = (priority) => {
+  const normalized = normalizeText(priority);
+  if (normalized === "critical" || normalized === normalizeText(PRIORITY.HIGH)) {
+    return "#fee2e2";
+  }
+  if (normalized === normalizeText(PRIORITY.MEDIUM)) {
+    return "#fef3c7";
+  }
+  if (normalized === normalizeText(PRIORITY.LOW)) {
+    return "#dbeafe";
+  }
+  return "#f1f5f9";
 };
 
 const isCompletedFireDrill = (drill) => {
@@ -297,54 +352,6 @@ const getBuildingName = (buildingMap, buildingId, fallback) => {
   );
 };
 
-const buildSummaryCards = (issues) => {
-  const inProgressCount = issues.filter(
-    (issue) => normalizeText(issue.status) === normalizeText(ISSUE_STATUS.IN_PROGRESS)
-  ).length;
-  const closedCount = issues.filter(
-    (issue) => normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED)
-  ).length;
-  const urgentIssueCount = issues.filter((issue) => {
-    const priority = normalizeText(issue.priority);
-    return priority === normalizeText(PRIORITY.HIGH) || priority === "critical";
-  }).length;
-
-  return [
-    {
-      label: "Inspection Issue Ticket",
-      value: issues.length,
-      icon: "\uD83D\uDCCB",
-      iconBg: "#ecfdf5",
-      iconColor: "#047857",
-      trend: "Live from Firestore"
-    },
-    {
-      label: "Pending",
-      value: inProgressCount,
-      icon: "\u23F3",
-      iconBg: "#fef3c7",
-      iconColor: "#b45309",
-      trend: `${inProgressCount} in progress`
-    },
-    {
-      label: "Completed",
-      value: closedCount,
-      icon: "\u2705",
-      iconBg: "#dbeafe",
-      iconColor: "#0284c7",
-      trend: "Closed after verification"
-    },
-    {
-      label: "Urgent Issues",
-      value: urgentIssueCount,
-      icon: "\uD83D\uDEA8",
-      iconBg: "#fee2e2",
-      iconColor: "#dc2626",
-      trend: "Requires immediate action"
-    }
-  ];
-};
-
 const buildStatusBreakdown = (issues) =>
   issues.reduce(
     (breakdown, issue) => {
@@ -355,7 +362,7 @@ const buildStatusBreakdown = (issues) =>
         [bucket]: breakdown[bucket] + 1
       };
     },
-    { total: 0, passed: 0, pending: 0, failed: 0 }
+    { total: 0, completed: 0, resolved: 0, inProgress: 0, critical: 0 }
   );
 
 const buildMonthlyTrend = (issues) => {
@@ -371,9 +378,10 @@ const buildMonthlyTrend = (issues) => {
         key,
         month: date.toLocaleString(undefined, { month: "short", year: "numeric" }),
         sortDate: new Date(date.getFullYear(), date.getMonth(), 1),
-        passed: 0,
-        pending: 0,
-        failed: 0
+        completed: 0,
+        resolved: 0,
+        inProgress: 0,
+        critical: 0
       });
     }
 
@@ -385,29 +393,31 @@ const buildMonthlyTrend = (issues) => {
     .map(({ sortDate, ...month }) => month);
 };
 
-const buildRecentReports = (reports, buildingMap) =>
-  [...reports]
+const buildRecentReports = (issues, buildingMap) =>
+  [...issues]
     .sort((first, second) => {
-      const firstDate = toDate(first.generatedDate || first.createdAt);
-      const secondDate = toDate(second.generatedDate || second.createdAt);
+      const firstDate = getIssueDate(first);
+      const secondDate = getIssueDate(second);
       return (secondDate?.getTime() || 0) - (firstDate?.getTime() || 0);
     })
-    .slice(0, 2)
-    .map((report) => {
-      const status = report.status || report.reportStatus || "Draft";
-      const priority = report.priority || "Normal";
+    .slice(0, 5)
+    .map((issue) => {
+      const status = normalizeDashboardStatus(issue.status);
+      const priority = issue.priority || "Normal";
 
       return {
-        id: report.id,
+        id: issue.id,
         building: getBuildingName(
           buildingMap,
-          report.buildingId,
-          report.building
+          issue.buildingId,
+          issue.buildingName
         ),
-        date: formatDate(report.generatedDate || report.createdAt || report.date),
+        issue: issue.issueTitle || issue.issueDescription || "Untitled issue",
+        date: formatDate(getIssueDate(issue)),
         status,
         priority,
         priorityColor: getPriorityColor(priority),
+        priorityBg: getPriorityBackground(priority),
         ...getStatusStyle(status)
       };
     });
@@ -434,7 +444,7 @@ const buildUpcomingSchedule = (fireDrills, buildingMap) => {
       return hasExplicitTime ? dateTime >= now : dateTime >= todayStart;
     })
     .sort((first, second) => first.dateTime - second.dateTime)
-    .slice(0, 2)
+    .slice(0, 3)
     .map(({ drill, dateTime }) => ({
       id: drill.id,
       time: drill.drillTime
@@ -641,6 +651,65 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     const assignedBuildingIds = JSON.parse(buildingIdsKey);
 
     if (assignedBuildingIds.length === 0) {
+      setData((current) => ({ ...current, buildingReports: [] }));
+      setLoaded((current) => ({ ...current, buildingReports: true }));
+      return undefined;
+    }
+
+    let active = true;
+    const chunks = chunkArray(assignedBuildingIds, IN_QUERY_CHUNK_SIZE);
+    const chunkResults = chunks.map(() => []);
+    const chunkLoaded = chunks.map(() => false);
+
+    setLoaded((current) => ({ ...current, buildingReports: false }));
+
+    const updateReports = () => {
+      if (!active) return;
+      setData((current) => ({
+        ...current,
+        buildingReports: uniqueById(chunkResults.flat())
+      }));
+      if (chunkLoaded.every(Boolean)) {
+        setLoaded((current) => ({ ...current, buildingReports: true }));
+      }
+    };
+
+    const unsubscribes = chunks.map((ids, index) =>
+      onSnapshot(
+        query(
+          collection(db, COLLECTION_NAMES.REPORTS),
+          where("buildingId", "in", ids)
+        ),
+        (snapshot) => {
+          if (!active) return;
+          chunkResults[index] = mapSnapshot(snapshot);
+          chunkLoaded[index] = true;
+          updateReports();
+        },
+        (listenerError) => {
+          if (!active) return;
+          console.error("FSM dashboard building reports listener failed", listenerError);
+          setError(listenerError.message || "Could not sync building reports.");
+          chunkLoaded[index] = true;
+          updateReports();
+        }
+      )
+    );
+
+    return () => {
+      active = false;
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [buildingIdsKey, fsmLookupIdsKey, loaded.buildings]);
+
+  useEffect(() => {
+    const lookupIds = JSON.parse(fsmLookupIdsKey);
+
+    if (lookupIds.length === 0 || !loaded.buildings) return undefined;
+
+    const assignedBuildingIds = JSON.parse(buildingIdsKey);
+
+    if (assignedBuildingIds.length === 0) {
       setData((current) => ({ ...current, buildingFireDrills: [] }));
       setLoaded((current) => ({ ...current, buildingFireDrills: true }));
       return undefined;
@@ -708,11 +777,6 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     [data.buildingFireDrills, data.fireDrills, data.fsmFireDrills]
   );
 
-  const summaryCards = useMemo(
-    () => buildSummaryCards(data.issues),
-    [data.issues]
-  );
-
   const statusBreakdown = useMemo(
     () => buildStatusBreakdown(data.issues),
     [data.issues]
@@ -724,8 +788,13 @@ export const useFsmDashboardData = (fsmLookupValue) => {
   );
 
   const recentReports = useMemo(
-    () => buildRecentReports(data.reports, buildingMap),
-    [data.reports, buildingMap]
+    () => buildRecentReports(data.issues, buildingMap),
+    [data.issues, buildingMap]
+  );
+
+  const liveReports = useMemo(
+    () => uniqueById([...data.reports, ...data.buildingReports]),
+    [data.buildingReports, data.reports]
   );
 
   const upcomingSchedule = useMemo(
@@ -743,10 +812,9 @@ export const useFsmDashboardData = (fsmLookupValue) => {
     error,
     buildings: data.buildings,
     inspections: data.inspections,
-    reports: data.reports,
+    reports: liveReports,
     fireDrills: liveFireDrills,
     issues: data.issues,
-    summaryCards,
     statusBreakdown,
     monthlyTrend,
     recentReports,

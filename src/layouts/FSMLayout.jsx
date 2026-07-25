@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import FSMNavbar from "../components/fsm/FSMNavbar";
 import FSMSidebar from "../components/fsm/FSMSidebar";
+import PortalShell from "../components/common/PortalShell";
 
 const FSMLayout = ({ children }) => {
   const location = useLocation();
@@ -10,16 +11,17 @@ const FSMLayout = ({ children }) => {
 
   const section = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
   const pageTitleMap = {
-    dashboard: "Dashboard",
+    dashboard: "FSM Dashboard",
     inspections: "Inspections",
     verify: "Verify Inspection",
     issues: "Issues / Defects",
     "fire-drill": "Fire Drill",
     reports: "Reports",
     building: "My Building",
+    feedbacks: "Comments/Feedbacks",
     profile: "Profile"
   };
-  const pageTitle = pageTitleMap[section] || "FSM Dashboard";
+  const pageTitle = pageTitleMap[section] || "Dashboard";
 
   const displayName =
     user?.fullName || user?.displayName || user?.email?.split("@")[0] || "FSM";
@@ -33,19 +35,21 @@ const FSMLayout = ({ children }) => {
   const sidebarProfile = {
     name: displayName,
     role: user?.role ? user.role.replace(/_/g, " ") : "Fire Safety Manager",
-    initials
+    initials,
+    photoURL: user?.photoURL
   };
 
   return (
-    <div className="app-shell fsm-shell">
-      <div className="app-body">
-        <FSMSidebar profile={sidebarProfile} />
-        <div className="app-main">
-          <FSMNavbar pageTitle={pageTitle} />
-          <main className="main-content fsm-main-content">{children}</main>
-        </div>
-      </div>
-    </div>
+    <PortalShell
+      pageTitle={pageTitle}
+      profile={sidebarProfile}
+      NavbarComponent={FSMNavbar}
+      SidebarComponent={FSMSidebar}
+      shellClassName="fsm-shell"
+      contentClassName="fsm-main-content"
+    >
+      {children}
+    </PortalShell>
   );
 };
 

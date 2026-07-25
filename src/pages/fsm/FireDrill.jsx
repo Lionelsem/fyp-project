@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ImageSourcePicker from "../../components/common/ImageSourcePicker";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import {
@@ -8,6 +9,8 @@ import {
   updateScheduledFireDrill
 } from "../../services/fireDrillService";
 import { uploadFile } from "../../services/storageService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { formatDurationInput, isValidDurationInput } from "../../utils/durationInput";
 
 const emptyScheduleForm = {
   buildingId: "",
@@ -26,6 +29,7 @@ const emptyConductForm = {
   scheduledDrillId: "",
   actualDate: "",
   actualTime: "",
+  actualParticipants: "",
   alarmToEvacuationTime: "",
   totalEvacuationTime: "",
   observations: "",
@@ -120,6 +124,14 @@ const toDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const toMonthInputValue = (value) => {
+  const date = toDate(value);
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 const formatDate = (value) => {
   const date = toDate(value);
   if (!date) return "-";
@@ -199,6 +211,15 @@ const getBuildingParticipants = (building) => {
   return value === undefined || value === null ? "" : String(value);
 };
 
+const getActualParticipants = (drill) =>
+  [
+    drill?.actualParticipants,
+    drill?.participantsAttended,
+    drill?.attendanceCount
+  ]
+    .map((value) => String(value ?? "").trim())
+    .find(Boolean) || "";
+
 const getFsmLookupIds = (user) => [
   user?.uid,
   user?.authUid,
@@ -261,6 +282,8 @@ const normalizeDrill = (drill, buildingMap) => {
     customEvacuationType: drill.customEvacuationType || "",
     scope: drill.scope || drill.location || "Scope TBC",
     participants: drill.participants || drill.occupants || "Participants TBC",
+    scheduledParticipants: drill.scheduledParticipants || drill.plannedParticipants || drill.participants || drill.occupants || "",
+    actualParticipants: getActualParticipants(drill),
     status
   };
 };
@@ -344,19 +367,27 @@ const ScheduleForm = ({
         {buildings.length > 0 ? (
           <label className="fire-drill-form-field">
             <span>Building</span>
-            <select
-              value={form.buildingId}
-              onChange={(event) => onChange("buildingId", event.target.value)}
-              disabled={buildings.length === 1}
-              required
-            >
-              <option value="">Select building</option>
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {getBuildingName(building)}
-                </option>
-              ))}
-            </select>
+            {buildings.length === 1 ? (
+              <input
+                type="text"
+                value={getBuildingName(buildings[0])}
+                readOnly
+                aria-readonly="true"
+              />
+            ) : (
+              <select
+                value={form.buildingId}
+                onChange={(event) => onChange("buildingId", event.target.value)}
+                required
+              >
+                <option value="">Select building</option>
+                {buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {getBuildingName(building)}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
         ) : (
           <label className="fire-drill-form-field">
@@ -398,28 +429,34 @@ const ScheduleForm = ({
         )}
         <label className="fire-drill-form-field">
           <span>Date</span>
-          <input
-            type="date"
-            value={form.drillDate}
-            onChange={(event) => onChange("drillDate", event.target.value)}
-            required
-          />
+          <span className="temporal-control fire-drill-temporal-control">
+            <input
+              type="date"
+              value={form.drillDate}
+              onChange={(event) => onChange("drillDate", event.target.value)}
+              required
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>Start Time</span>
-          <input
-            type="time"
-            value={form.drillTime}
-            onChange={(event) => onChange("drillTime", event.target.value)}
-          />
+          <span className="temporal-control fire-drill-temporal-control">
+            <input
+              type="time"
+              value={form.drillTime}
+              onChange={(event) => onChange("drillTime", event.target.value)}
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>End Time</span>
-          <input
-            type="time"
-            value={form.drillEndTime}
-            onChange={(event) => onChange("drillEndTime", event.target.value)}
-          />
+          <span className="temporal-control fire-drill-temporal-control">
+            <input
+              type="time"
+              value={form.drillEndTime}
+              onChange={(event) => onChange("drillEndTime", event.target.value)}
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>Scope</span>
@@ -457,6 +494,40 @@ const ReadOnlyItem = ({ label, value }) => (
     <strong>{value || "-"}</strong>
   </div>
 );
+
+const SelectedPhotoGallery = ({ files, onRemove }) => {
+  const previews = useMemo(
+    () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [files]
+  );
+
+  useEffect(
+    () => () => previews.forEach((preview) => URL.revokeObjectURL(preview.url)),
+    [previews]
+  );
+
+  if (previews.length === 0) return null;
+
+  return (
+    <div className="conduct-photo-preview-grid" aria-label="Selected fire drill photos">
+      {previews.map(({ file, url }, index) => (
+        <figure
+          className="conduct-photo-preview"
+          key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+        >
+          <img src={url} alt={`Selected fire drill evidence ${index + 1}`} />
+          <button
+            type="button"
+            aria-label={`Remove selected photo ${index + 1}`}
+            onClick={() => onRemove(index)}
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </figure>
+      ))}
+    </div>
+  );
+};
 
 const ConductForm = ({
   form,
@@ -499,26 +570,42 @@ const ConductForm = ({
         <ReadOnlyItem label="Scheduled Time" value={formatTimeRange(selectedDrill || {})} />
         <ReadOnlyItem label="Drill Type" value={selectedDrill?.drillType} />
         <ReadOnlyItem label="Scope" value={selectedDrill?.scope} />
-        <ReadOnlyItem label="Participants" value={selectedDrill?.participants} />
+        <ReadOnlyItem label="Planned Participants" value={selectedDrill?.participants} />
       </div>
 
       <div className="conduct-drill-section-title">Actual Information</div>
       <div className="fire-drill-form-grid">
         <label className="fire-drill-form-field">
           <span>Actual Date</span>
-          <input
-            type="date"
-            value={form.actualDate}
-            onChange={(event) => onChange("actualDate", event.target.value)}
-            required
-          />
+          <span className="temporal-control fire-drill-temporal-control">
+            <input
+              type="date"
+              value={form.actualDate}
+              onChange={(event) => onChange("actualDate", event.target.value)}
+              required
+            />
+          </span>
         </label>
         <label className="fire-drill-form-field">
           <span>Actual Time</span>
+          <span className="temporal-control fire-drill-temporal-control">
+            <input
+              type="time"
+              value={form.actualTime}
+              onChange={(event) => onChange("actualTime", event.target.value)}
+              required
+            />
+          </span>
+        </label>
+        <label className="fire-drill-form-field">
+          <span>Actual Participants</span>
           <input
-            type="time"
-            value={form.actualTime}
-            onChange={(event) => onChange("actualTime", event.target.value)}
+            type="number"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            value={form.actualParticipants}
+            onChange={(event) => onChange("actualParticipants", event.target.value)}
             required
           />
         </label>
@@ -532,8 +619,14 @@ const ConductForm = ({
             type="text"
             inputMode="numeric"
             placeholder="02:15"
+            maxLength={5}
+            pattern="[0-9]{2}:[0-5][0-9]"
+            title="Enter four digits. The first two are minutes and the last two are seconds."
             value={form.alarmToEvacuationTime}
-            onChange={(event) => onChange("alarmToEvacuationTime", event.target.value)}
+            onChange={(event) => onChange(
+              "alarmToEvacuationTime",
+              formatDurationInput(event.target.value, form.alarmToEvacuationTime)
+            )}
           />
         </label>
         <label className="fire-drill-form-field fire-drill-form-field--wide">
@@ -542,8 +635,14 @@ const ConductForm = ({
             type="text"
             inputMode="numeric"
             placeholder="04:32"
+            maxLength={5}
+            pattern="[0-9]{2}:[0-5][0-9]"
+            title="Enter four digits. The first two are minutes and the last two are seconds."
             value={form.totalEvacuationTime}
-            onChange={(event) => onChange("totalEvacuationTime", event.target.value)}
+            onChange={(event) => onChange(
+              "totalEvacuationTime",
+              formatDurationInput(event.target.value, form.totalEvacuationTime)
+            )}
           />
         </label>
       </div>
@@ -566,21 +665,32 @@ const ConductForm = ({
         />
       </label>
 
-      <label className="conduct-photo-upload">
-        <span>Photos (Optional)</span>
-        <input
-          type="file"
-          accept="image/*"
+      <div className="conduct-photo-upload">
+        <span>Photos (Optional, multiple allowed)</span>
+        <ImageSourcePicker
+          ariaLabel="Add fire drill photos"
+          disabled={saving}
           multiple
-          onChange={(event) => onChange("photos", Array.from(event.target.files || []))}
+          onFilesSelected={(files) =>
+            onChange("photos", [...form.photos, ...Array.from(files || [])])
+          }
         />
-        <strong>Upload Photos</strong>
+        <strong>Take photos or select multiple images</strong>
         <small>
           {form.photos.length > 0
-            ? `${form.photos.length} photo${form.photos.length === 1 ? "" : "s"} selected`
+            ? `${form.photos.length} photo${form.photos.length === 1 ? "" : "s"} selected. You can add more.`
             : "Add photos or attach from gallery"}
         </small>
-      </label>
+        <SelectedPhotoGallery
+          files={form.photos}
+          onRemove={(photoIndex) =>
+            onChange(
+              "photos",
+              form.photos.filter((_, index) => index !== photoIndex)
+            )
+          }
+        />
+      </div>
 
       {formError && <p className="fire-drill-form-error">{formError}</p>}
       <div className="fire-drill-form-actions">
@@ -612,6 +722,7 @@ const FireDrill = () => {
   const [saving, setSaving] = useState(false);
   const [showAllSchedule, setShowAllSchedule] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [monthFilter, setMonthFilter] = useState("");
 
   const buildingMap = useMemo(
     () => new Map(buildings.map((building) => [building.id, building])),
@@ -665,6 +776,22 @@ const FireDrill = () => {
     [drillRecords]
   );
 
+  const filteredScheduledDrills = useMemo(
+    () => monthFilter
+      ? scheduledDrills.filter((drill) => toMonthInputValue(drill.drillDate) === monthFilter)
+      : scheduledDrills,
+    [monthFilter, scheduledDrills]
+  );
+
+  const filteredDrillHistory = useMemo(
+    () => monthFilter
+      ? drillHistory.filter((drill) =>
+          toMonthInputValue(drill.actualDate || drill.conductedDate || drill.drillDate) === monthFilter
+        )
+      : drillHistory,
+    [monthFilter, drillHistory]
+  );
+
   const selectedConductDrill = useMemo(
     () =>
       availableDrills.find((drill) => drill.id === conductForm.scheduledDrillId) ||
@@ -672,8 +799,9 @@ const FireDrill = () => {
     [availableDrills, conductForm.scheduledDrillId]
   );
 
-  const visibleScheduledDrills = showAllSchedule ? scheduledDrills : scheduledDrills.slice(0, 3);
-  const visibleHistory = showAllHistory ? drillHistory : drillHistory.slice(0, 5);
+  const visibleScheduledDrills = showAllSchedule ? filteredScheduledDrills : filteredScheduledDrills.slice(0, 3);
+  const visibleHistory = showAllHistory ? filteredDrillHistory : filteredDrillHistory.slice(0, 5);
+  const assignedBuilding = buildings.length === 1 ? buildings[0] : null;
 
   const getScheduleDefaultsForBuilding = (building) => ({
     buildingId: building?.id || "",
@@ -724,10 +852,14 @@ const FireDrill = () => {
   };
 
   const openScheduleForm = () => {
+    const isClosing = activeForm === "schedule";
     setFormError("");
     setEditingScheduleId("");
-    setScheduleForm(emptyScheduleForm);
-    setActiveForm(activeForm === "schedule" ? null : "schedule");
+    setScheduleForm({
+      ...emptyScheduleForm,
+      ...(assignedBuilding ? getScheduleDefaultsForBuilding(assignedBuilding) : {})
+    });
+    setActiveForm(isClosing ? null : "schedule");
   };
 
   const openEditScheduleForm = (drill) => {
@@ -812,9 +944,22 @@ const FireDrill = () => {
     event.preventDefault();
     setFormError("");
 
-    const buildingName = getSelectedBuildingName(scheduleForm.buildingId, scheduleForm.buildingName);
-    const resolvedEvacuationType = getResolvedEvacuationType(scheduleForm);
-    if (!buildingName || !scheduleForm.drillDate || !resolvedEvacuationType) {
+    const assignedBuildingDefaults = assignedBuilding
+      ? getScheduleDefaultsForBuilding(assignedBuilding)
+      : null;
+    const resolvedScheduleForm = assignedBuildingDefaults
+      ? {
+          ...scheduleForm,
+          buildingId: assignedBuildingDefaults.buildingId,
+          buildingName: assignedBuildingDefaults.buildingName
+        }
+      : scheduleForm;
+    const buildingName = getSelectedBuildingName(
+      resolvedScheduleForm.buildingId,
+      resolvedScheduleForm.buildingName
+    );
+    const resolvedEvacuationType = getResolvedEvacuationType(resolvedScheduleForm);
+    if (!buildingName || !resolvedScheduleForm.drillDate || !resolvedEvacuationType) {
       setFormError("Building, evacuation type, and date are required.");
       return;
     }
@@ -822,12 +967,12 @@ const FireDrill = () => {
     try {
       setSaving(true);
       const payload = {
-        ...scheduleForm,
+        ...resolvedScheduleForm,
         buildingName,
         drillType: resolvedEvacuationType,
         customEvacuationType:
-          scheduleForm.evacuationType === OTHER_EVACUATION_TYPE
-            ? scheduleForm.customEvacuationType
+          resolvedScheduleForm.evacuationType === OTHER_EVACUATION_TYPE
+            ? resolvedScheduleForm.customEvacuationType
             : "",
         fsmId: getPrimaryFsmId(user),
         status: "Scheduled"
@@ -884,6 +1029,25 @@ const FireDrill = () => {
       return;
     }
 
+    const actualParticipants = String(conductForm.actualParticipants || "").trim();
+    const actualParticipantsNumber = Number(actualParticipants);
+    if (
+      actualParticipants === "" ||
+      !Number.isInteger(actualParticipantsNumber) ||
+      actualParticipantsNumber < 0
+    ) {
+      setFormError("Enter the number of participants who attended the drill.");
+      return;
+    }
+
+    if (
+      !isValidDurationInput(conductForm.alarmToEvacuationTime) ||
+      !isValidDurationInput(conductForm.totalEvacuationTime)
+    ) {
+      setFormError("Enter evacuation timing as four digits in MM:SS format, with seconds from 00 to 59.");
+      return;
+    }
+
     try {
       setSaving(true);
       const uploadedPhotos = conductForm.photos.length > 0
@@ -897,6 +1061,9 @@ const FireDrill = () => {
       await completeFireDrill(selectedDrill.id, {
         actualDate: conductForm.actualDate,
         actualTime: conductForm.actualTime,
+        scheduledParticipants: selectedDrill.scheduledParticipants || selectedDrill.participants,
+        actualParticipants,
+        participants: actualParticipants,
         alarmToEvacuationTime: conductForm.alarmToEvacuationTime,
         totalEvacuationTime: conductForm.totalEvacuationTime,
         observations: conductForm.observations,
@@ -945,6 +1112,22 @@ const FireDrill = () => {
         </div>
       </div>
 
+      {!activeForm && (
+        <div className="fire-drill-date-filter">
+          <label htmlFor="fire-drill-month-filter">
+            <span>Filter by month</span>
+            <span className="temporal-control fire-drill-temporal-control">
+              <input
+                id="fire-drill-month-filter"
+                type="month"
+                value={monthFilter}
+                onChange={(event) => setMonthFilter(event.target.value)}
+              />
+            </span>
+          </label>
+        </div>
+      )}
+
       {activeForm === "schedule" && (
         <ScheduleForm
           buildings={buildings}
@@ -974,7 +1157,7 @@ const FireDrill = () => {
       <section className="dashboard-card fire-drill-card">
         <div className="card-header-row">
           <h2 className="section-title">Schedule</h2>
-          {scheduledDrills.length > 3 && (
+          {filteredScheduledDrills.length > 3 && (
             <button
               type="button"
               className="view-all-link"
@@ -998,14 +1181,16 @@ const FireDrill = () => {
             ))}
           </div>
         ) : (
-          <div className="fire-drill-empty-card-space" />
+          <div className="fire-drill-empty-card-space" role="status">
+            {monthFilter ? "No scheduled drills for the selected month." : "No scheduled drills yet."}
+          </div>
         )}
       </section>
 
       <section className="dashboard-card fire-drill-card">
         <div className="card-header-row">
           <h2 className="section-title">Drill History</h2>
-          {drillHistory.length > 5 && (
+          {filteredDrillHistory.length > 5 && (
             <button
               type="button"
               className="view-all-link"
@@ -1016,13 +1201,17 @@ const FireDrill = () => {
           )}
         </div>
         {visibleHistory.length > 0 ? (
-          <div className="fire-drill-history-table-wrapper">
-            <table className="dashboard-table fire-drill-history-table">
+          <ResponsiveTableRegion
+            label="Fire drill history"
+            className="fire-drill-history-table-wrapper responsive-table-region--cards"
+          >
+            <table className="dashboard-table responsive-card-table fire-drill-history-table">
               <thead>
                 <tr>
                   <th>BUILDING</th>
                   <th>TYPE</th>
                   <th>DATE</th>
+                  <th>ATTENDED</th>
                   <th>STATUS</th>
                 </tr>
               </thead>
@@ -1033,10 +1222,11 @@ const FireDrill = () => {
 
                   return (
                     <tr key={drill.id}>
-                      <td>{drill.buildingName}</td>
-                      <td>{drill.drillType}</td>
-                      <td>{formatDate(drill.actualDate || drill.conductedDate || drill.drillDate)}</td>
-                      <td>
+                      <td data-label="Building">{drill.buildingName}</td>
+                      <td data-label="Type">{drill.drillType}</td>
+                      <td data-label="Date">{formatDate(drill.actualDate || drill.conductedDate || drill.drillDate)}</td>
+                      <td data-label="Attended">{drill.actualParticipants || drill.participants || "-"}</td>
+                      <td data-label="Status">
                         <span
                           className="fire-drill-status-badge"
                           style={{
@@ -1053,9 +1243,11 @@ const FireDrill = () => {
                 })}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTableRegion>
         ) : (
-          <div className="fire-drill-empty-card-space" />
+          <div className="fire-drill-empty-card-space" role="status">
+            {monthFilter ? "No drill history for the selected month." : "No completed drills yet."}
+          </div>
         )}
       </section>
     </div>

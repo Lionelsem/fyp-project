@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getAllBuildings } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
 import { getIssues } from "../../services/issueService";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const getStatusStyle = (status) => {
   const normalized = String(status || "").trim().toLowerCase();
@@ -57,11 +58,9 @@ const AdminIssues = () => {
   const buildingMap = useMemo(() => {
     const map = new Map();
     buildings.forEach((building) => {
-      const name = building.buildingName || building.building_name || "-";
-      map.set(building.id, name);
-      if (building.buildingId && building.buildingId !== building.id) {
-        map.set(building.buildingId, name);
-      }
+      const name = building.buildingName || building.building_name || building.name || "Unnamed building";
+      if (building.id) map.set(building.id, name);
+      if (building.buildingId && building.buildingId !== building.id) map.set(building.buildingId, name);
     });
     return map;
   }, [buildings]);
@@ -95,16 +94,17 @@ const AdminIssues = () => {
   }, [issues, search, statusFilter, buildingMap, userMap]);
 
   const uniqueStatuses = useMemo(() => {
-    return Array.from(new Set(issues.map((issue) => String(issue.status || "").trim()).filter(Boolean)));
+    const statuses = issues.map((issue) => String(issue.status || "").trim()).filter(Boolean);
+    return Array.from(new Set(["Open", "In Progress", "Resolved", "Closed", ...statuses]));
   }, [issues]);
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-page admin-page-stack">
       {loading && <div className="loading-state">Loading issues...</div>}
       {error && <div className="error-state">{error}</div>}
 
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">Issues / Defects</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -131,10 +131,9 @@ const AdminIssues = () => {
           </div>
           <div className="issues-actions">
             <select
-              className="form-input"
+              className="form-input responsive-control"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              style={{ minWidth: "220px" }}
             >
               <option value="">All statuses</option>
               {uniqueStatuses.map((status) => (
@@ -148,8 +147,11 @@ const AdminIssues = () => {
       </div>
 
       <div className="dashboard-card">
-        <div className="fire-drill-history-table-wrapper">
-          <table className="dashboard-table">
+        <ResponsiveTableRegion
+          label="Issues and defects"
+          className="fire-drill-history-table-wrapper responsive-table-region--cards"
+        >
+          <table className="dashboard-table responsive-card-table">
             <thead>
               <tr>
                 <th>BUILDING</th>
@@ -175,11 +177,11 @@ const AdminIssues = () => {
               ) : (
                 filteredIssues.map((issue) => (
                   <tr key={issue.id}>
-                    <td>{buildingMap.get(issue.buildingId) || "Unknown"}</td>
-                    <td>{issue.location || "-"}</td>
-                    <td>{issue.issueTitle || issue.issueDescription || "-"}</td>
-                    <td>{userMap.get(issue.reportedBy) || issue.reportedBy || "-"}</td>
-                    <td>
+                    <td data-label="Building">{buildingMap.get(issue.buildingId) || "Unknown building"}</td>
+                    <td data-label="Location">{issue.location || "-"}</td>
+                    <td data-label="Finding">{issue.issueTitle || issue.issueDescription || "-"}</td>
+                    <td data-label="Reported by">{userMap.get(issue.reportedBy) || issue.reportedBy || "Unknown user"}</td>
+                    <td data-label="Status">
                       <span className="status-badge" style={getStatusStyle(issue.status)}>
                         {issue.status || "Unknown"}
                       </span>
@@ -189,7 +191,7 @@ const AdminIssues = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTableRegion>
       </div>
     </div>
   );

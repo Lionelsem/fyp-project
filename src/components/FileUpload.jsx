@@ -113,7 +113,7 @@ const FileUpload = ({ buildingId, reportId, onUploadComplete }) => {
             <img
               src={uploadedFile.downloadURL}
               alt={uploadedFile.fileName}
-              style={{ maxWidth: "240px", display: "block" }}
+              style={{ width: "min(100%, 240px)", display: "block" }}
             />
           )}
         </div>

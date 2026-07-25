@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../config/firebase";
 import { ROLES } from "../constants/roles";
@@ -37,7 +37,14 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const value = useMemo(() => ({ user, loading }), [user, loading]);
+  const updateLocalProfile = useCallback((changes) => {
+    setUser((currentUser) => currentUser ? { ...currentUser, ...changes } : currentUser);
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, loading, updateLocalProfile }),
+    [user, loading, updateLocalProfile]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { useAuthContext } from "../../context/AuthContext";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import Modal from "../../components/common/Modal";
+import { ISSUE_STATUS } from "../../constants/status";
 
 const mockIssues = [
   {
@@ -66,11 +68,19 @@ const getStatusStyle = (status) => {
   return { color: "#475569", backgroundColor: "#f1f5f9" };
 };
 
+const statusOptions = [
+  { label: "All Statuses", value: "" },
+  { label: ISSUE_STATUS.OPEN, value: ISSUE_STATUS.OPEN },
+  { label: ISSUE_STATUS.IN_PROGRESS, value: ISSUE_STATUS.IN_PROGRESS },
+  { label: ISSUE_STATUS.CLOSED, value: ISSUE_STATUS.CLOSED },
+  { label: ISSUE_STATUS.RESOLVED, value: ISSUE_STATUS.RESOLVED }
+];
+
 const IssueProgress = () => {
-  const { user } = useAuthContext();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIssue, setSelectedIssue] = useState(null);
   const itemsPerPage = 5;
   const [loading] = useState(false);
   const [error] = useState(null);
@@ -97,11 +107,10 @@ const IssueProgress = () => {
     });
   }, [issues, search, statusFilter]);
 
-  const uniqueStatuses = useMemo(() => {
-    return Array.from(
-      new Set(issues.map((issue) => String(issue.status || "").trim()).filter(Boolean))
-    );
-  }, [issues]);
+  const handleStatusChange = (event) => {
+    setStatusFilter(event.target.value);
+    setCurrentPage(1);
+  };
 
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -132,7 +141,7 @@ const IssueProgress = () => {
         <div className="card-header-row" style={{ justifyContent: "space-between", marginBottom: "20px" }}>
           <div>
             <h2 className="section-title">Issue Progress</h2>
-            <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "14px" }}>
+            <p style={{ color: "#6b7280", marginTop: "4px", fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)" }}>
               Track and monitor identified fire safety defects and their rectification status.
             </p>
           </div>
@@ -147,29 +156,40 @@ const IssueProgress = () => {
                 className="search-input"
                 placeholder="Search issues..."
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </div>
           <div className="issues-actions">
-            <button
-              type="button"
-              className="primary-button"
-              style={{ padding: "10px 16px", fontSize: "13px" }}
-              onClick={() => setStatusFilter("")}
-            >
-              🔽 Filter
-            </button>
+            <label className="form-field responsive-filter-field">
+              <span>Filter</span>
+              <select
+                className="form-input responsive-control"
+                value={statusFilter}
+                onChange={handleStatusChange}
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value || "all"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
       </div>
 
       <div className="dashboard-card">
-        <div className="fire-drill-history-table-wrapper">
-          <table className="dashboard-table">
+        <ResponsiveTableRegion
+          label="Issue progress"
+          className="fire-drill-history-table-wrapper responsive-table-region--cards"
+        >
+          <table className="dashboard-table responsive-card-table">
             <thead>
               <tr>
-                <th>ISSUE ID</th>
                 <th>LOCATION</th>
                 <th>FINDING</th>
                 <th>PROPOSED RECTIFICATION</th>
@@ -181,44 +201,34 @@ const IssueProgress = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                     Loading issues...
                   </td>
                 </tr>
               ) : filteredIssues.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
                     No issues found.
                   </td>
                 </tr>
               ) : (
                 paginatedIssues.map((issue) => (
                   <tr key={issue.id}>
-                    <td className="id-cell">{issue.issueId}</td>
-                    <td>{issue.location}</td>
-                    <td>{issue.finding}</td>
-                    <td>{issue.proposedRectification}</td>
-                    <td>
+                    <td data-label="Location">{issue.location}</td>
+                    <td data-label="Finding">{issue.finding}</td>
+                    <td data-label="Rectification">{issue.proposedRectification}</td>
+                    <td data-label="Status">
                       <span className="status-badge" style={getStatusStyle(issue.status)}>
                         {issue.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: "13px", color: "#6b7280" }}>{issue.lastUpdated}</td>
-                    <td>
+                    <td data-label="Last updated" style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", color: "#6b7280" }}>{issue.lastUpdated}</td>
+                    <td data-label="Action">
                       <button
                         type="button"
-                        style={{
-                          border: "none",
-                          background: "none",
-                          color: "#6b7280",
-                          cursor: "pointer",
-                          fontSize: "13px",
-                          padding: "4px 8px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}
+                        className="table-action-button"
                         title="View"
+                        onClick={() => setSelectedIssue(issue)}
                       >
                         👁️ View
                       </button>
@@ -228,23 +238,14 @@ const IssueProgress = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveTableRegion>
 
         {filteredIssues.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "20px",
-              paddingTop: "16px",
-              borderTop: "1px solid #e5e7eb"
-            }}
-          >
-            <span style={{ fontSize: "13px", color: "#6b7280" }}>
+          <div className="responsive-pagination">
+            <span style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", color: "#6b7280" }}>
               Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredIssues.length)} of {filteredIssues.length} Issues
             </span>
-            <div style={{ display: "flex", gap: "12px" }}>
+            <div className="pagination-actions">
               <button
                 type="button"
                 onClick={handlePrevious}
@@ -256,7 +257,7 @@ const IssueProgress = () => {
                   padding: "8px 14px",
                   borderRadius: "8px",
                   cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  fontSize: "13px",
+                  fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)",
                   fontWeight: 600
                 }}
               >
@@ -273,7 +274,7 @@ const IssueProgress = () => {
                   padding: "8px 14px",
                   borderRadius: "8px",
                   cursor: currentPage === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "13px",
+                  fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)",
                   fontWeight: 600
                 }}
               >
@@ -283,6 +284,39 @@ const IssueProgress = () => {
           </div>
         )}
       </div>
+
+      {selectedIssue && (
+        <Modal
+          title={`Issue ${selectedIssue.issueId}`}
+          onClose={() => setSelectedIssue(null)}
+          bodyClassName="modal-body"
+        >
+          <div style={{ padding: "1rem", display: "grid", gap: "1rem" }}>
+            <div>
+              <strong>Location</strong>
+              <p>{selectedIssue.location}</p>
+            </div>
+            <div>
+              <strong>Finding</strong>
+              <p>{selectedIssue.finding}</p>
+            </div>
+            <div>
+              <strong>Proposed Rectification</strong>
+              <p>{selectedIssue.proposedRectification}</p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1rem" }}>
+              <div>
+                <strong>Status</strong>
+                <p>{selectedIssue.status}</p>
+              </div>
+              <div>
+                <strong>Last Updated</strong>
+                <p>{selectedIssue.lastUpdated}</p>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

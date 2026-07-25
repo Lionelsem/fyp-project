@@ -2,7 +2,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../context/AuthContext";
 import { ROLES } from "../constants/roles";
 import { getAllBuildings } from "../services/buildingService";
-import { getUserProfile } from "../services/userService";
+import {
+  getUserProfile,
+  updateCurrentUserProfile,
+  updateNotificationPreferences
+} from "../services/userService";
+import { signOutAllDevices } from "../services/authService";
+import UserAvatar from "../components/common/UserAvatar";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  normalizeNotificationPreferences
+} from "../constants/notificationPreferences";
+
+const DEFAULT_PHONE_NUMBER = "+65 9123 4567";
 
 const getDisplayName = (profile) =>
   profile?.fullName ||
@@ -11,29 +23,11 @@ const getDisplayName = (profile) =>
   [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") ||
   "";
 
-const getInitials = (name, email) => {
-  const source = name || email || "";
-  const parts = source.includes("@") ? [source.charAt(0)] : source.split(" ");
-  return parts
-    .filter(Boolean)
-    .map((part) => part.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-};
-
 const getRoleLabel = (role) => {
   if (role === ROLES.FSM) return "FSM / Fire Safety Manager";
   if (role === ROLES.ADMIN) return "Admin";
   if (role === ROLES.CUSTOMER) return "Customer";
   return role || "-";
-};
-
-const getSingaporePhoneFallback = (profile) => {
-  const seed = String(profile?.uid || profile?.authUid || profile?.profileId || profile?.email || "user");
-  const total = seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const suffix = String(1000000 + (total * 7919) % 9000000).padStart(7, "0");
-  return `+65 9${suffix.slice(0, 3)} ${suffix.slice(3)}`;
 };
 
 const getLookupIds = (profile) =>
@@ -120,26 +114,29 @@ const settingsSections = [
 
 const notificationSettings = [
   ["emailNotifications", "Email notifications", "Receive important account and workflow updates by email."],
-  ["inspectionReminders", "Inspection reminders", "Get reminders before scheduled inspection tasks."],
+  ["inspectionReminders", "Inspection reminders", "Get reminders before scheduled inspection and fire-drill tasks."],
   ["issueUpdates", "Issue / defect updates", "Stay informed when issue status or assignment changes."],
   ["reportUpdates", "Report/status updates", "Receive updates when reports are generated or reviewed."],
   ["systemAnnouncements", "System announcements", "Receive platform maintenance and policy notices."]
 ];
 
 const Profile = () => {
-  const { user } = useAuthContext();
+  const { user, updateLocalProfile } = useAuthContext();
   const [profile, setProfile] = useState(user);
   const [activeSection, setActiveSection] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [buildings, setBuildings] = useState([]);
   const [buildingLoading, setBuildingLoading] = useState(false);
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    inspectionReminders: true,
-    issueUpdates: true,
-    reportUpdates: true,
-    systemAnnouncements: false
-  });
+  const [form, setForm] = useState({ fullName: "", email: "", phoneNumber: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [signingOutAll, setSigningOutAll] = useState(false);
+  const [securityError, setSecurityError] = useState("");
+  const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [notificationSavingKey, setNotificationSavingKey] = useState("");
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationError, setNotificationError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -178,6 +175,22 @@ const Profile = () => {
   }, [user]);
 
   useEffect(() => {
+    setForm({
+      fullName: getDisplayName(profile),
+      email: profile?.email || "",
+      phoneNumber:
+        profile?.phoneNumber ||
+        profile?.phone ||
+        profile?.contactNumber ||
+        DEFAULT_PHONE_NUMBER
+    });
+  }, [profile]);
+
+  useEffect(() => {
+    setNotifications(normalizeNotificationPreferences(profile?.notificationPreferences));
+  }, [profile?.notificationPreferences]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const loadBuildings = async () => {
@@ -200,17 +213,11 @@ const Profile = () => {
     };
   }, []);
 
-  const displayName = useMemo(() => getDisplayName(profile), [profile]);
-  const initials = useMemo(
-    () => getInitials(displayName, profile?.email),
-    [displayName, profile?.email]
-  );
+  const displayName = useMemo(() => {
+    const profileName = getDisplayName(profile);
+    return profileName;
+  }, [profile]);
   const roleLabel = getRoleLabel(profile?.role);
-  const phoneNumber =
-    profile?.phoneNumber ||
-    profile?.phone ||
-    profile?.contactNumber ||
-    getSingaporePhoneFallback(profile);
   const lookupIds = useMemo(() => getLookupIds(profile), [profile]);
   const linkedBuildings = useMemo(
     () => buildings.filter((building) => isLinkedBuilding(building, profile, lookupIds)),
@@ -231,10 +238,87 @@ const Profile = () => {
     "Contact System Administrator";
   const passwordUpdated = profile?.passwordUpdatedAt || profile?.passwordLastUpdated || "Not recorded";
 
+  const handleProfileChange = (field) => (event) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+    setSaveMessage("");
+    setSaveError("");
+  };
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setSaveMessage("");
+    setSaveError("");
+
+    try {
+      const changes = await updateCurrentUserProfile(profile?.profileId, form);
+      setProfile((current) => ({ ...current, ...changes }));
+      updateLocalProfile(changes);
+      setSaveMessage("Profile updated successfully.");
+    } catch (error) {
+      const message = error?.code === "auth/requires-recent-login"
+        ? "Please sign out and sign in again before changing your email address."
+        : error?.message || "Unable to update profile.";
+      setSaveError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSignOutAllDevices = async () => {
+    const confirmed = window.confirm(
+      "Sign out of every device, including this one? You will need to sign in again."
+    );
+
+    if (!confirmed) return;
+
+    setSigningOutAll(true);
+    setSecurityError("");
+
+    try {
+      await signOutAllDevices();
+    } catch (error) {
+      console.error("Failed to sign out all devices", error);
+      setSecurityError(
+        error?.code === "functions/unauthenticated"
+          ? "Your session has expired. Please sign in again."
+          : "Unable to sign out all devices. Please try again."
+      );
+      setSigningOutAll(false);
+    }
+  };
+
+  const handleNotificationChange = (key) => async (event) => {
+    const enabled = event.target.checked;
+    const previousValue = notifications[key];
+    const nextPreferences = { ...notifications, [key]: enabled };
+
+    setNotifications(nextPreferences);
+    setNotificationSavingKey(key);
+    setNotificationMessage("");
+    setNotificationError("");
+
+    try {
+      await updateNotificationPreferences(profile?.profileId, nextPreferences);
+      setProfile((current) => ({
+        ...current,
+        notificationPreferences: nextPreferences
+      }));
+      updateLocalProfile({ notificationPreferences: nextPreferences });
+      setNotificationMessage("Notification preferences saved.");
+    } catch (error) {
+      console.error("Failed to save notification preference", error);
+      setNotifications((current) => ({ ...current, [key]: previousValue }));
+      setNotificationError("Unable to save notification preferences. Please try again.");
+    } finally {
+      setNotificationSavingKey("");
+    }
+  };
+
   const renderProfileSection = () => (
     <>
       <div className="profile-summary">
-        <div className="profile-avatar">{initials || "U"}</div>
+        <UserAvatar className="profile-avatar" photoURL={profile?.photoURL} name={displayName} />
         <div>
           <h2>{displayName || "-"}</h2>
           <p>{roleLabel}</p>
@@ -242,15 +326,15 @@ const Profile = () => {
         </div>
       </div>
 
-      <div className="profile-details-grid">
+      <form className="profile-details-grid" onSubmit={handleProfileSave}>
         <label className="profile-field">
           <span>Full Name</span>
-          <input className="form-input" value={displayName || "-"} readOnly />
+          <input className="form-input" value={form.fullName} onChange={handleProfileChange("fullName")} required />
         </label>
 
         <label className="profile-field">
           <span>Email Address</span>
-          <input className="form-input" value={profile?.email || "-"} readOnly />
+          <input className="form-input" type="email" value={form.email} onChange={handleProfileChange("email")} required />
         </label>
 
         <label className="profile-field">
@@ -260,12 +344,20 @@ const Profile = () => {
 
         <label className="profile-field">
           <span>Phone Number</span>
-          <input className="form-input" value={phoneNumber} readOnly />
+          <input className="form-input" type="tel" value={form.phoneNumber} onChange={handleProfileChange("phoneNumber")} />
         </label>
-      </div>
+
+        {saveError && <p className="profile-save-message profile-save-error" role="alert">{saveError}</p>}
+        {saveMessage && <p className="profile-save-message profile-save-success" role="status">{saveMessage}</p>}
+        <div className="profile-form-actions">
+          <button type="submit" className="primary-button" disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </form>
 
       <p className="profile-note">
-        To change your role or account email, please contact your system administrator.
+        Your role and profile picture are managed by an administrator.
       </p>
     </>
   );
@@ -304,10 +396,23 @@ const Profile = () => {
       <div className="profile-setting-row">
         <div>
           <h3>Sign out of all devices</h3>
-          <p>This action requires backend session revocation before it can be enabled.</p>
+          <p>Revoke access on every signed-in device, including this browser. Other devices may take up to one hour to sign out.</p>
         </div>
-        <button type="button" className="danger-button" disabled>Sign out all</button>
+        <button
+          type="button"
+          className="danger-button"
+          onClick={handleSignOutAllDevices}
+          disabled={signingOutAll}
+        >
+          {signingOutAll ? "Signing out..." : "Sign out all"}
+        </button>
       </div>
+
+      {securityError && (
+        <p className="profile-save-message profile-save-error" role="alert">
+          {securityError}
+        </p>
+      )}
 
       <div className="profile-info-strip">
         <span>Password last updated</span>
@@ -320,7 +425,7 @@ const Profile = () => {
     <div className="profile-settings-stack">
       <div className="profile-section-heading">
         <h2>Notifications</h2>
-        <p>Choose which updates you want to receive. These controls are ready for persistence.</p>
+        <p>Choose which updates you want to receive. Changes are saved automatically.</p>
       </div>
 
       <div className="profile-toggle-list">
@@ -333,16 +438,28 @@ const Profile = () => {
             <input
               type="checkbox"
               checked={notifications[key]}
-              onChange={(event) =>
-                setNotifications((current) => ({ ...current, [key]: event.target.checked }))
-              }
+              onChange={handleNotificationChange(key)}
+              disabled={Boolean(notificationSavingKey)}
             />
           </label>
         ))}
       </div>
 
+      {notificationSavingKey && (
+        <p className="profile-save-message" role="status">Saving preference...</p>
+      )}
+      {notificationMessage && !notificationSavingKey && (
+        <p className="profile-save-message profile-save-success" role="status">
+          {notificationMessage}
+        </p>
+      )}
+      {notificationError && (
+        <p className="profile-save-message profile-save-error" role="alert">
+          {notificationError}
+        </p>
+      )}
       <p className="profile-note">
-        Notification preferences are shown in the UI for now and can be saved once backend storage is added.
+        Email delivery will apply once an email provider is connected. In-app preferences affect the notification bell now.
       </p>
     </div>
   );

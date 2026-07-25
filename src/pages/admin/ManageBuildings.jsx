@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { getAllBuildings, createBuilding, deleteBuilding, updateBuilding } from "../../services/buildingService";
 import { getAllUsers } from "../../services/userService";
 import { ROLES } from "../../constants/roles";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const statusStyles = {
   Compliant: { backgroundColor: "#dcfce7", color: "#166534" },
@@ -59,15 +60,16 @@ const ManageBuildings = () => {
     loadData();
   }, []);
 
-  const fsmUsers = useMemo(
-    () => users.filter((user) => user.role === ROLES.FSM),
-    [users]
-  );
+  const fsmUsers = useMemo(() => users.filter((user) => user.role === ROLES.FSM), [users]);
 
-  const userMap = useMemo(
-    () => new Map(users.map((user) => [user.uid, user.fullName || user.email || user.uid])),
-    [users]
-  );
+  const userMap = useMemo(() => {
+    const entries = users.flatMap((user) =>
+      [user.uid, user.userId, user.id, user.authUid]
+        .filter(Boolean)
+        .map((key) => [String(key), user.fullName || user.displayName || user.email || user.uid])
+    );
+    return new Map(entries);
+  }, [users]);
 
   const getAssignedFsmName = useCallback(
     (assignedFsmId) => {
@@ -179,9 +181,9 @@ const ManageBuildings = () => {
   }, [buildings, getAssignedFsmName, search]);
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+    <div className="dashboard-container admin-page admin-page-stack">
+      <div className="dashboard-card admin-page-header-card">
+        <div className="card-header-row admin-page-header">
           <div>
             <h2 className="section-title">Buildings</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -220,15 +222,24 @@ const ManageBuildings = () => {
         <div className="card-header-row" style={{ marginBottom: "20px" }}>
           <input
             type="text"
-            className="form-input"
+            className="form-input responsive-search-control"
             placeholder="Search buildings..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", maxWidth: "360px" }}
           />
         </div>
 
-        <table className="dashboard-table" style={{ width: "100%" }}>
+        <ResponsiveTableRegion label="Buildings" className="responsive-table-region--cards">
+          <table className="dashboard-table responsive-card-table admin-buildings-table" style={{ width: "100%" }}>
+          <colgroup>
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "24%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "18%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "14%" }} />
+          </colgroup>
           <thead>
             <tr>
               <th>BUILDING NAME</th>
@@ -256,11 +267,11 @@ const ManageBuildings = () => {
             ) : (
               filteredBuildings.map((building) => (
                 <tr key={building.id}>
-                  <td>{building.building_name || building.buildingName || "-"}</td>
-                  <td>{building.address || "-"}</td>
-                  <td>{building.noOfStoreys || "-"}</td>
-                  <td>{building.occupantLoad || "-"}</td>
-                  <td>
+                  <td data-label="Building">{building.building_name || building.buildingName || "-"}</td>
+                  <td data-label="Address">{building.address || "-"}</td>
+                  <td data-label="Storeys">{building.noOfStoreys || "-"}</td>
+                  <td data-label="Occupant load">{building.occupantLoad || "-"}</td>
+                  <td data-label="Assigned FSM">
                     <select
                       className="form-input"
                       value={building.assignedFsmId || ""}
@@ -276,14 +287,14 @@ const ManageBuildings = () => {
                       ))}
                     </select>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
                         padding: "8px 14px",
                         borderRadius: "999px",
-                        fontSize: "12px",
+                        fontSize: "clamp(0.6875rem, 0.68rem + 0.15vw, 0.75rem)",
                         fontWeight: 700,
                         ...statusStyles[building.status || "Compliant"]
                       }}
@@ -291,8 +302,8 @@ const ManageBuildings = () => {
                       {building.status || "Compliant"}
                     </span>
                   </td>
-                  <td>
-                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <td data-label="Action">
+                    <div className="compact-row-actions">
                       <button
                         type="button"
                         className="secondary-btn action-icon-btn"
@@ -307,9 +318,7 @@ const ManageBuildings = () => {
                         title="Delete building"
                         disabled={deletingBuildingId === building.id}
                         onClick={async () => {
-                          const confirmed = window.confirm(
-                            `Delete building ${building.buildingName || building.building_name || building.id}?`
-                          );
+                          const confirmed = window.confirm(`Delete ${building.buildingName || building.building_name || "this building"}?`);
                           if (!confirmed) return;
                           setDeletingBuildingId(building.id);
                           try {
@@ -332,7 +341,8 @@ const ManageBuildings = () => {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </ResponsiveTableRegion>
       </div>
     </div>
   );

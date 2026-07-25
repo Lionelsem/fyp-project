@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 
 const mockBuildings = [
@@ -14,11 +13,9 @@ const mockBuildings = [
     assignedFsm: "John Smith",
     assignedFsmId: "USR-002",
     nextInspection: "Oct 15, 2026",
-    imageUrl: "https://via.placeholder.com/600x300?text=Tech+Park+B"
+    imageUrl: "https://thumbs.dreamstime.com/b/asia-china-beijing-cbd-central-business-district-international-city-business-complex-modern-architecture-yuanyang-guanghua-43498817.jpg"
   }
 ];
-
-const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
 const toDate = (value) => {
   if (!value) return null;
@@ -93,7 +90,6 @@ const getBuildingName = (building) =>
   getFirstTextValue(building, BUILDING_NAME_FIELDS) || "Unnamed Building";
 
 const MyBuildings = () => {
-  const { user } = useAuthContext();
   const {
     loading,
     error,
@@ -110,15 +106,15 @@ const MyBuildings = () => {
   const selectedBuilding = buildings[0];
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container customer-buildings-page">
       {error && (
-        <div className="error-state" style={{ marginBottom: "18px" }}>
+        <div className="error-state customer-buildings-page-state">
           {error}
         </div>
       )}
 
       {loading && buildings.length === 0 && (
-        <div className="loading-state" style={{ marginBottom: "18px" }}>
+        <div className="loading-state customer-buildings-page-state">
           Loading assigned buildings...
         </div>
       )}
@@ -128,18 +124,19 @@ const MyBuildings = () => {
       )}
 
       {selectedBuilding && (
-        <div>
-          <div style={{ marginBottom: "28px" }}>
-            <h1 style={{ fontSize: "32px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>
-              My Building
-            </h1>
-            <p style={{ fontSize: "15px", color: "#64748b", maxWidth: "600px" }}>
-              Details and specifications for your assigned property.
-            </p>
-          </div>
+        <div className="customer-buildings-content">
+          <header className="page-header customer-buildings-header">
+            <div>
+              <h3 className="page-subtitle">
+                Details and specifications for your assigned property.
+              </h3>
+            </div>
+          </header>
 
-          <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-            <div className="building-details-layout">
+          <div className="dashboard-card customer-building-detail-card">
+            <div
+              className={`building-details-layout${selectedBuilding.imageUrl ? "" : " building-details-layout--no-image"}`}
+            >
               {selectedBuilding.imageUrl && (
                 <div className="building-image-container">
                   <img 
@@ -149,88 +146,81 @@ const MyBuildings = () => {
                   />
                 </div>
               )}
-              
+
               <div className="building-info-section">
-                <h2 style={{ fontSize: "26px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>
+                <h2 className="customer-building-name">
                   {getBuildingName(selectedBuilding)}
                 </h2>
-                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span>📍</span>
-                  {selectedBuilding.address || "-"}
+                <p className="customer-building-address">
+                  <span className="customer-building-location-icon" aria-hidden="true">
+                    📍
+                  </span>
+                  <span>{selectedBuilding.address || "-"}</span>
                 </p>
-                <span style={{ 
-                  display: "inline-block",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  backgroundColor: "#ecfdf5",
-                  color: "#047857",
-                  padding: "6px 12px",
-                  borderRadius: "8px",
-                  marginTop: "12px"
-                }}>
+                <span className="customer-building-occupancy">
                   {selectedBuilding.occupancyType || "-"}
                 </span>
 
-                <div style={{ marginTop: "28px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
-                  <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <section className="customer-building-section">
+                  <h3 className="customer-building-section-title">
                     # Specifications
                   </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                    <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <div className="building-spec-grid customer-building-spec-grid">
+                    <div className="customer-building-spec-item">
+                      <p className="customer-building-spec-label">
                         Number of Storeys
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p className="customer-building-spec-value">
                         {selectedBuilding.noOfStoreys || "-"}
                       </p>
                     </div>
-                    <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <div className="customer-building-spec-item">
+                      <p className="customer-building-spec-label">
                         Occupant Load
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p className="customer-building-spec-value">
                         {selectedBuilding.occupantLoad || "-"}
                       </p>
                     </div>
-                    <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <div className="customer-building-spec-item">
+                      <p className="customer-building-spec-label">
                         Gross Floor Area
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p className="customer-building-spec-value">
                         {selectedBuilding.grossFloorAreaGfa || "-"}
                       </p>
                     </div>
                   </div>
-                </div>
+                </section>
 
-                <div style={{ marginTop: "28px", paddingTop: "24px", borderTop: "1px solid #e5e7eb" }}>
-                  <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <section className="customer-building-section">
+                  <h3 className="customer-building-section-title">
                     🔥 Fire Safety Management
                   </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                    <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <div className="building-spec-grid customer-building-spec-grid">
+                    <div className="customer-building-spec-item">
+                      <p className="customer-building-spec-label">
                         Assigned FSM
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p className="customer-building-spec-value">
                         {selectedBuilding.assignedFsm || "-"}
                       </p>
                       {selectedBuilding.assignedFsmId && (
-                        <p style={{ fontSize: "12px", color: "#94a3b8" }}>
+                        <p className="customer-building-spec-meta">
                           {selectedBuilding.assignedFsmId}
                         </p>
                       )}
                     </div>
-                    <div>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <div className="customer-building-spec-item">
+                      <p className="customer-building-spec-label">
                         Next Scheduled Inspection
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a" }}>
+                      <p className="customer-building-spec-value">
                         {formatDate(selectedBuilding.nextInspection) || "-"}
                       </p>
                     </div>
                   </div>
-                </div>
+                </section>
               </div>
             </div>
           </div>

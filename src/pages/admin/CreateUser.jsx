@@ -74,9 +74,9 @@ const CreateUser = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-card" style={{ maxWidth: "960px", margin: "0 auto" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between" }}>
+    <div className="dashboard-container admin-page admin-record-page">
+      <div className="dashboard-card admin-record-card">
+        <div className="card-header-row admin-record-header">
           <div>
             <h2 className="section-title">Create New User</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
@@ -85,20 +85,14 @@ const CreateUser = () => {
           </div>
           <button
             type="button"
-            className="primary-btn"
+            className="primary-btn admin-record-back-button"
             onClick={() => navigate("/users")}
-            style={{
-              height: "40px",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
           >
             ← Back to Users
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "24px", padding: "20px 0" }}>
+        <form className="admin-record-form" onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="form-field">
               <label className="form-label">First Name *</label>
@@ -178,10 +172,11 @@ const CreateUser = () => {
             </div>
           </div>
 
-          <div className="form-note" style={{ padding: "16px", backgroundColor: "#ecfdf5", borderRadius: "12px", color: "#166534" }}>
+          <div className="form-note admin-record-note">
             Password setup is managed directly by the admin. No invitation email is sent automatically.
           </div>
 
+          
           <button type="submit" className="primary-btn" disabled={loading}>
             {loading ? "Creating user..." : "Create User"}
           </button>

@@ -6,6 +6,11 @@
 
 /* eslint-disable global-require */
 const { saveAs } = require("file-saver");
+const {
+  buildIssuePeriodSnapshot,
+  getDateRangeBounds,
+  getMonthBounds
+} = require("../utils/issueReporting");
 
 let _docxPromise = null;
 
@@ -265,13 +270,39 @@ const formatResultNotes = (result) => {
 const hasNonBlankRemark = (result) =>
   String(result?.remark || "").trim().length > 0;
 
+const getResultPhotoUrl = (result) =>
+  [
+    ...(Array.isArray(result?.defectPhotoUrls) ? result.defectPhotoUrls : []),
+    result?.defectPhotoUrl,
+    result?.photoUrl,
+    result?.issuePhotoUrl,
+    result?.beforePhotoUrl,
+    result?.photo
+  ]
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || "";
+
+const isDefectResult = (result) => {
+  const condition = String(result?.condition || "").trim().toLowerCase();
+  const passFail = String(result?.passFail || "").trim().toLowerCase();
+  return condition === "faulty" || passFail === "fail";
+};
+
+const hasAppendixEvidence = (result) =>
+  hasNonBlankRemark(result) ||
+  !!getResultPhotoUrl(result) ||
+  String(result?.issueDescription || "").trim().length > 0 ||
+  String(result?.rectification || "").trim().length > 0 ||
+  isDefectResult(result);
+
 const buildAppendixAEntries = (results = []) =>
   results
     .filter((result) => {
       const selectedCondition = String(result.condition || result.passFail || "").trim();
-      return selectedCondition && hasNonBlankRemark(result);
+      return selectedCondition && hasAppendixEvidence(result);
     })
     .map((result) => {
+      const remarkText = String(result.remark || "").trim();
       const categoryLabel =
         result.categoryCode && result.categoryName && result.categoryName !== result.categoryCode
           ? `${result.categoryCode} - ${result.categoryName}`
@@ -284,15 +315,17 @@ const buildAppendixAEntries = (results = []) =>
         result.issueDescription && `Finding: ${result.issueDescription}`,
         result.rectification && `Rectification: ${result.rectification}`
       ].filter(Boolean);
+      const photoUrl = getResultPhotoUrl(result);
 
       return {
         location: result.location || result.floorName || result.inspectionPath || "-",
-        photographs: result.photoUrl || result.defectPhotoUrl ? "(See system)" : "-",
+        photoUrl,
+        photographs: photoUrl ? "Attached" : "-",
         findings: `Section: ${categoryLabel}\nItem: ${itemLabel}\nCondition: ${getResultAnswer(result)}`,
         remarks: [
-          `Remark: ${String(result.remark || "").trim()}`,
+          remarkText && `Remark: ${remarkText}`,
           ...linkedDetails
-        ].join("\n")
+        ].filter(Boolean).join("\n") || "-"
       };
     });
 
@@ -383,6 +416,45 @@ const renderHtmlTable = (headers, rows) => `
   </table>
 `;
 
+const renderMultilineHtml = (value) =>
+  escapeHtml(value).replace(/\n/g, "<br />");
+
+const renderReportPhotoHtml = (url, alt) =>
+  url
+    ? `<img class="report-photo" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" />`
+    : `<span class="photo-fallback">-</span>`;
+
+const renderAppendixAHtml = (entries = []) => {
+  if (entries.length === 0) {
+    return "<p>No findings to report for this period.</p>";
+  }
+
+  return `
+    <table>
+      <thead>
+        <tr>
+          <th>S/No</th>
+          <th>Location</th>
+          <th>Photographs</th>
+          <th>Findings</th>
+          <th>Remarks / Proposed Rectification</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entries.map((entry, idx) => `
+          <tr>
+            <td>${String(idx + 1).padStart(2, "0")}</td>
+            <td>${renderMultilineHtml(entry.location)}</td>
+            <td class="photo-cell">${renderReportPhotoHtml(entry.photoUrl, `Finding ${idx + 1} photograph`)}</td>
+            <td>${renderMultilineHtml(entry.findings)}</td>
+            <td>${renderMultilineHtml(entry.remarks)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+};
+
 const renderChecklistResultHtml = ({ inspections = [], inspectionResults = [], buildingMap }) => {
   if (inspections.length === 0) {
     return "<p>No inspection checklist results were recorded during this period.</p>";
@@ -449,11 +521,50 @@ const printHtmlReport = (html, title) => {
   printDocument.write(html);
   printDocument.close();
 
-  window.setTimeout(() => {
+  const waitForFrameLoad = () =>
+    new Promise((resolve) => {
+      if (printDocument.readyState === "complete") {
+        resolve();
+        return;
+      }
+
+      const timeout = window.setTimeout(resolve, 1500);
+      printWindow.addEventListener("load", () => {
+        window.clearTimeout(timeout);
+        resolve();
+      }, { once: true });
+    });
+
+  const waitForImages = () => {
+    const images = Array.from(printDocument.images || []);
+    if (images.length === 0) return Promise.resolve();
+
+    const imagePromises = images.map((image) => {
+      if (image.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        image.addEventListener("load", resolve, { once: true });
+        image.addEventListener("error", resolve, { once: true });
+      });
+    });
+
+    return Promise.race([
+      Promise.all(imagePromises),
+      new Promise((resolve) => window.setTimeout(resolve, 7000))
+    ]);
+  };
+
+  const printWhenReady = async () => {
+    await waitForFrameLoad();
+    if (printDocument.fonts?.ready) {
+      await printDocument.fonts.ready.catch(() => {});
+    }
+    await waitForImages();
     printWindow.focus();
     printWindow.print();
     window.setTimeout(() => iframe.remove(), 1000);
-  }, 250);
+  };
+
+  void printWhenReady();
 };
 
 // ─── docx builder helpers (receive live docx namespace) ──────────────────────
@@ -585,14 +696,19 @@ export const generateMonthlyReport = async ({
     filterByMonth(inspections, "inspectionDate", month, year),
     selectedBuildingIds
   );
-  const monthIssues = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
+  const selectedIssues = filterByBuildings(issues, selectedBuildingIds);
+  const monthBounds = getMonthBounds(month, year);
+  const issueSnapshot = buildIssuePeriodSnapshot(selectedIssues, monthBounds.start, monthBounds.end);
+  const monthIssues = issueSnapshot.relevant.map((record) => ({
+    ...record.issue,
+    reportStatus: record.statusAtEnd,
+    reportActivity: record.activity
+  }));
   const monthInspectionResults = getResultsForInspections(monthInspections, inspectionResults);
   const checklistSummary = getChecklistSummary(monthInspectionResults);
   const appendixAEntries = buildAppendixAEntries(monthInspectionResults);
 
-  const openIssues = monthIssues.filter(
-    (i) => ["open", "in progress"].includes(String(i.status || "").toLowerCase())
-  );
+  const openIssues = issueSnapshot.outstanding;
 
   // Use first selected building if specific, else show "All Buildings"
   const primaryBuilding = buildings.length === 1 ? buildings[0] : null;
@@ -634,8 +750,9 @@ export const generateMonthlyReport = async ({
         ["Checklist Defects Found", String(checklistSummary.failed)],
         ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
         ["Fire Drills Conducted", String(drills.length)],
-        ["Issues Raised", String(monthIssues.length)],
-        ["Open / Unresolved Issues", String(openIssues.length)]
+        ["Issues Created in Month", String(issueSnapshot.created.length)],
+        ["Outstanding at Month End", String(openIssues.length)],
+        ["Resolved / Closed in Month", String(issueSnapshot.resolved.length)]
       ],
       [3000, 6360]
     ),
@@ -739,7 +856,7 @@ export const generateMonthlyReport = async ({
       ? [para("No issues were recorded during this period.")]
       : [
           makeTable(
-            ["S/No", "Building", "Location", "Finding", "Priority", "Status", "Rectification"],
+            ["S/No", "Building", "Location", "Finding", "Priority", "Month-End Status", "Monthly Activity", "Rectification"],
             monthIssues.map((iss, idx) => {
               const bldg = buildingMap.get(iss.buildingId);
               const bldgName = bldg
@@ -751,11 +868,12 @@ export const generateMonthlyReport = async ({
                 iss.location || iss.floorName || "-",
                 iss.issueTitle || iss.issueDescription || "-",
                 iss.priority || "Medium",
-                iss.status || "Open",
+                iss.reportStatus || iss.status || "Open",
+                iss.reportActivity || "-",
                 iss.rectification || "Pending rectification"
               ];
             }),
-            [400, 1400, 1200, 1800, 900, 900, 1760]
+            [350, 1150, 1000, 1450, 750, 950, 1600, 2110]
           )
         ]),
     spacer(),
@@ -767,8 +885,8 @@ export const generateMonthlyReport = async ({
     para("All fire safety systems were inspected and found to be in general working order. Any defects identified have been recorded in Section 5 above and communicated to the building owner / management for rectification."),
     spacer(),
     ...(monthIssues.length > 0
-      ? [para(`${openIssues.length} outstanding issue(s) remain open as at the date of this report. Follow-up inspections will be conducted to verify rectification.`)]
-      : [para("No outstanding issues as at the date of this report.")]),
+      ? [para(`${openIssues.length} issue(s) were outstanding at the end of ${monthLabel} ${year}. ${issueSnapshot.resolved.length} issue(s) were resolved or closed during the month.`)]
+      : [para(`No issues were outstanding at the end of ${monthLabel} ${year}.`)]),
     spacer(),
     spacer(),
 
@@ -840,12 +958,18 @@ export const generateMonthlyReportPdf = async ({
     filterByMonth(inspections, "inspectionDate", month, year),
     selectedBuildingIds
   );
-  const monthIssues = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
+  const selectedIssues = filterByBuildings(issues, selectedBuildingIds);
+  const monthBounds = getMonthBounds(month, year);
+  const issueSnapshot = buildIssuePeriodSnapshot(selectedIssues, monthBounds.start, monthBounds.end);
+  const monthIssues = issueSnapshot.relevant.map((record) => ({
+    ...record.issue,
+    reportStatus: record.statusAtEnd,
+    reportActivity: record.activity
+  }));
   const monthInspectionResults = getResultsForInspections(monthInspections, inspectionResults);
   const checklistSummary = getChecklistSummary(monthInspectionResults);
-  const openIssues = monthIssues.filter(
-    (i) => ["open", "in progress"].includes(String(i.status || "").toLowerCase())
-  );
+  const appendixAEntries = buildAppendixAEntries(monthInspectionResults);
+  const openIssues = issueSnapshot.outstanding;
 
   const primaryBuilding = buildings.length === 1 ? buildings[0] : null;
   const buildingName = primaryBuilding
@@ -879,7 +1003,8 @@ export const generateMonthlyReportPdf = async ({
     issue.location || issue.floorName || "-",
     issue.issueTitle || issue.issueDescription || "-",
     issue.priority || "Medium",
-    issue.status || "Open",
+    issue.reportStatus || issue.status || "Open",
+    issue.reportActivity || "-",
     issue.rectification || "Pending rectification"
   ]);
 
@@ -939,6 +1064,19 @@ export const generateMonthlyReportPdf = async ({
           .meta div:nth-last-child(-n+2) { border-bottom: 0; }
           .muted { color: #4b5563; font-size: 12px; }
           .end { text-align: center; color: #6b7280; font-style: italic; margin-top: 24px; }
+          .appendix { page-break-before: always; }
+          .appendix table { page-break-inside: auto; }
+          .appendix tr { page-break-inside: avoid; }
+          .photo-cell { width: 130px; }
+          .report-photo {
+            display: block;
+            width: 116px;
+            max-height: 92px;
+            object-fit: contain;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+          }
+          .photo-fallback { color: #6b7280; font-size: 11px; }
         </style>
       </head>
       <body>
@@ -966,8 +1104,9 @@ export const generateMonthlyReportPdf = async ({
             ["Checklist Defects Found", String(checklistSummary.failed)],
             ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
             ["Fire Drills Conducted", String(drills.length)],
-            ["Issues Raised", String(monthIssues.length)],
-            ["Open / Unresolved Issues", String(openIssues.length)]
+            ["Issues Created in Month", String(issueSnapshot.created.length)],
+            ["Outstanding at Month End", String(openIssues.length)],
+            ["Resolved / Closed in Month", String(issueSnapshot.resolved.length)]
           ]
         )}
 
@@ -991,7 +1130,7 @@ export const generateMonthlyReportPdf = async ({
         <h2>Issues / Defects Identified</h2>
         ${
           issueRows.length
-            ? renderHtmlTable(["S/No", "Building", "Location", "Finding", "Priority", "Status", "Rectification"], issueRows)
+            ? renderHtmlTable(["S/No", "Building", "Location", "Finding", "Priority", "Month-End Status", "Monthly Activity", "Rectification"], issueRows)
             : "<p>No issues were recorded during this period.</p>"
         }
 
@@ -1002,8 +1141,8 @@ export const generateMonthlyReportPdf = async ({
         </p>
         <p>${escapeHtml(
           monthIssues.length > 0
-            ? `${openIssues.length} outstanding issue(s) remain open as at the date of this report.`
-            : "No outstanding issues as at the date of this report."
+            ? `${openIssues.length} issue(s) were outstanding at the end of ${monthLabel} ${year}; ${issueSnapshot.resolved.length} were resolved or closed during the month.`
+            : `No issues were outstanding at the end of ${monthLabel} ${year}.`
         )}</p>
 
         <h2>Certification</h2>
@@ -1011,6 +1150,15 @@ export const generateMonthlyReportPdf = async ({
         <p><strong>Name of Fire Safety Manager:</strong> ${escapeHtml(generatedBy)}</p>
         <p><strong>Signature:</strong> _______________________________</p>
         <p><strong>Date:</strong> ${escapeHtml(fmtDate(new Date()))}</p>
+
+        <section class="appendix">
+          <h2>Appendix A - Detailed Findings</h2>
+          <p><strong>Property:</strong> ${escapeHtml(buildingName)}</p>
+          <p><strong>Period:</strong> ${escapeHtml(`${monthLabel} ${year}`)}</p>
+          <p><strong>Prepared By:</strong> ${escapeHtml(`${generatedBy}, CBRE Pte Ltd`)}</p>
+          ${renderAppendixAHtml(appendixAEntries)}
+        </section>
+
         <p class="end">End of Monthly Inspection Report</p>
       </body>
     </html>
@@ -1314,13 +1462,20 @@ export const generateCustomReport = async ({
   const today = new Date();
 
   // ── Resolve period & filter data ──
-  let drills, insp, iss, periodLabel;
+  let drills, insp, iss, periodLabel, issueSnapshot;
   const selectedBuildingIds = getBuildingIds(buildings);
 
   if (reportType === "DateRange") {
     drills = filterByBuildings(filterDrillsByDateRange(fireDrills, dateFrom, dateTo), selectedBuildingIds);
     insp   = filterByBuildings(filterByDateRange(inspections, "inspectionDate", dateFrom, dateTo), selectedBuildingIds);
-    iss    = filterByBuildings(filterByDateRange(issues, "createdAt", dateFrom, dateTo), selectedBuildingIds);
+    const selectedIssues = filterByBuildings(issues, selectedBuildingIds);
+    const bounds = getDateRangeBounds(dateFrom, dateTo);
+    issueSnapshot = buildIssuePeriodSnapshot(selectedIssues, bounds.start, bounds.end);
+    iss = issueSnapshot.relevant.map((record) => ({
+      ...record.issue,
+      reportStatus: record.statusAtEnd,
+      reportActivity: record.activity
+    }));
     const df = dateFrom ? parseDate(dateFrom) : null;
     const dt = dateTo   ? parseDate(dateTo)   : null;
     periodLabel = [df && fmtDate(df), dt && fmtDate(dt)].filter(Boolean).join(" – ") || "Custom Period";
@@ -1332,7 +1487,14 @@ export const generateCustomReport = async ({
   } else {
     drills = filterByBuildings(filterDrillsByMonth(fireDrills, month, year), selectedBuildingIds);
     insp   = filterByBuildings(filterByMonth(inspections, "inspectionDate", month, year), selectedBuildingIds);
-    iss    = filterByBuildings(filterByMonth(issues, "createdAt", month, year), selectedBuildingIds);
+    const selectedIssues = filterByBuildings(issues, selectedBuildingIds);
+    const bounds = getMonthBounds(month, year);
+    issueSnapshot = buildIssuePeriodSnapshot(selectedIssues, bounds.start, bounds.end);
+    iss = issueSnapshot.relevant.map((record) => ({
+      ...record.issue,
+      reportStatus: record.statusAtEnd,
+      reportActivity: record.activity
+    }));
     periodLabel = `${MONTHS[month - 1]} ${year}`;
   }
 
@@ -1369,9 +1531,7 @@ export const generateCustomReport = async ({
 
   // ─── Monthly / DateRange sections ───────────────────────────────────────────
   if (reportType !== "Annual") {
-    const openIssues = iss.filter(
-      (i) => ["open", "in progress"].includes(String(i.status || "").toLowerCase())
-    );
+    const openIssues = issueSnapshot.outstanding;
 
     if (sec.summary !== false) {
       children.push(
@@ -1386,8 +1546,9 @@ export const generateCustomReport = async ({
             ["Checklist Defects Found", String(checklistSummary.failed)],
             ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
             ["Fire Drills Conducted", String(drills.length)],
-            ["Issues Raised",         String(iss.length)],
-            ["Open / Unresolved Issues", String(openIssues.length)]
+            ["Issues Created in Period", String(issueSnapshot.created.length)],
+            ["Outstanding at Period End", String(openIssues.length)],
+            ["Resolved / Closed in Period", String(issueSnapshot.resolved.length)]
           ],
           [3000, 6360]
         ),
@@ -1473,7 +1634,7 @@ export const generateCustomReport = async ({
       } else {
         children.push(
           makeTable(
-            ["S/No", "Building", "Location", "Finding", "Priority", "Status", "Rectification"],
+              ["S/No", "Building", "Location", "Finding", "Priority", "Month-End Status", "Monthly Activity", "Rectification"],
             iss.map((i, idx) => {
               const b = buildingMap.get(i.buildingId);
               return [
@@ -1482,11 +1643,12 @@ export const generateCustomReport = async ({
                 i.location || i.floorName || "-",
                 i.issueTitle || i.issueDescription || "-",
                 i.priority || "Medium",
-                i.status || "Open",
+                i.reportStatus || i.status || "Open",
+                i.reportActivity || "-",
                 i.rectification || "Pending"
               ];
             }),
-            [400, 1300, 1200, 1800, 900, 900, 1860]
+            [350, 1100, 950, 1450, 700, 900, 1650, 2260]
           )
         );
       }

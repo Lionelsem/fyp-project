@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 import { getAllFireDrills } from "../../services/fireDrillService";
 import { getAllBuildings } from "../../services/buildingService";
 
@@ -63,10 +64,7 @@ const AdminFireDrill = () => {
 
     const loadData = async () => {
       try {
-        const [drillData, buildingData] = await Promise.all([
-          getAllFireDrills(),
-          getAllBuildings()
-        ]);
+        const [drillData, buildingData] = await Promise.all([getAllFireDrills(), getAllBuildings()]);
         if (!active) return;
         setFireDrills(drillData);
         setBuildings(buildingData);
@@ -90,12 +88,20 @@ const AdminFireDrill = () => {
   );
 
   const summary = useMemo(() => {
-    const totals = { total: fireDrills.length, scheduled: 0, completed: 0 };
+    const totals = {
+      total: fireDrills.length,
+      scheduled: 0,
+      completed: 0,
+      review: 0
+    };
+
     fireDrills.forEach((drill) => {
       const status = String(drill.status || drill.performanceStatus || "").trim().toLowerCase();
       if (status === "scheduled" || status === "pending") totals.scheduled += 1;
       else if (status === "completed" || status === "passed") totals.completed += 1;
+      else if (status === "review" || status === "failed") totals.review += 1;
     });
+
     return totals;
   }, [fireDrills]);
 
@@ -117,11 +123,11 @@ const AdminFireDrill = () => {
   );
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-page admin-page-stack">
       {loading && <div className="loading-state">Loading fire drill records...</div>}
       {error && <div className="error-state">{error}</div>}
 
-      <div className="dashboard-grid" style={{ marginBottom: "24px", gridTemplateColumns: "repeat(3, 1fr)" }}>
+      <div className="summary-grid compact-summary-grid">
         <div className="summary-card">
           <div className="card-label">Total Fire Drills</div>
           <div className="card-value">{summary.total}</div>
@@ -134,25 +140,26 @@ const AdminFireDrill = () => {
           <div className="card-label">Completed</div>
           <div className="card-value">{summary.completed}</div>
         </div>
+        <div className="summary-card">
+          <div className="card-label">Needs Review</div>
+          <div className="card-value">{summary.review}</div>
+        </div>
       </div>
 
-      <section className="dashboard-card" style={{ marginBottom: "24px" }}>
+      <section className="dashboard-card">
         <div className="card-header-row">
           <h2 className="section-title">Upcoming Schedule</h2>
         </div>
         {upcomingDrills.length > 0 ? (
           <div className="fire-drill-schedule-list">
             {upcomingDrills.map((drill) => (
-              <div key={drill.id} className="fire-drill-schedule-item">
+              <div key={drill.id} className="fire-drill-schedule-item fire-drill-schedule-item--admin">
                 <div className="fire-drill-item-details">
                   <h3>{drill.drillType || drill.task || "Fire Drill"}</h3>
                   <p>{formatDate(drill.drillDate)}</p>
                   <p>{buildingMap.get(drill.buildingId) || drill.buildingName || "Building TBC"}</p>
                 </div>
-                <span
-                  className="fire-drill-status-badge"
-                  style={getStatusStyle(drill.status || drill.performanceStatus)}
-                >
+                <span className="fire-drill-status-badge" style={getStatusStyle(drill.status || drill.performanceStatus)}>
                   {drill.status || drill.performanceStatus || "Scheduled"}
                 </span>
               </div>
@@ -168,8 +175,8 @@ const AdminFireDrill = () => {
           <h2 className="section-title">Drill History</h2>
         </div>
         {historyDrills.length > 0 ? (
-          <div className="fire-drill-history-table-wrapper">
-            <table className="dashboard-table fire-drill-history-table">
+          <ResponsiveTableRegion label="Fire drill history" className="fire-drill-history-table-wrapper responsive-table-region--cards">
+            <table className="dashboard-table responsive-card-table fire-drill-history-table">
               <thead>
                 <tr>
                   <th>DATE</th>
@@ -181,14 +188,11 @@ const AdminFireDrill = () => {
               <tbody>
                 {historyDrills.map((drill) => (
                   <tr key={drill.id}>
-                    <td>{formatDate(drill.actualDate || drill.drillDate)}</td>
-                    <td>{buildingMap.get(drill.buildingId) || drill.buildingName || "Building TBC"}</td>
-                    <td>{drill.drillType || drill.task || "Fire Drill"}</td>
-                    <td>
-                      <span
-                        className="fire-drill-status-badge"
-                        style={getStatusStyle(drill.status || drill.performanceStatus)}
-                      >
+                    <td data-label="Date">{formatDate(drill.actualDate || drill.drillDate)}</td>
+                    <td data-label="Building">{buildingMap.get(drill.buildingId) || drill.buildingName || "Building TBC"}</td>
+                    <td data-label="Type">{drill.drillType || drill.task || "Fire Drill"}</td>
+                    <td data-label="Status">
+                      <span className="fire-drill-status-badge" style={getStatusStyle(drill.status || drill.performanceStatus)}>
                         {drill.status || drill.performanceStatus || "Completed"}
                       </span>
                     </td>
@@ -196,7 +200,7 @@ const AdminFireDrill = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveTableRegion>
         ) : (
           <div className="empty-state">No fire drill history available.</div>
         )}

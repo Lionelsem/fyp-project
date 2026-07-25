@@ -6,6 +6,7 @@ import { getIssues } from "../../services/issueService";
 import { getAllReports } from "../../services/reportService";
 import { getAllUsers } from "../../services/userService";
 import { ROLES } from "../../constants/roles";
+import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 
 const CIRCUMFERENCE = 2 * Math.PI * 72;
 
@@ -71,7 +72,7 @@ const AdminDashboard = () => {
   const buildingMap = useMemo(() => {
     const map = new Map();
     buildings.forEach((b) => {
-      const name = b.buildingName || b.building_name || "-";
+      const name = b.buildingName || b.building_name || "Unnamed building";
       map.set(b.id, name);
       if (b.buildingId && b.buildingId !== b.id) {
         map.set(b.buildingId, name);
@@ -139,20 +140,33 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="dashboard-container">
+      <div className="dashboard-container admin-page admin-dashboard-page role-dashboard-page">
         <div className="loading-state">Loading dashboard...</div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container admin-page admin-dashboard-page role-dashboard-page">
       {/* Summary cards */}
-      <div className="summary-grid">
+      <div
+        className="summary-grid compact-summary-grid"
+        role="list"
+        aria-label="Admin status summary"
+      >
         {summaryCards.map((card) => (
-          <div key={card.label} className="summary-card">
+          <div
+            key={card.label}
+            className="summary-card"
+            role="listitem"
+            aria-label={`${card.label}: ${card.value}`}
+          >
             <div className="card-top">
-              <div className="card-icon" style={{ backgroundColor: card.iconBg, color: card.iconColor }}>
+              <div
+                className="card-icon"
+                style={{ backgroundColor: card.iconBg, color: card.iconColor }}
+                aria-hidden="true"
+              >
                 {card.icon}
               </div>
               <div className="card-label">{card.label}</div>
@@ -171,9 +185,15 @@ const AdminDashboard = () => {
               <Link to="/issues-defects" className="view-all-link">View All</Link>
             </div>
             {recentIssues.length === 0 ? (
-              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No issues recorded.</p>
+              <p style={{ color: "#9ca3af", fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)" }}>
+                No issues recorded.
+              </p>
             ) : (
-              <table className="dashboard-table">
+              <ResponsiveTableRegion
+                label="Recent issues"
+                className="responsive-table-region--cards"
+              >
+                <table className="dashboard-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>BUILDING</th>
@@ -184,9 +204,9 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentIssues.map((issue) => (
                     <tr key={issue.id}>
-                      <td>{buildingMap.get(issue.buildingId) || "-"}</td>
-                      <td>{issue.issueTitle || issue.issueDescription || "-"}</td>
-                      <td>
+                      <td data-label="Building">{buildingMap.get(issue.buildingId) || "Unknown building"}</td>
+                      <td data-label="Finding">{issue.issueTitle || issue.issueDescription || "-"}</td>
+                      <td data-label="Status">
                         <span className="status-badge" style={statusStyle(issue.status)}>
                           {issue.status || "-"}
                         </span>
@@ -194,7 +214,8 @@ const AdminDashboard = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </ResponsiveTableRegion>
             )}
           </div>
 
@@ -205,9 +226,15 @@ const AdminDashboard = () => {
               <Link to="/fire-drill" className="view-all-link">View All</Link>
             </div>
             {recentDrills.length === 0 ? (
-              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No fire drills recorded.</p>
+              <p style={{ color: "#9ca3af", fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)" }}>
+                No fire drills recorded.
+              </p>
             ) : (
-              <table className="dashboard-table">
+              <ResponsiveTableRegion
+                label="Recent fire drill records"
+                className="responsive-table-region--cards"
+              >
+                <table className="dashboard-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>DATE</th>
@@ -219,10 +246,10 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentDrills.map((drill) => (
                     <tr key={drill.id}>
-                      <td>{drill.conductedDate || drill.actualDate || drill.drillDate || "-"}</td>
-                      <td>{buildingMap.get(drill.buildingId) || drill.buildingName || "-"}</td>
-                      <td>{drill.totalEvacuationTime || drill.evacuationTime || "-"}</td>
-                      <td>
+                      <td data-label="Date">{drill.conductedDate || drill.actualDate || drill.drillDate || "-"}</td>
+                      <td data-label="Building">{buildingMap.get(drill.buildingId) || drill.buildingName || "-"}</td>
+                      <td data-label="Evacuation time">{drill.totalEvacuationTime || drill.evacuationTime || "-"}</td>
+                      <td data-label="Result">
                         <span className="result-badge" style={drillResultStyle(drill)}>
                           {drill.performanceStatus || drill.status || "-"}
                         </span>
@@ -230,7 +257,8 @@ const AdminDashboard = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </ResponsiveTableRegion>
             )}
           </div>
 
@@ -241,9 +269,15 @@ const AdminDashboard = () => {
               <Link to="/reports" className="view-all-link">View All</Link>
             </div>
             {recentReports.length === 0 ? (
-              <p style={{ color: "#9ca3af", fontSize: "14px" }}>No reports generated yet.</p>
+              <p style={{ color: "#9ca3af", fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)" }}>
+                No reports generated yet.
+              </p>
             ) : (
-              <table className="dashboard-table">
+              <ResponsiveTableRegion
+                label="Recent submitted reports"
+                className="responsive-table-region--cards"
+              >
+                <table className="dashboard-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>REPORT TYPE</th>
@@ -254,13 +288,14 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentReports.map((report) => (
                     <tr key={report.id}>
-                      <td>{report.reportTitle || report.reportType || "-"}</td>
-                      <td>{buildingMap.get(report.buildingId) || "All Buildings"}</td>
-                      <td>{fmtDate(report.generatedDate || report.createdAt)}</td>
+                      <td data-label="Report type">{report.reportTitle || report.reportType || "-"}</td>
+                      <td data-label="Building">{buildingMap.get(report.buildingId) || "All Buildings"}</td>
+                      <td data-label="Date">{fmtDate(report.generatedDate || report.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </ResponsiveTableRegion>
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import CustomerNavbar from "../components/customer/CustomerNavbar";
 import CustomerSidebar from "../components/customer/CustomerSidebar";
+import PortalShell from "../components/common/PortalShell";
 
 const CustomerLayout = ({ children }) => {
   const location = useLocation();
@@ -11,10 +12,10 @@ const CustomerLayout = ({ children }) => {
   const section = location.pathname.split("/").filter(Boolean).pop() || "dashboard";
   const pageTitleMap = {
     dashboard: "Customer Dashboard",
-    issue: "Issue Progress",
-    inspections: "Inspection Reports",
-    firedrill: "Fire Drill Reports",
-    annual: "Annual Report",
+    "issue-progress": "Issue Progress",
+    "inspection-reports": "Inspection Reports",
+    "fire-drill-reports": "Fire Drill Reports",
+    "annual-reports": "Annual Reports",
     feedbacks: "Comments/Feedbacks",
     building: "My Buildings",
     profile: "Profile"
@@ -33,19 +34,21 @@ const CustomerLayout = ({ children }) => {
   const sidebarProfile = {
     name: displayName,
     role: user?.role ? user.role.replace(/_/g, " ") : "Customer",
-    initials
+    initials,
+    photoURL: user?.photoURL
   };
 
   return (
-    <div className="app-shell">
-      <div className="app-body">
-        <CustomerSidebar profile={sidebarProfile} />
-        <div className="app-main">
-          <CustomerNavbar pageTitle={pageTitle} />
-          <main className="main-content">{children}</main>
-        </div>
-      </div>
-    </div>
+    <PortalShell
+      pageTitle={pageTitle}
+      profile={sidebarProfile}
+      NavbarComponent={CustomerNavbar}
+      SidebarComponent={CustomerSidebar}
+      shellClassName="customer-shell"
+      contentClassName="customer-main-content"
+    >
+      {children}
+    </PortalShell>
   );
 };
 

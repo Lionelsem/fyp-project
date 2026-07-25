@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
+import { getAllUsers } from "../../services/userService";
 
 const mockBuildings = [
   {
@@ -41,7 +42,7 @@ const mockBuildings = [
     assignedFsm: "John Smith",
     customerName: "Logistics Hub Customer",
     nextInspection: "Nov 8, 2026",
-    latestReport: "Annual Compliance Report - May 10, 2026",
+    latestReport: "Fire Drill Summary - May 10, 2026",
     openIssueCount: 0,
     status: "Active"
   }
@@ -57,32 +58,27 @@ const reportActions = [
     tone: "green"
   },
   {
-    type: "Annual",
-    title: "Annual Fire Safety Report",
-    description: "Review yearly compliance reporting",
-    action: "View reports",
-    icon: "AR",
-    tone: "blue"
-  },
-  {
     type: "FireDrill",
     title: "Fire Drill Report",
     description: "Check fire drill logs and results",
     action: "View reports",
     icon: "FD",
     tone: "orange"
-  },
-  {
-    type: "Manual",
-    title: "Upload Manual Report",
-    description: "Attach external contractor assessments",
-    action: "Upload new",
-    icon: "UP",
-    tone: "purple"
   }
 ];
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const matchesReportMonth = (report, monthValue) => {
+  if (!monthValue) return true;
+  const [year, month] = monthValue.split("-").map(Number);
+  if (Number(report.reportYear) && Number(report.reportMonth)) {
+    return Number(report.reportYear) === year && Number(report.reportMonth) === month;
+  }
+  const monthName = new Date(year, month - 1, 1).toLocaleString("en", { month: "long" }).toLowerCase();
+  const period = String(report.period || report.reportTitle || "").toLowerCase();
+  return period.includes(String(year)) && period.includes(monthName);
+};
 
 const toDate = (value) => {
   if (!value) return null;
@@ -173,6 +169,82 @@ const BUILDING_NAME_FIELDS = [
 const getBuildingName = (building) =>
   getFirstTextValue(building, BUILDING_NAME_FIELDS) || "Unnamed Building";
 
+const getUserDisplayName = (user) =>
+  [
+    user?.fullName,
+    user?.displayName,
+    user?.name,
+    user?.email
+  ]
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || "";
+
+const getUserLookupIds = (user) =>
+  [
+    user?.uid,
+    user?.authUid,
+    user?.profileId,
+    user?.id,
+    user?.userId,
+    user?.fsmId,
+    user?.assignedFsmId,
+    user?.staffId,
+    user?.employeeId,
+    user?.accountId,
+    user?.firestoreId
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+const buildUserNameMap = (users = []) => {
+  const userNameMap = new Map();
+
+  users.forEach((user) => {
+    const displayName = getUserDisplayName(user);
+    if (!displayName) return;
+
+    getUserLookupIds(user).forEach((lookupId) => {
+      userNameMap.set(lookupId, displayName);
+    });
+  });
+
+  return userNameMap;
+};
+
+const looksLikeTechnicalId = (value) => {
+  const text = String(value || "").trim();
+  return text.length >= 12 && !/\s/.test(text) && /^[a-zA-Z0-9_-]+$/.test(text);
+};
+
+const resolveAssignedFsmName = (building, userNameMap, currentUser) => {
+  const storedName = getFirstTextValue(building, ["assignedFsmName"]);
+  if (storedName) return storedName;
+
+  const assignedFsmId = getFirstTextValue(building, ["assignedFsmId", "fsmId"]);
+  if (assignedFsmId) {
+    const mappedName = userNameMap.get(assignedFsmId);
+    if (mappedName) return mappedName;
+
+    if (getUserLookupIds(currentUser).includes(assignedFsmId)) {
+      return getUserDisplayName(currentUser) || "Current FSM";
+    }
+  }
+
+  const legacyAssignedFsm = getFirstTextValue(building, ["assignedFsm"]);
+  if (legacyAssignedFsm) {
+    const mappedName = userNameMap.get(legacyAssignedFsm);
+    if (mappedName) return mappedName;
+
+    if (getUserLookupIds(currentUser).includes(legacyAssignedFsm)) {
+      return getUserDisplayName(currentUser) || "Current FSM";
+    }
+
+    return looksLikeTechnicalId(legacyAssignedFsm) ? "Assigned FSM" : legacyAssignedFsm;
+  }
+
+  return assignedFsmId ? "Assigned FSM" : "Current FSM";
+};
+
 const isForBuilding = (record, building) => {
   const buildingId = String(building.id || "");
   const buildingName = normalizeText(getBuildingName(building));
@@ -196,14 +268,12 @@ const isReportType = (report, type) => {
   const haystack = normalizeText(`${report.reportType || ""} ${report.reportTitle || ""}`);
 
   if (type === "Monthly") return haystack.includes("monthly");
-  if (type === "Annual") return haystack.includes("annual");
   if (type === "FireDrill") return haystack.includes("fire drill") || haystack.includes("firedrill") || haystack.includes("drill");
-  if (type === "Manual") return haystack.includes("manual") || haystack.includes("upload");
 
   return true;
 };
 
-const buildBuildingCard = ({ building, reports, inspections, issues }) => {
+const buildBuildingCard = ({ building, reports, inspections, issues, userNameMap, currentUser }) => {
   const relatedReports = reports.filter((report) => isForBuilding(report, building));
   const relatedInspections = inspections.filter((inspection) => isForBuilding(inspection, building));
   const relatedIssues = issues.filter((issue) => isForBuilding(issue, building));
@@ -223,7 +293,7 @@ const buildBuildingCard = ({ building, reports, inspections, issues }) => {
     noOfStoreys: building.noOfStoreys || building.storeys || "-",
     grossFloorAreaGfa: building.grossFloorAreaGfa || "-",
     occupantLoad: building.occupantLoad || "-",
-    assignedFsm: building.assignedFsm || building.assignedFsmName || building.assignedFsmId || "Current FSM",
+    assignedFsm: resolveAssignedFsmName(building, userNameMap, currentUser),
     customerName: building.customerName || building.customer || building.customerId || "Customer record pending",
     nextInspection: formatDate(building.nextInspection || building.nextInspectionDate),
     latestInspection: latestInspection
@@ -264,6 +334,8 @@ const DetailItem = ({ label, value }) => (
 const MyBuilding = () => {
   const { user } = useAuthContext();
   const [selectedReportType, setSelectedReportType] = useState(reportActions[0].type);
+  const [selectedReportMonth, setSelectedReportMonth] = useState("");
+  const [users, setUsers] = useState([]);
   const {
     loading,
     error,
@@ -273,6 +345,27 @@ const MyBuilding = () => {
     issues
   } = useFsmDashboardData(getFsmLookupIds(user));
 
+  useEffect(() => {
+    let active = true;
+
+    const loadUsers = async () => {
+      try {
+        const userData = await getAllUsers();
+        if (active) setUsers(userData);
+      } catch (loadError) {
+        console.error("Failed to load users for FSM assignment names", loadError);
+      }
+    };
+
+    loadUsers();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const userNameMap = useMemo(() => buildUserNameMap(users), [users]);
+
   const buildingCards = useMemo(() => {
     const sourceBuildings = liveBuildings.length > 0 ? liveBuildings : loading ? [] : mockBuildings;
 
@@ -281,10 +374,12 @@ const MyBuilding = () => {
         building,
         reports,
         inspections,
-        issues
+        issues,
+        userNameMap,
+        currentUser: user
       })
     );
-  }, [inspections, issues, liveBuildings, loading, reports]);
+  }, [inspections, issues, liveBuildings, loading, reports, user, userNameMap]);
 
   const selectedBuilding = buildingCards[0];
   const selectedReportAction =
@@ -293,11 +388,13 @@ const MyBuilding = () => {
     if (!selectedBuilding) return [];
 
     const relatedReports = reports.filter((report) =>
-      isForBuilding(report, selectedBuilding) && isReportType(report, selectedReportType)
+      isForBuilding(report, selectedBuilding) &&
+      isReportType(report, selectedReportType) &&
+      matchesReportMonth(report, selectedReportMonth)
     );
 
     return sortByLatestDate(relatedReports, ["generatedDate", "createdAt", "date"]);
-  }, [reports, selectedBuilding, selectedReportType]);
+  }, [reports, selectedBuilding, selectedReportMonth, selectedReportType]);
 
   return (
     <div className="dashboard-container my-building-page">
@@ -326,10 +423,7 @@ const MyBuilding = () => {
                 </div>
               </div>
 
-              <div
-                className="building-card-details"
-                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}
-              >
+              <div className="building-card-details">
                 <DetailItem label="Customer" value={selectedBuilding.customerName} />
                 <DetailItem label="FSM Assigned" value={selectedBuilding.assignedFsm} />
                 <DetailItem label="Next Inspection" value={selectedBuilding.nextInspection} />
@@ -380,6 +474,16 @@ const MyBuilding = () => {
               <section className="dashboard-card fsm-latest-report-card">
                 <div className="card-header-row">
                   <h2 className="section-title">{selectedReportAction.title}</h2>
+                  <label className="report-month-filter">
+                    <span>Reporting month</span>
+                    <span className="temporal-control report-temporal-control">
+                      <input
+                        type="month"
+                        value={selectedReportMonth}
+                        onChange={(event) => setSelectedReportMonth(event.target.value)}
+                      />
+                    </span>
+                  </label>
                 </div>
 
                 <div className="fsm-latest-report-list">
@@ -412,8 +516,7 @@ const MyBuilding = () => {
                               href={report.reportFileUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="view-all-link"
-                              style={{ marginLeft: "12px" }}
+                              className="view-all-link fsm-report-open-link"
                             >
                               Open
                             </a>

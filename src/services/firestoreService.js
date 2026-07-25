@@ -188,6 +188,9 @@ const buildInspectionResultPayload = (data) => ({
   remark: data.remark || "",
   photoUrl: data.photoUrl || "",
   defectPhotoUrl: data.defectPhotoUrl || data.photoUrl || "",
+  defectPhotoUrls: Array.isArray(data.defectPhotoUrls)
+    ? data.defectPhotoUrls
+    : [data.defectPhotoUrl || data.photoUrl].filter(Boolean),
   defectPhotoStoragePath: data.defectPhotoStoragePath || "",
   defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
   defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
@@ -207,6 +210,8 @@ const buildInspectionResultPayload = (data) => ({
 const buildIssuePayload = (data) => ({
   issueKey: data.issueKey || "",
   issueId: data.issueId,
+  periodKey: data.periodKey || "",
+  reportedAt: data.reportedAt || null,
   inspectionKey: data.inspectionKey || "",
   inspectionId: data.inspectionId,
   resultKey: data.resultKey || "",
@@ -227,14 +232,21 @@ const buildIssuePayload = (data) => ({
   status: data.status || ISSUE_STATUS.OPEN,
   issuePhotoUrl: data.issuePhotoUrl || "",
   defectPhotoUrl: data.defectPhotoUrl || data.issuePhotoUrl || "",
+  defectPhotoUrls: Array.isArray(data.defectPhotoUrls)
+    ? data.defectPhotoUrls
+    : [data.defectPhotoUrl || data.issuePhotoUrl].filter(Boolean),
   defectPhotoStoragePath: data.defectPhotoStoragePath || "",
   defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
   defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
   fixPhotoUrl: data.fixPhotoUrl || "",
+  fixPhotoUrls: Array.isArray(data.fixPhotoUrls)
+    ? data.fixPhotoUrls
+    : [data.fixPhotoUrl].filter(Boolean),
   fixPhotoStoragePath: data.fixPhotoStoragePath || "",
   fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
   fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
   verificationComments: data.verificationComments || "",
+  ...(Array.isArray(data.history) ? { history: data.history } : {}),
   aiRecommendation: data.aiRecommendation || ""
 });
 
@@ -334,6 +346,13 @@ export const upsertInspectionResult = async (data) => {
       resultId: data.resultId || resultKey
     })
   );
+};
+
+export const updateInspectionResult = async (id, data) => {
+  return await updateDoc(doc(db, COLLECTION_NAMES.INSPECTION_RESULTS, id), {
+    ...removeUndefinedFields(data),
+    updatedAt: serverTimestamp()
+  });
 };
 
 export const getInspectionResultsByInspectionId = async (inspectionId) => {
@@ -460,10 +479,16 @@ export const addClosureVerification = async (data) => {
     beforePhotoUrl: data.beforePhotoUrl || "",
     afterPhotoUrl: data.afterPhotoUrl || "",
     defectPhotoUrl: data.defectPhotoUrl || data.beforePhotoUrl || "",
+    defectPhotoUrls: Array.isArray(data.defectPhotoUrls)
+      ? data.defectPhotoUrls
+      : [data.defectPhotoUrl || data.beforePhotoUrl].filter(Boolean),
     defectPhotoStoragePath: data.defectPhotoStoragePath || "",
     defectPhotoUploadedAt: data.defectPhotoUploadedAt || null,
     defectPhotoUploadedBy: data.defectPhotoUploadedBy || "",
     fixPhotoUrl: data.fixPhotoUrl || data.afterPhotoUrl || "",
+    fixPhotoUrls: Array.isArray(data.fixPhotoUrls)
+      ? data.fixPhotoUrls
+      : [data.fixPhotoUrl || data.afterPhotoUrl].filter(Boolean),
     fixPhotoStoragePath: data.fixPhotoStoragePath || "",
     fixPhotoUploadedAt: data.fixPhotoUploadedAt || null,
     fixPhotoUploadedBy: data.fixPhotoUploadedBy || "",
@@ -502,9 +527,15 @@ const buildReportPayload = (data) => ({
   reportFileUrl: data.reportFileUrl || "",
   reportTitle: data.reportTitle || "",
   period: data.period || "",
+  reportMonth: data.reportMonth ?? null,
+  reportYear: data.reportYear ?? null,
+  dateFrom: data.dateFrom || "",
+  dateTo: data.dateTo || "",
   priority: data.priority || "Normal",
   aiSummaryIncluded: !!data.aiSummaryIncluded,
-  status: data.status || REPORT_STATUS.DRAFT
+  status: data.status || REPORT_STATUS.DRAFT,
+  // Allow customers to add comments or feedback on reports
+  customerComments: data.customerComments || ""
 });
 
 export const addReport = async (data) => {
