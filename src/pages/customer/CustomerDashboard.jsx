@@ -156,7 +156,11 @@ const CustomerDashboard = () => {
           <div className="dashboard-card">
             <div className="card-header-row">
               <h2 className="section-title">Recent Issue Updates</h2>
-              <button type="button" className="view-all-link">
+              <button
+                type="button"
+                className="view-all-link"
+                onClick={() => navigate("/issue-progress")}
+              >
                 View all →
               </button>
             </div>

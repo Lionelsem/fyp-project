@@ -929,8 +929,6 @@ const InspectionReports = () => {
                       <th>MONTH</th>
                       <th>DATE</th>
                       <th>STATUS</th>
-                      <th>YOUR FEEDBACK</th>
-                      <th aria-label="Feedback action" />
                     </tr>
                   </thead>
 
@@ -962,52 +960,6 @@ const InspectionReports = () => {
                               {report.status}
                             </span>
 
-                          </td>
-
-                          <td data-label="Your feedback">
-                            <span
-                              className="status-badge"
-                              style={{
-                                color:
-                                  report.customerFeedbackStatus === "Submitted"
-                                    ? "#1d4ed8"
-                                    : "#64748b",
-                                backgroundColor:
-                                  report.customerFeedbackStatus === "Submitted"
-                                    ? "#eff6ff"
-                                    : "#f1f5f9",
-                              }}
-                            >
-                              {report.customerFeedbackStatus}
-                            </span>
-                            {report.customerFeedbackStatus === "Submitted" && (
-                              <small
-                                style={{
-                                  display: "block",
-                                  marginTop: "6px",
-                                  color: "#64748b",
-                                }}
-                              >
-                                Updated {formatReportDate(report.customerFeedbackUpdatedAt)}
-                              </small>
-                            )}
-                          </td>
-
-                          <td data-label="Action">
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() =>
-                                setSelectedFeedbackReportId(report.id)
-                              }
-                              aria-pressed={
-                                selectedFeedbackReport?.id === report.id
-                              }
-                            >
-                              {selectedFeedbackReport?.id === report.id
-                                ? "Viewing"
-                                : "View feedback"}
-                            </button>
                           </td>
 
                         </tr>
