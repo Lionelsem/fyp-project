@@ -7,6 +7,7 @@ const initialForm = {
   buildingName: "",
   address: "",
   storeys: "",
+  grossFloorArea: "",
   occupantLoad: "",
   assignedFsm: "",
   customerId: "",
@@ -22,7 +23,7 @@ const normalizeBuildingPayload = (form) => ({
   occupantLoad: String(form.occupantLoad || "").trim(),
   assignedFsmId: String(form.assignedFsm || "").trim(),
   occupancyType: "",
-  grossFloorAreaGfa: "",
+  grossFloorAreaGfa: String(form.grossFloorArea || "").trim(),
   customerId: String(form.customerId || "").trim(),
   status: form.status
 });
@@ -49,6 +50,7 @@ const EditBuilding = () => {
           buildingName: building.building_name || building.buildingName || "",
           address: building.address || "",
           storeys: building.noOfStoreys ? String(building.noOfStoreys) : "",
+          grossFloorArea: building.grossFloorAreaGfa || "",
           occupantLoad: building.occupantLoad || "",
           assignedFsm: building.assignedFsmId || "",
           customerId: building.customerId || "",
@@ -154,6 +156,19 @@ const EditBuilding = () => {
                   onChange={handleChange("storeys")}
                 />
               </div>
+              <div className="form-field">
+                <label className="form-label">Gross Floor Area (m²)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 12,500"
+                  value={form.grossFloorArea}
+                  onChange={handleChange("grossFloorArea")}
+                />
+              </div>
+            </div>
+
+            <div className="form-grid">
               <div className="form-field">
                 <label className="form-label">Occupant Load</label>
                 <input

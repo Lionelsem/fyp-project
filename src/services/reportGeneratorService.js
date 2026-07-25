@@ -11,6 +11,7 @@ const {
   getDateRangeBounds,
   getMonthBounds
 } = require("../utils/issueReporting");
+const { downloadUploadedFileBytes } = require("./storageService");
 
 let _docxPromise = null;
 
@@ -470,30 +471,23 @@ const renderReportPhotoHtml = (url, alt) =>
     ? `<img class="report-photo" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" />`
     : `<span class="photo-fallback">-</span>`;
 
-const renderFireDrillDetailsHtml = (drills = [], buildingMap) =>
-  drills.map((drill, index) => {
-    const buildingName = getBuildingName(buildingMap, drill.buildingId) || drill.buildingName || "-";
-    const observations = drill.observations || drill.issueFound || "No observations recorded.";
-    const followUp = drill.followUpIssues || drill.recommendations || "";
-    const photoUrls = getFireDrillPhotoUrls(drill);
+export const getFireDrillPhotoCaption = (drill = {}, photoIndex = 0) => {
+  const photo = Array.isArray(drill.photos) ? drill.photos[photoIndex] : null;
+  const storedCaption = Array.isArray(drill.photoCaptions)
+    ? drill.photoCaptions[photoIndex]
+    : "";
 
-    return `
-      <section class="drill-evidence">
-        <h3>Drill ${index + 1}: ${escapeHtml(buildingName)} — ${escapeHtml(fmtDate(getFireDrillReportDate(drill)))}</h3>
-        <p><strong>Observations:</strong> ${renderMultilineHtml(observations)}</p>
-        ${followUp ? `<p><strong>Follow-up / Recommendations:</strong> ${renderMultilineHtml(followUp)}</p>` : ""}
-        ${
-          photoUrls.length
-            ? `<div class="drill-photo-grid">${photoUrls.map((url, photoIndex) =>
-                renderReportPhotoHtml(url, `Fire drill ${index + 1} evidence ${photoIndex + 1}`)
-              ).join("")}</div>`
-            : `<p class="muted">No photographs were attached to this drill.</p>`
-        }
-      </section>
-    `;
-  }).join("");
+  return String(
+    storedCaption ||
+    photo?.caption ||
+    photo?.description ||
+    drill.photoCaption ||
+    drill.photoDescription ||
+    `Fire drill photographic evidence ${photoIndex + 1}`
+  ).trim();
+};
 
-const getImageType = (contentType, url) => {
+const getReportImageType = (contentType, url) => {
   const normalizedType = String(contentType || "").toLowerCase();
   const normalizedUrl = String(url || "").toLowerCase().split("?")[0];
   if (normalizedType.includes("png") || normalizedUrl.endsWith(".png")) return "png";
@@ -502,68 +496,216 @@ const getImageType = (contentType, url) => {
   return "jpg";
 };
 
-const loadReportImage = async (docxNS, url) => {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Unable to download report photograph (${response.status}).`);
-  const data = new Uint8Array(await response.arrayBuffer());
-  return new docxNS.ImageRun({
+const REPORT_IMAGE_TIMEOUT_MS = 4000;
+const REPORT_IMAGE_COMPRESSION_THRESHOLD = 750 * 1024;
+const REPORT_IMAGE_MAX_WIDTH = 1200;
+const REPORT_IMAGE_MAX_HEIGHT = 900;
+
+const withTimeout = (promise, timeoutMs, message) =>
+  new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(
+      () => reject(new Error(message)),
+      timeoutMs
+    );
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+
+const fetchExternalReportImage = async (url) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    REPORT_IMAGE_TIMEOUT_MS
+  );
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Unable to download report photograph (${response.status}).`);
+    }
+    return {
+      data: await response.arrayBuffer(),
+      contentType: response.headers.get("content-type") || ""
+    };
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const compressReportImage = async (data, imageType) => {
+  const byteLength = data?.byteLength ?? data?.length ?? 0;
+  if (
+    byteLength < REPORT_IMAGE_COMPRESSION_THRESHOLD ||
+    typeof window.createImageBitmap !== "function"
+  ) {
+    return { data, imageType };
+  }
+
+  const mimeType = imageType === "png" ? "image/png" : "image/jpeg";
+  let bitmap;
+  try {
+    bitmap = await window.createImageBitmap(new Blob([data], { type: mimeType }));
+    const scale = Math.min(
+      1,
+      REPORT_IMAGE_MAX_WIDTH / bitmap.width,
+      REPORT_IMAGE_MAX_HEIGHT / bitmap.height
+    );
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return { data, imageType };
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(bitmap, 0, 0, width, height);
+
+    const compressedBlob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.72)
+    );
+    if (!compressedBlob || compressedBlob.size >= byteLength) {
+      return { data, imageType };
+    }
+    return {
+      data: await compressedBlob.arrayBuffer(),
+      imageType: "jpg"
+    };
+  } catch {
+    return { data, imageType };
+  } finally {
+    bitmap?.close?.();
+  }
+};
+
+const loadWordReportImage = async (docxNS, url) => {
+  let data;
+  let contentType = "";
+  const isFirebaseStorageUrl =
+    /(?:firebasestorage\.googleapis\.com|storage\.googleapis\.com)/i.test(url);
+
+  if (isFirebaseStorageUrl) {
+    data = await withTimeout(
+      downloadUploadedFileBytes(url),
+      REPORT_IMAGE_TIMEOUT_MS,
+      "Timed out while downloading a Firebase report photograph."
+    );
+  } else {
+    const externalImage = await fetchExternalReportImage(url);
+    data = externalImage.data;
+    contentType = externalImage.contentType;
+  }
+
+  const optimizedImage = await compressReportImage(
     data,
-    type: getImageType(response.headers.get("content-type"), url),
-    transformation: { width: 240, height: 180 }
+    getReportImageType(contentType, url)
+  );
+  return new docxNS.ImageRun({
+    data: optimizedImage.data,
+    type: optimizedImage.imageType,
+    transformation: { width: 430, height: 260 }
   });
 };
 
-const buildFireDrillEvidenceChildren = async ({
+const buildAnnualFireDrillPhotoChildren = async ({
   docxNS,
   drills,
   buildingMap,
+  h1,
   h2,
   para,
   txt,
   spacer
 }) => {
-  const { Paragraph } = docxNS;
-  const children = [];
+  const drillsWithPhotos = drills
+    .map((drill) => ({ drill, photoUrls: getFireDrillPhotoUrls(drill) }))
+    .filter(({ photoUrls }) => photoUrls.length > 0);
 
-  for (let index = 0; index < drills.length; index += 1) {
-    const drill = drills[index];
-    const buildingName = getBuildingName(buildingMap, drill.buildingId) || drill.buildingName || "-";
+  const children = [
+    h1("4.3.1 PHOTOGRAPHIC EVIDENCE OF FIRE DRILL"),
+    spacer()
+  ];
+
+  if (drillsWithPhotos.length === 0) {
     children.push(
-      h2(`Drill ${index + 1}: ${buildingName} — ${fmtDate(getFireDrillReportDate(drill))}`),
-      para([
-        txt("Observations: ", { bold: true }),
-        txt(drill.observations || drill.issueFound || "No observations recorded.")
-      ])
+      para("No fire drill photographs were uploaded for this reporting year."),
+      spacer(),
+      spacer()
     );
-
-    const followUp = drill.followUpIssues || drill.recommendations;
-    if (followUp) {
-      children.push(para([
-        txt("Follow-up / Recommendations: ", { bold: true }),
-        txt(followUp)
-      ]));
-    }
-
-    const photoUrls = getFireDrillPhotoUrls(drill);
-    if (photoUrls.length === 0) {
-      children.push(para("No photographs were attached to this drill."));
-    } else {
-      for (const [photoIndex, url] of photoUrls.entries()) {
-        try {
-          const imageRun = await loadReportImage(docxNS, url);
-          children.push(new Paragraph({
-            children: [imageRun],
-            spacing: { before: 80, after: 80 }
-          }));
-        } catch (error) {
-          console.warn("Could not embed a fire drill photograph in the Word report.", error);
-          children.push(para(`Photograph ${photoIndex + 1}: ${url}`));
-        }
-      }
-    }
-    children.push(spacer());
+    return children;
   }
 
+  const preparedDrills = await Promise.all(
+    drillsWithPhotos.map(async ({ drill, photoUrls }) => ({
+      drill,
+      photos: await Promise.all(
+        photoUrls.map(async (photoUrl, photoIndex) => {
+          const caption = getFireDrillPhotoCaption(drill, photoIndex);
+          try {
+            return {
+              caption,
+              imageRun: await loadWordReportImage(docxNS, photoUrl),
+              photoUrl
+            };
+          } catch (error) {
+            return { caption, error, imageRun: null, photoUrl };
+          }
+        })
+      )
+    }))
+  );
+
+  for (let drillIndex = 0; drillIndex < preparedDrills.length; drillIndex += 1) {
+    const { drill, photos } = preparedDrills[drillIndex];
+    const buildingName =
+      getBuildingName(buildingMap, drill.buildingId) ||
+      drill.buildingName ||
+      "-";
+    children.push(
+      h2(
+        `Drill ${drillIndex + 1}: ${buildingName} — ${fmtDateShort(
+          getFireDrillReportDate(drill)
+        )}`
+      )
+    );
+
+    for (let photoIndex = 0; photoIndex < photos.length; photoIndex += 1) {
+      const { caption, imageRun, photoUrl } = photos[photoIndex];
+      if (imageRun) {
+        children.push(
+          para([imageRun], { alignment: "center" }),
+          para(
+            [
+              txt(`Photograph ${photoIndex + 1}: `, { bold: true }),
+              txt(caption)
+            ],
+            { alignment: "center" }
+          )
+        );
+      } else {
+        children.push(
+          para([
+            txt(`Photograph ${photoIndex + 1}: `, { bold: true }),
+            txt(caption)
+          ]),
+          para([
+            txt("Image link: ", { bold: true }),
+            txt(photoUrl)
+          ])
+        );
+      }
+      children.push(spacer());
+    }
+  }
+
+  children.push(spacer());
   return children;
 };
 
@@ -818,7 +960,6 @@ export const generateMonthlyReport = async ({
   month,
   year,
   buildings,
-  fireDrills,
   inspections,
   inspectionResults = [],
   issues,
@@ -834,7 +975,6 @@ export const generateMonthlyReport = async ({
   );
 
   const selectedBuildingIds = getBuildingIds(buildings);
-  const drills = getMonthlyFireDrillsForBuildings(fireDrills, month, year, buildings);
   const monthInspections = filterByBuildings(
     filterByMonth(inspections, "inspectionDate", month, year),
     selectedBuildingIds
@@ -861,16 +1001,6 @@ export const generateMonthlyReport = async ({
   const buildingAddress = primaryBuilding?.address || "-";
 
   const today = new Date();
-  const fireDrillEvidenceChildren = await buildFireDrillEvidenceChildren({
-    docxNS,
-    drills,
-    buildingMap,
-    h2,
-    para,
-    txt,
-    spacer
-  });
-
   const children = [
     // ── Cover Header ──
     centered([txt("CBRE PTE LTD", { bold: true, size: 32 })]),
@@ -901,7 +1031,6 @@ export const generateMonthlyReport = async ({
         ["Checklist Items Passed", String(checklistSummary.passed)],
         ["Checklist Defects Found", String(checklistSummary.failed)],
         ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
-        ["Fire Drills Conducted", String(drills.length)],
         ["Issues Created in Month", String(issueSnapshot.created.length)],
         ["Outstanding at Month End", String(openIssues.length)],
         ["Resolved / Closed in Month", String(issueSnapshot.resolved.length)]
@@ -939,7 +1068,7 @@ export const generateMonthlyReport = async ({
     spacer(),
     spacer(),
 
-    // ── Section 3: Fire Drill Records ──
+    // ── Section 3: Inspection Checklist Results ──
     h1("SECTION 3: INSPECTION CHECKLIST RESULTS"),
     spacer(),
     ...buildChecklistResultChildren({
@@ -955,38 +1084,8 @@ export const generateMonthlyReport = async ({
     spacer(),
     spacer(),
 
-    h1("SECTION 4: FIRE DRILL RECORDS"),
-    spacer(),
-    ...(drills.length === 0
-      ? [para("No fire drills were conducted during this period.")]
-      : [
-          makeTable(
-            ["S/No", "Building", "Type", "Date", "Participants", "Evacuation Time", "Result"],
-            drills.map((d, idx) => {
-              const bldg = buildingMap.get(d.buildingId);
-              const bldgName = bldg
-                ? (bldg.buildingName || bldg.building_name || d.buildingId)
-                : (d.buildingName || d.buildingId || "-");
-              return [
-                String(idx + 1),
-                bldgName,
-                d.drillType || "Standard Fire Drill",
-                getFireDrillReportDate(d) || "-",
-                d.participants || "-",
-                d.totalEvacuationTime || d.evacuationTime || "-",
-                d.performanceStatus || d.status || "-"
-              ];
-            }),
-            [400, 1600, 1400, 1200, 1000, 1600, 1160]
-          ),
-          spacer(),
-          ...fireDrillEvidenceChildren
-        ]),
-    spacer(),
-    spacer(),
-
     // ── Section 4: Issues / Findings ──
-    h1("SECTION 5: ISSUES / DEFECTS IDENTIFIED"),
+    h1("SECTION 4: ISSUES / DEFECTS IDENTIFIED"),
     spacer(),
     ...(monthIssues.length === 0
       ? [para("No issues were recorded during this period.")]
@@ -1016,9 +1115,9 @@ export const generateMonthlyReport = async ({
     spacer(),
 
     // ── Section 5: General Observations ──
-    h1("SECTION 6: GENERAL OBSERVATIONS / REMARKS"),
+    h1("SECTION 5: GENERAL OBSERVATIONS / REMARKS"),
     spacer(),
-    para("All fire safety systems were inspected and found to be in general working order. Any defects identified have been recorded in Section 5 above and communicated to the building owner / management for rectification."),
+    para("All fire safety systems were inspected and found to be in general working order. Any defects identified have been recorded in Section 4 above and communicated to the building owner / management for rectification."),
     spacer(),
     ...(monthIssues.length > 0
       ? [para(`${openIssues.length} issue(s) were outstanding at the end of ${monthLabel} ${year}. ${issueSnapshot.resolved.length} issue(s) were resolved or closed during the month.`)]
@@ -1080,7 +1179,6 @@ export const generateMonthlyReportPdf = async ({
   month,
   year,
   buildings = [],
-  fireDrills = [],
   inspections = [],
   inspectionResults = [],
   issues = [],
@@ -1089,7 +1187,6 @@ export const generateMonthlyReportPdf = async ({
   const monthLabel = MONTHS[month - 1];
   const buildingMap = new Map(buildings.map((b) => [b.id, b]));
   const selectedBuildingIds = getBuildingIds(buildings);
-  const drills = getMonthlyFireDrillsForBuildings(fireDrills, month, year, buildings);
   const monthInspections = filterByBuildings(
     filterByMonth(inspections, "inspectionDate", month, year),
     selectedBuildingIds
@@ -1121,16 +1218,6 @@ export const generateMonthlyReportPdf = async ({
     fmtDate(insp.inspectionDate),
     insp.status || "-",
     insp.generalRemarks || "-"
-  ]);
-
-  const drillRows = drills.map((drill, idx) => [
-    String(idx + 1),
-    getBuildingName(buildingMap, drill.buildingId) || drill.buildingName || "-",
-    drill.drillType || "Standard Fire Drill",
-    getFireDrillReportDate(drill) || "-",
-    drill.participants || "-",
-    drill.totalEvacuationTime || drill.evacuationTime || "-",
-    drill.performanceStatus || drill.status || "-"
   ]);
 
   const issueRows = monthIssues.map((issue, idx) => [
@@ -1213,22 +1300,6 @@ export const generateMonthlyReportPdf = async ({
             background: #ffffff;
           }
           .photo-fallback { color: #6b7280; font-size: 11px; }
-          .drill-evidence {
-            border: 1px solid #d1d5db;
-            padding: 10px;
-            margin: 10px 0 16px;
-            page-break-inside: avoid;
-          }
-          .drill-photo-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-          }
-          .drill-photo-grid .report-photo {
-            width: 160px;
-            max-height: 120px;
-          }
         </style>
       </head>
       <body>
@@ -1255,7 +1326,6 @@ export const generateMonthlyReportPdf = async ({
             ["Checklist Items Passed", String(checklistSummary.passed)],
             ["Checklist Defects Found", String(checklistSummary.failed)],
             ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
-            ["Fire Drills Conducted", String(drills.length)],
             ["Issues Created in Month", String(issueSnapshot.created.length)],
             ["Outstanding at Month End", String(openIssues.length)],
             ["Resolved / Closed in Month", String(issueSnapshot.resolved.length)]
@@ -1271,16 +1341,6 @@ export const generateMonthlyReportPdf = async ({
 
         <h2>Inspection Checklist Results</h2>
         ${renderChecklistResultHtml({ inspections: monthInspections, inspectionResults, buildingMap })}
-
-        <h2>Fire Drill Records</h2>
-        ${
-          drillRows.length
-            ? `
-                ${renderHtmlTable(["S/No", "Building", "Type", "Date", "Participants", "Evacuation Time", "Result"], drillRows)}
-                ${renderFireDrillDetailsHtml(drills, buildingMap)}
-              `
-            : "<p>No fire drills were conducted during this period.</p>"
-        }
 
         <h2>Issues / Defects Identified</h2>
         ${
@@ -1330,6 +1390,7 @@ export const generateAnnualReport = async ({
   fireDrills,
   inspections,
   issues,
+  users = [],
   generatedBy
 }) => {
   if (!Array.isArray(buildings) || buildings.length !== 1) {
@@ -1355,17 +1416,27 @@ export const generateAnnualReport = async ({
   const noOfStoreys = primaryBuilding?.noOfStoreys || "-";
   const gfa = primaryBuilding?.grossFloorAreaGfa || "-";
   const occupantLoad = primaryBuilding?.occupantLoad || "-";
+  const { owner, fsm } = getAnnualReportParties(primaryBuilding, users, generatedBy);
 
   // Next 12 months schedule
   const nextYear = year + 1;
   const scheduleRows = [
     ["1", `Jan ${nextYear}`, `Dec ${nextYear}`, "Monthly on-site fire safety inspections"],
     ["2", `Apr ${nextYear}`, `Apr ${nextYear}`, "Fire Warden Briefing / Table-Top Exercise"],
-    ["3", `May ${nextYear}`, `May ${nextYear}`, "Fire Evacuation Drill (1st)"],
+    ["3", `May ${nextYear}`, `May ${nextYear}`, "Annual Fire Evacuation Drill"],
     ["4", `Aug ${nextYear}`, `Aug ${nextYear}`, "Fire Safety Equipment Servicing Review"],
-    ["5", `Sep ${nextYear}`, `Sep ${nextYear}`, "Basic Fire Fighting Hands-on Training"],
-    ["6", `Nov ${nextYear}`, `Nov ${nextYear}`, "Fire Evacuation Drill (2nd)"]
+    ["5", `Sep ${nextYear}`, `Sep ${nextYear}`, "Basic Fire Fighting Hands-on Training"]
   ];
+  const fireDrillPhotoChildren = await buildAnnualFireDrillPhotoChildren({
+    docxNS,
+    drills: yearDrills,
+    buildingMap,
+    h1,
+    h2,
+    para,
+    txt,
+    spacer
+  });
 
   const children = [
     // ── Title ──
@@ -1383,73 +1454,96 @@ export const generateAnnualReport = async ({
     spacer(),
 
     // ── Building Information ──
-    h1("BUILDING INFORMATION"),
+    h1("1. BUILDING INFORMATION"),
     spacer(),
     infoTable([
       ["Name of Building", buildingName],
       ["Address", buildingAddress],
       ["No. of Storeys", String(noOfStoreys)],
-      ["Gross Floor Area (GFA)", gfa ? `${gfa} m²` : "-"],
+      ["Gross Floor Area (GFA)", formatFloorArea(gfa)],
       ["Occupant Load (OL)", String(occupantLoad)]
     ]),
     spacer(),
     spacer(),
 
+    // Building Owner(s)
+    h1("2. BUILDING OWNER(S)"),
+    spacer(),
+    makeTable(
+      ["Name", "Email Address", "Contact Number"],
+      [[owner.name, owner.email, owner.contactNumber]],
+      [3200, 3600, 2560]
+    ),
+    spacer(),
+    spacer(),
+
     // ── EP Measures ──
-    h1("PROVISION OF EMERGENCY PREPAREDNESS (EP) MEASURES"),
+    h1("3. PROVISION OF EMERGENCY PREPAREDNESS (EP) MEASURES"),
     spacer(),
     makeTable(
       ["S/No", "EP Measure", "Details"],
       [
-        ["1", "Emergency Response Plan (ERP)", "Updated annually — refer to Building Management"],
-        ["2", "Validity of Fire Certificate (FC)", "Please verify with SCDF records"],
-        ["3", "Name of Appointed FSM", generatedBy],
-        ["4", "CERT Members", "As per building emergency team register"]
+        [
+          "1",
+          "Updated Emergency Response Plan (ERP)",
+          `Updated: ${firstReportValue(primaryBuilding?.erpUpdated, primaryBuilding?.emergencyResponsePlanUpdated, "-")}\nDate of updated ERP: ${fmtDate(firstReportValue(primaryBuilding?.erpUpdatedDate, primaryBuilding?.emergencyResponsePlanUpdatedDate))}`
+        ],
+        [
+          "2",
+          "Validity of Fire Certificate (FC)",
+          `From: ${fmtDate(firstReportValue(primaryBuilding?.fireCertificateValidFrom, primaryBuilding?.fcValidFrom))}\nTo: ${fmtDate(firstReportValue(primaryBuilding?.fireCertificateValidTo, primaryBuilding?.fcValidTo))}`
+        ],
+        ["3", "Name of Appointed FSM", `${fsm.name}\nContact No.: ${fsm.contactNumber}\nEmail: ${fsm.email}`],
+        ["4", "Details of Trained CERT Members", getCertMembersText(primaryBuilding)]
       ],
       [500, 3000, 5860]
     ),
     spacer(),
     spacer(),
 
+    h1("4. DETAILS OF ANNUAL FIRE SAFETY REPORT"),
+    spacer(),
+
     // ── Training Records ──
-    h1("RECORD OF TRAINING CONDUCTED"),
+    h1("4.1 RECORD OF TRAINING CONDUCTED"),
     spacer(),
     makeTable(
-      ["Category", "Date", "Description", "No. of Participants"],
-      [
-        ["Occupants / Tenants", `${year}`, "Annual Fire Safety Briefing", "-"],
-        ["Company Emergency Response Team (CERT)", `${year}`, "CERT Training / Table-Top Exercise", "-"],
-        ["Fire Wardens", `${year}`, "Fire Warden Briefing", "-"]
-      ],
-      [2000, 1200, 4000, 2160]
+      ["Category", "From", "To", "Brief Description of Training", "No. of Participants"],
+      getAnnualTrainingRows(primaryBuilding, year),
+      [1800, 1200, 1200, 3360, 1800]
+    ),
+    spacer(),
+    spacer(),
+
+    h1("4.2 RECORDS OF FIRE SAFETY WORKS, IMPROVEMENT OF BUILDING STRUCTURE, LAYOUT, FIRE PROTECTION SYSTEMS AND OTHER FIRE SAFETY MEASURES"),
+    spacer(),
+    makeTable(
+      ["Type of Works / Improvement", "Description of Works / Improvement", "Date of Implementation"],
+      getAnnualWorksRows(primaryBuilding, year),
+      [2800, 4160, 2400]
     ),
     spacer(),
     spacer(),
 
     // ── Fire Drills ──
-    h1("FIRE EVACUATION DRILLS CONDUCTED"),
+    h1("4.3 FIRE EVACUATION DRILLS CONDUCTED"),
     spacer(),
     ...(yearDrills.length === 0
       ? [para("No fire drills were conducted during this period.")]
       : [
           makeTable(
-            ["S/N", "Building", "Date", "Participants", "Time Taken", "Issues Faced", "Result"],
+            ["S/N", "Date", "No. of Occupants", "No. of Participants", "Time Taken for Evacuation", "Issues Faced"],
             yearDrills.map((d, idx) => {
-              const bldg = buildingMap.get(d.buildingId);
-              const bldgName = bldg
-                ? (bldg.buildingName || bldg.building_name || d.buildingId)
-                : (d.buildingName || "-");
               return [
                 String(idx + 1).padStart(2, "0"),
-                bldgName,
-                getFireDrillReportDate(d) || "-",
-                d.participants || "-",
+                fmtDateShort(getFireDrillReportDate(d)),
+                d.numberOfOccupants || d.occupants || occupantLoad,
+                d.actualParticipants || d.participantsAttended || d.participants || "-",
                 d.totalEvacuationTime || d.evacuationTime || "-",
-                d.issueFound || d.observations || "N/A",
-                d.performanceStatus || d.status || "-"
+                d.issueFound || d.observations || "N/A"
               ];
             }),
-            [400, 1600, 1200, 1000, 1200, 2400, 1160]
+            [500, 1200, 1500, 1500, 1900, 2760]
           )
         ]),
     spacer(),
@@ -1482,8 +1576,10 @@ export const generateAnnualReport = async ({
     spacer(),
     spacer(),
 
+    ...fireDrillPhotoChildren,
+
     // ── Findings & Rectification ──
-    h1("FINDINGS OF FIRE SAFETY CHECKS & RECTIFICATION WORKS"),
+    h1("4.4 FINDINGS OF FIRE SAFETY CHECKS & RECTIFICATION WORKS"),
     spacer(),
     ...(yearIssues.length === 0
       ? [
@@ -1516,7 +1612,7 @@ export const generateAnnualReport = async ({
     spacer(),
 
     // ── Schedule ──
-    h1(`SCHEDULE OF FIRE SAFETY ACTIVITIES FOR ${nextYear}`),
+    h1("4.5 SCHEDULE OF FIRE SAFETY ACTIVITIES FOR THE NEXT 12 MONTHS"),
     spacer(),
     makeTable(
       ["S/N", "From", "To", "Brief Description of Activity"],
@@ -1527,7 +1623,7 @@ export const generateAnnualReport = async ({
     spacer(),
 
     // ── Matters Arising ──
-    h1("MATTERS ARISING FROM PREVIOUS REPORT"),
+    h1("4.6 MATTERS ARISING FROM PREVIOUS REPORT"),
     spacer(),
     ...(yearIssues.filter(i => !isIssueResolved(i)).length === 0
       ? [
@@ -1554,36 +1650,73 @@ export const generateAnnualReport = async ({
     spacer(),
 
     // ── Arson Prevention ──
-    h1("ARSON PREVENTION PLAN (APP)"),
+    h1("4.7 ARSON PREVENTION PLAN (APP)"),
     spacer(),
+    h2("ARSON RISK ASSESSMENT"),
     h2("A) Identifying Critical Locations of Fire Safety Systems"),
     para("• Ensure the Genset room, Switch Room, and Lift Motor Room are always neat and tidy."),
     para("• Ensure there is no leakage in the petroleum storage area."),
-    para("• All fire protection equipment rooms are to remain locked and accessible only to authorised personnel."),
     spacer(),
     h2("B) Identifying Fire Hazards"),
-    para("• Regular checks to be conducted to ensure no accumulation of combustible materials in common areas."),
-    para("• All discarded items and rubbish to be disposed of promptly."),
-    para("• Storage areas to be inspected monthly for fire hazard compliance."),
+    para("• Remove discarded items, rubbish, and pallets from common areas."),
     spacer(),
-    h2("C) Preventive Measures"),
-    para("• CCTV surveillance maintained at all entry/exit points and fire risk areas."),
-    para("• All abnormalities to be reported to the FSM immediately."),
-    para("• Building Management to ensure contractor activities are supervised at all times."),
+    h2("C) Checks on Adequacy of Existing Security Measures"),
+    para("• Security guards are to patrol critical areas daily."),
+    para("• Security staff will check and verify any suspicious activity detected."),
+    para("• Any suspicious person found in the compound will be alerted immediately."),
+    spacer(),
+    h2("D) Scenario Planning"),
+    para("• Emergency response and evacuation arrangements are to be reviewed after incidents, drills, or significant changes to the premises."),
+    spacer(),
+    h2("FIRE SAFETY MANAGEMENT PROCEDURES"),
+    h2("A) Inspection Procedures of Fire Safety Systems"),
+    para("• Inspect fire safety hazards and equipment monthly."),
+    para("• Periodically inspect and check fire extinguishers, dry risers, and related equipment."),
+    spacer(),
+    h2("B) Fire Safety Housekeeping"),
+    para("• Conduct daily checks to ensure firefighting equipment, hose reels, dry risers, and fire extinguishers are unobstructed."),
+    para("• Security staff are to conduct regular inspections for suspicious items."),
+    spacer(),
+    h2("C) Education and Training for Occupants"),
+    para("• Conduct fire-extinguisher training so occupants and visitors understand the correct steps for using an extinguisher."),
+    spacer(),
+    h2("RISK REDUCTION MEASURES"),
+    para("• Store flammable materials properly to reduce the likelihood and severity of ignition."),
+    para("• Conduct regular checks and maintenance of fire protection systems."),
+    para("• Train occupants to recognise fire hazards and respond safely."),
     spacer(),
     spacer(),
 
-    // ── Signature ──
-    h1("CERTIFICATION"),
+    h1("4.8 ANY OTHER ACTIONS TAKEN TO IMPROVE FIRE SAFETY"),
     spacer(),
-    para("I hereby certify that this Annual Fire Safety Report has been prepared accurately and reflects the fire safety activities conducted during the year in accordance with the requirements of the Fire Safety Act (Cap. 109A)."),
+    h2("1. MAINTENANCE"),
+    para(getOtherFireSafetyActionsText(primaryBuilding)),
     spacer(),
     spacer(),
-    para([txt("Name of Fire Safety Manager:  ", { bold: true }), txt(generatedBy)]),
+
+    h1("5. DECLARATION BY FSM"),
     spacer(),
-    para([txt("Signature:  ", { bold: true }), txt("_______________________________")]),
+    makeTable(
+      ["Declaration", "Signature"],
+      [[
+        `I, ${fsm.name}, hereby declare that I have prepared this Annual Fire Safety Report accurately to the best of my knowledge. I have also submitted this report to the building owner on ${fmtDate(new Date())}.`,
+        "\n\n\n"
+      ]],
+      [6200, 3160]
+    ),
     spacer(),
-    para([txt("Date:  ", { bold: true }), txt(fmtDate(new Date()))]),
+    spacer(),
+
+    h1("6. DECLARATION BY BUILDING OWNER"),
+    spacer(),
+    makeTable(
+      ["Declaration", "Signature"],
+      [[
+        `I, ${owner.name}, hereby declare that I have reviewed the Annual Fire Safety Report with my Fire Safety Manager on ${fmtDate(new Date())}. I understand that this includes rectifying the fire safety issues identified and ensuring the required Emergency Preparedness measures are in place at my premises.`,
+        "\n\n\n"
+      ]],
+      [6200, 3160]
+    ),
     spacer(),
     spacer(),
 
@@ -1594,6 +1727,187 @@ export const generateAnnualReport = async ({
   const blob = await Packer.toBlob(doc);
   const buildingFileName = buildingName.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
   saveAs(blob, `FSM_Annual_Report_${buildingFileName}_${year}.docx`);
+};
+
+const firstReportValue = (...values) =>
+  values.find((value) =>
+    value !== undefined &&
+    value !== null &&
+    String(value).trim() !== ""
+  );
+
+const getUserDisplayName = (user, fallback = "-") => {
+  if (!user) return fallback;
+  const combinedName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  return user.fullName || user.displayName || combinedName || user.userId || user.email || fallback;
+};
+
+const findUserByReference = (users = [], reference) => {
+  const target = normalizeId(reference);
+  if (!target) return null;
+  return users.find((user) =>
+    [user.uid, user.id, user.profileId, user.authUid, user.userId, user.email]
+      .map(normalizeId)
+      .filter(Boolean)
+      .includes(target)
+  ) || null;
+};
+
+export const getAnnualReportParties = (building = {}, users = [], generatedBy = "Admin") => {
+  const ownerUser = findUserByReference(
+    users,
+    firstReportValue(building.customerId, building.ownerId, building.buildingOwnerId)
+  );
+  const fsmUser = findUserByReference(
+    users,
+    firstReportValue(building.assignedFsmId, building.fsmId)
+  );
+
+  return {
+    owner: {
+      name: getUserDisplayName(
+        ownerUser,
+        firstReportValue(
+          building.ownerName,
+          building.buildingOwnerName,
+          building.customerName,
+          building.customer,
+          "Building Owner / Occupier"
+        )
+      ),
+      email: firstReportValue(
+        ownerUser?.email,
+        building.ownerEmail,
+        building.buildingOwnerEmail,
+        building.customerEmail,
+        "-"
+      ),
+      contactNumber: firstReportValue(
+        ownerUser?.phoneNumber,
+        ownerUser?.contactNumber,
+        building.ownerContactNumber,
+        building.ownerPhoneNumber,
+        building.customerContactNumber,
+        "-"
+      )
+    },
+    fsm: {
+      name: getUserDisplayName(
+        fsmUser,
+        firstReportValue(building.assignedFsmName, building.assignedFsm, generatedBy, "-")
+      ),
+      email: firstReportValue(
+        fsmUser?.email,
+        building.fsmEmail,
+        building.assignedFsmEmail,
+        "-"
+      ),
+      contactNumber: firstReportValue(
+        fsmUser?.phoneNumber,
+        fsmUser?.contactNumber,
+        building.fsmContactNumber,
+        building.assignedFsmContactNumber,
+        "-"
+      )
+    }
+  };
+};
+
+const formatFloorArea = (value) => {
+  const normalized = String(value ?? "").trim();
+  if (!normalized || normalized === "-") return "-";
+  return /(?:m²|m2|sq\.?\s*m)/i.test(normalized) ? normalized : `${normalized} m²`;
+};
+
+const getAnnualTrainingRows = (building, year) => {
+  const records = firstReportValue(
+    building?.trainingRecords,
+    building?.fireSafetyTraining,
+    building?.trainingActivities
+  );
+  const matchingRecords = Array.isArray(records)
+    ? records.filter((record) => {
+        const date = parseDate(record.date || record.dateFrom || record.trainingDate);
+        const recordYear = Number(record.year);
+        return (!date && !recordYear) || date?.getFullYear() === year || recordYear === year;
+      })
+    : [];
+
+  if (matchingRecords.length > 0) {
+    return matchingRecords.map((record) => [
+      record.category || record.audience || "Others",
+      fmtDate(record.dateFrom || record.date || record.trainingDate),
+      fmtDate(record.dateTo || record.date || record.trainingDate),
+      record.description || record.briefDescription || record.trainingDescription || "-",
+      String(firstReportValue(record.participants, record.numberOfParticipants, record.attendance, "-"))
+    ]);
+  }
+
+  return [
+    ["Occupants / Tenants", "-", "-", "-", "-"],
+    ["Company Emergency Response Team (CERT)", "-", "-", "-", "-"],
+    ["Fire Wardens", "-", "-", "-", "-"],
+    ["Others (please specify)", "-", "-", "-", "-"]
+  ];
+};
+
+const getAnnualWorksRows = (building, year) => {
+  const works = firstReportValue(
+    building?.fireSafetyWorks,
+    building?.improvementWorks,
+    building?.fireSafetyImprovements
+  );
+  const matchingWorks = Array.isArray(works)
+    ? works.filter((work) => {
+        const date = parseDate(work.date || work.implementationDate || work.dateOfImplementation);
+        const workYear = Number(work.year);
+        return (!date && !workYear) || date?.getFullYear() === year || workYear === year;
+      })
+    : [];
+
+  return matchingWorks.length > 0
+    ? matchingWorks.map((work) => [
+        work.type || work.workType || "-",
+        work.description || work.details || "-",
+        fmtDate(work.implementationDate || work.dateOfImplementation || work.date)
+      ])
+    : [["NIL", "NIL", "NIL"]];
+};
+
+const getCertMembersText = (building) => {
+  const members = firstReportValue(
+    building?.certMembers,
+    building?.trainedCertMembers,
+    building?.emergencyTeamMembers
+  );
+  if (!Array.isArray(members) || members.length === 0) return "-";
+  return members.map((member, index) => {
+    if (typeof member === "string") return `${index + 1}. ${member}`;
+    const name = member.name || member.fullName || "Unnamed member";
+    const role = member.role || member.designation;
+    return `${index + 1}. ${name}${role ? ` (${role})` : ""}`;
+  }).join("\n");
+};
+
+const getOtherFireSafetyActionsText = (building) => {
+  const actions = firstReportValue(
+    building?.maintenanceActions,
+    building?.otherFireSafetyActions
+  );
+  if (Array.isArray(actions)) {
+    const actionText = actions
+      .map((action) =>
+        typeof action === "string"
+          ? action
+          : action.description || action.action || action.details || ""
+      )
+      .filter(Boolean)
+      .join("\n");
+    if (actionText) return actionText;
+  } else if (actions) {
+    return String(actions);
+  }
+  return "System vendors tested and serviced the fire protection systems in accordance with the maintenance contracts. Defective or substandard devices are to be replaced or rectified.";
 };
 
 // ─── Custom Report ────────────────────────────────────────────────────────────
@@ -1612,6 +1926,7 @@ export const generateCustomReport = async ({
   inspections = [],
   inspectionResults = [],
   issues = [],
+  users = [],
   generatedBy = "Admin"
 }) => {
   const docxNS = await loadDocx();
@@ -1668,9 +1983,23 @@ export const generateCustomReport = async ({
     ? (primaryBuilding.buildingName || primaryBuilding.building_name || primaryBuilding.id)
     : "All Buildings";
   const buildingAddress = primaryBuilding?.address || "-";
+  const { owner, fsm } = getAnnualReportParties(primaryBuilding || {}, users, generatedBy);
 
   const title = (customTitle || "").trim() || `Custom Fire Safety Report — ${periodLabel}`;
   const sec = sections;
+  const fireDrillPhotoChildren =
+    reportType === "Annual" && sec.drills !== false
+      ? await buildAnnualFireDrillPhotoChildren({
+          docxNS,
+          drills,
+          buildingMap,
+          h1,
+          h2,
+          para,
+          txt,
+          spacer
+        })
+      : [];
 
   // ── Cover ──
   const children = [
@@ -1706,7 +2035,6 @@ export const generateCustomReport = async ({
             ["Checklist Items Passed", String(checklistSummary.passed)],
             ["Checklist Defects Found", String(checklistSummary.failed)],
             ["Checklist Items N.A.", String(checklistSummary.notApplicable)],
-            ["Fire Drills Conducted", String(drills.length)],
             ["Issues Created in Period", String(issueSnapshot.created.length)],
             ["Outstanding at Period End", String(openIssues.length)],
             ["Resolved / Closed in Period", String(issueSnapshot.resolved.length)]
@@ -1759,33 +2087,6 @@ export const generateCustomReport = async ({
         }),
         spacer()
       );
-    }
-
-    if (sec.drills !== false) {
-      children.push(h1("FIRE DRILL RECORDS"), spacer());
-      if (drills.length === 0) {
-        children.push(para("No fire drills were conducted during this period."));
-      } else {
-        children.push(
-          makeTable(
-            ["S/No", "Building", "Type", "Date", "Participants", "Evacuation Time", "Result"],
-            drills.map((d, idx) => {
-              const b = buildingMap.get(d.buildingId);
-              return [
-                String(idx + 1),
-                b ? (b.buildingName || b.building_name || d.buildingId) : (d.buildingName || "-"),
-                d.drillType || "Standard Fire Drill",
-                d.actualDate || d.drillDate || "-",
-                d.participants || "-",
-                d.totalEvacuationTime || d.evacuationTime || "-",
-                d.performanceStatus || d.status || "-"
-              ];
-            }),
-            [400, 1500, 1400, 1200, 1000, 1600, 1260]
-          )
-        );
-      }
-      children.push(spacer(), spacer());
     }
 
     if (sec.issues !== false) {
@@ -1866,30 +2167,43 @@ export const generateCustomReport = async ({
 
     if (sec.buildingInfo !== false) {
       children.push(
-        h1("BUILDING INFORMATION"),
+        h1("1. BUILDING INFORMATION"),
         spacer(),
         infoTable([
           ["Name of Building", buildingName],
           ["Address", buildingAddress],
           ["No. of Storeys", String(noOfStoreys)],
-          ["Gross Floor Area (GFA)", gfa ? `${gfa} m²` : "-"],
+          ["Gross Floor Area (GFA)", formatFloorArea(gfa)],
           ["Occupant Load (OL)", String(occupantLoad)]
         ]),
         spacer(), spacer()
       );
     }
 
+    if (sec.buildingOwners !== false) {
+      children.push(
+        h1("2. BUILDING OWNER(S)"),
+        spacer(),
+        makeTable(
+          ["Name", "Email Address", "Contact Number"],
+          [[owner.name, owner.email, owner.contactNumber]],
+          [3200, 3600, 2560]
+        ),
+        spacer(), spacer()
+      );
+    }
+
     if (sec.epMeasures !== false) {
       children.push(
-        h1("PROVISION OF EMERGENCY PREPAREDNESS (EP) MEASURES"),
+        h1("3. PROVISION OF EMERGENCY PREPAREDNESS (EP) MEASURES"),
         spacer(),
         makeTable(
           ["S/No", "EP Measure", "Details"],
           [
-            ["1", "Emergency Response Plan (ERP)", "Updated annually — refer to Building Management"],
-            ["2", "Validity of Fire Certificate (FC)", "Please verify with SCDF records"],
-            ["3", "Name of Appointed FSM", generatedBy],
-            ["4", "CERT Members", "As per building emergency team register"]
+            ["1", "Updated Emergency Response Plan (ERP)", `Updated: ${firstReportValue(primaryBuilding?.erpUpdated, "-")}\nDate of updated ERP: ${fmtDate(primaryBuilding?.erpUpdatedDate)}`],
+            ["2", "Validity of Fire Certificate (FC)", `From: ${fmtDate(primaryBuilding?.fireCertificateValidFrom)}\nTo: ${fmtDate(primaryBuilding?.fireCertificateValidTo)}`],
+            ["3", "Name of Appointed FSM", `${fsm.name}\nContact No.: ${fsm.contactNumber}\nEmail: ${fsm.email}`],
+            ["4", "Details of Trained CERT Members", getCertMembersText(primaryBuilding)]
           ],
           [500, 3000, 5860]
         ),
@@ -1897,44 +2211,53 @@ export const generateCustomReport = async ({
       );
     }
 
+    children.push(h1("4. DETAILS OF ANNUAL FIRE SAFETY REPORT"), spacer());
+
     if (sec.training !== false) {
       children.push(
-        h1("RECORD OF TRAINING CONDUCTED"),
+        h1("4.1 RECORD OF TRAINING CONDUCTED"),
         spacer(),
         makeTable(
-          ["Category", "Date", "Description", "No. of Participants"],
-          [
-            ["Occupants / Tenants", `${year}`, "Annual Fire Safety Briefing", "-"],
-            ["CERT", `${year}`, "CERT Training / Table-Top Exercise", "-"],
-            ["Fire Wardens", `${year}`, "Fire Warden Briefing", "-"]
-          ],
-          [2000, 1200, 4000, 2160]
+          ["Category", "From", "To", "Brief Description of Training", "No. of Participants"],
+          getAnnualTrainingRows(primaryBuilding, year),
+          [1800, 1200, 1200, 3360, 1800]
+        ),
+        spacer(), spacer()
+      );
+    }
+
+    if (sec.works !== false) {
+      children.push(
+        h1("4.2 RECORDS OF FIRE SAFETY WORKS, IMPROVEMENT OF BUILDING STRUCTURE, LAYOUT, FIRE PROTECTION SYSTEMS AND OTHER FIRE SAFETY MEASURES"),
+        spacer(),
+        makeTable(
+          ["Type of Works / Improvement", "Description of Works / Improvement", "Date of Implementation"],
+          getAnnualWorksRows(primaryBuilding, year),
+          [2800, 4160, 2400]
         ),
         spacer(), spacer()
       );
     }
 
     if (sec.drills !== false) {
-      children.push(h1("FIRE EVACUATION DRILLS CONDUCTED"), spacer());
+      children.push(h1("4.3 FIRE EVACUATION DRILLS CONDUCTED"), spacer());
       if (drills.length === 0) {
         children.push(para("No fire drills were conducted during this period."));
       } else {
         children.push(
           makeTable(
-            ["S/N", "Building", "Date", "Participants", "Time", "Issues", "Result"],
+            ["S/N", "Date", "No. of Occupants", "No. of Participants", "Time Taken for Evacuation", "Issues Faced"],
             drills.map((d, idx) => {
-              const b = buildingMap.get(d.buildingId);
               return [
                 String(idx + 1).padStart(2, "0"),
-                b ? (b.buildingName || b.building_name || d.buildingId) : (d.buildingName || "-"),
-                d.actualDate || d.drillDate || "-",
-                d.participants || "-",
+                fmtDateShort(getFireDrillReportDate(d)),
+                d.numberOfOccupants || d.occupants || occupantLoad,
+                d.actualParticipants || d.participantsAttended || d.participants || "-",
                 d.totalEvacuationTime || d.evacuationTime || "-",
-                d.issueFound || d.observations || "N/A",
-                d.performanceStatus || d.status || "-"
+                d.issueFound || d.observations || "N/A"
               ];
             }),
-            [400, 1600, 1200, 1000, 1200, 2400, 1160]
+            [500, 1200, 1500, 1500, 1900, 2760]
           )
         );
       }
@@ -1960,8 +2283,12 @@ export const generateCustomReport = async ({
       );
     }
 
+    if (sec.drills !== false) {
+      children.push(...fireDrillPhotoChildren);
+    }
+
     if (sec.findings !== false) {
-      children.push(h1("FINDINGS OF FIRE SAFETY CHECKS & RECTIFICATION WORKS"), spacer());
+      children.push(h1("4.4 FINDINGS OF FIRE SAFETY CHECKS & RECTIFICATION WORKS"), spacer());
       children.push(
         makeTable(
           ["S/N", "Date", "Building", "Issue Identified", "Rectification Taken"],
@@ -1985,17 +2312,16 @@ export const generateCustomReport = async ({
 
     if (sec.schedule !== false) {
       children.push(
-        h1(`SCHEDULE OF FIRE SAFETY ACTIVITIES FOR ${nextYear}`),
+        h1("4.5 SCHEDULE OF FIRE SAFETY ACTIVITIES FOR THE NEXT 12 MONTHS"),
         spacer(),
         makeTable(
           ["S/N", "From", "To", "Activity"],
           [
             ["1", `Jan ${nextYear}`, `Dec ${nextYear}`, "Monthly on-site fire safety inspections"],
             ["2", `Apr ${nextYear}`, `Apr ${nextYear}`, "Fire Warden Briefing / Table-Top Exercise"],
-            ["3", `May ${nextYear}`, `May ${nextYear}`, "Fire Evacuation Drill (1st)"],
+            ["3", `May ${nextYear}`, `May ${nextYear}`, "Annual Fire Evacuation Drill"],
             ["4", `Aug ${nextYear}`, `Aug ${nextYear}`, "Fire Safety Equipment Servicing Review"],
-            ["5", `Sep ${nextYear}`, `Sep ${nextYear}`, "Basic Fire Fighting Hands-on Training"],
-            ["6", `Nov ${nextYear}`, `Nov ${nextYear}`, "Fire Evacuation Drill (2nd)"]
+            ["5", `Sep ${nextYear}`, `Sep ${nextYear}`, "Basic Fire Fighting Hands-on Training"]
           ],
           [400, 1200, 1200, 6560]
         ),
@@ -2006,7 +2332,7 @@ export const generateCustomReport = async ({
     if (sec.mattersArising !== false) {
       const outstanding = iss.filter((i) => !isIssueResolved(i));
       children.push(
-        h1("MATTERS ARISING FROM PREVIOUS REPORT"),
+        h1("4.6 MATTERS ARISING FROM PREVIOUS REPORT"),
         spacer(),
         makeTable(
           ["S/N", "Issue(s)", "Action(s) Taken"],
@@ -2025,7 +2351,7 @@ export const generateCustomReport = async ({
 
     if (sec.arsonPlan !== false) {
       children.push(
-        h1("ARSON PREVENTION PLAN (APP)"),
+        h1("4.7 ARSON PREVENTION PLAN (APP)"),
         spacer(),
         h2("A) Identifying Critical Locations of Fire Safety Systems"),
         para("• Ensure the Genset room, Switch Room, and Lift Motor Room are always neat and tidy."),
@@ -2042,22 +2368,65 @@ export const generateCustomReport = async ({
         spacer(), spacer()
       );
     }
+
+    if (sec.otherActions !== false) {
+      children.push(
+        h1("4.8 ANY OTHER ACTIONS TAKEN TO IMPROVE FIRE SAFETY"),
+        spacer(),
+        h2("1. MAINTENANCE"),
+        para(getOtherFireSafetyActionsText(primaryBuilding)),
+        spacer(), spacer()
+      );
+    }
+
+    if (sec.fsmDeclaration !== false) {
+      children.push(
+        h1("5. DECLARATION BY FSM"),
+        spacer(),
+        makeTable(
+          ["Declaration", "Signature"],
+          [[
+            `I, ${fsm.name}, hereby declare that I have prepared this Annual Fire Safety Report accurately to the best of my knowledge. I have also submitted this report to the building owner on ${fmtDate(today)}.`,
+            "\n\n\n"
+          ]],
+          [6200, 3160]
+        ),
+        spacer(), spacer()
+      );
+    }
+
+    if (sec.ownerDeclaration !== false) {
+      children.push(
+        h1("6. DECLARATION BY BUILDING OWNER"),
+        spacer(),
+        makeTable(
+          ["Declaration", "Signature"],
+          [[
+            `I, ${owner.name}, hereby declare that I have reviewed the Annual Fire Safety Report with my Fire Safety Manager on ${fmtDate(today)}. I understand that this includes rectifying the fire safety issues identified and ensuring the required Emergency Preparedness measures are in place at my premises.`,
+            "\n\n\n"
+          ]],
+          [6200, 3160]
+        ),
+        spacer(), spacer()
+      );
+    }
   }
 
-  // ── Certification (always) ──
-  children.push(
-    h1("CERTIFICATION"),
-    spacer(),
-    para("I hereby certify that the above information is accurate and the fire safety activities have been carried out in accordance with the requirements of the Fire Safety Act (Cap. 109A)."),
-    spacer(), spacer(),
-    para([txt("Name of Fire Safety Manager:  ", { bold: true }), txt(generatedBy)]),
-    spacer(),
-    para([txt("Signature:  ", { bold: true }), txt("_______________________________")]),
-    spacer(),
-    para([txt("Date:  ", { bold: true }), txt(fmtDate(today))]),
-    spacer(),
-    centered([txt("— End of Report —", { italics: true, color: "6B7280" })])
-  );
+  if (reportType !== "Annual") {
+    children.push(
+      h1("CERTIFICATION"),
+      spacer(),
+      para("I hereby certify that the above information is accurate and the fire safety activities have been carried out in accordance with the requirements of the Fire Safety Act (Cap. 109A)."),
+      spacer(), spacer(),
+      para([txt("Name of Fire Safety Manager:  ", { bold: true }), txt(generatedBy)]),
+      spacer(),
+      para([txt("Signature:  ", { bold: true }), txt("_______________________________")]),
+      spacer(),
+      para([txt("Date:  ", { bold: true }), txt(fmtDate(today))]),
+      spacer()
+    );
+  }
+  children.push(centered([txt("— End of Report —", { italics: true, color: "6B7280" })]));
 
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);

@@ -1,4 +1,10 @@
-import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import {
+  deleteObject,
+  getBytes,
+  getDownloadURL,
+  ref,
+  uploadBytes
+} from "firebase/storage";
 import { storage } from "../config/firebase";
 
 const sanitizePathPart = (value) =>
@@ -8,6 +14,7 @@ const sanitizePathPart = (value) =>
     .replace(/-+/g, "-") || "file";
 
 let uploadSequence = 0;
+const downloadBytesCache = new Map();
 
 export const STORAGE_FOLDERS = {
   INSPECTION_DEFECT_PHOTOS: "inspection-defect-photos",
@@ -91,6 +98,18 @@ export const uploadFile = async (file, folder = "uploads") => {
     size: file.size,
     type: file.type
   };
+};
+
+export const downloadUploadedFileBytes = async (url) => {
+  if (!url) throw new Error("A Firebase Storage URL is required.");
+  if (!downloadBytesCache.has(url)) {
+    const downloadPromise = getBytes(ref(storage, url)).catch((error) => {
+      downloadBytesCache.delete(url);
+      throw error;
+    });
+    downloadBytesCache.set(url, downloadPromise);
+  }
+  return downloadBytesCache.get(url);
 };
 
 export const deleteUploadedFile = async (url, expectedFolder) => {

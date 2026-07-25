@@ -75,3 +75,13 @@ test("generates an annual report for only the selected building", async () => {
     reportTitle: expect.stringContaining("South Tower")
   }));
 });
+
+test("offers fire drill records only for custom annual reports", async () => {
+  render(<AdminReports />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Custom Report" }));
+  expect(screen.queryByText("Fire Drill Records")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Annual" }));
+  expect(await screen.findByText("Fire Drill Records")).toBeInTheDocument();
+});

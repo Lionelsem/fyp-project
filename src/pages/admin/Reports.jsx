@@ -30,22 +30,26 @@ const MONTHLY_SECTIONS = {
   summary:      { label: "Executive Summary",      default: true },
   inspections:  { label: "Inspection Records",     default: true },
   checklistResults: { label: "Inspection Checklist Results", default: true },
-  drills:       { label: "Fire Drill Records",     default: true },
   issues:       { label: "Issues & Defects",       default: true },
   observations: { label: "General Observations",   default: true },
   appendixA:    { label: "Appendix A — Findings",  default: true }
 };
 
 const ANNUAL_SECTIONS = {
-  buildingInfo:  { label: "Building Information",         default: true },
-  epMeasures:   { label: "EP Measures",                  default: true },
-  training:     { label: "Training Records",             default: true },
-  drills:       { label: "Fire Drill Records",           default: true },
-  drillReview:  { label: "Review of Fire Drills",        default: true },
-  findings:     { label: "Findings & Rectification",     default: true },
-  schedule:     { label: "Next 12 Months Schedule",      default: true },
-  mattersArising:{ label: "Matters Arising",             default: true },
-  arsonPlan:    { label: "Arson Prevention Plan",        default: true }
+  buildingInfo:     { label: "Building Information",      default: true },
+  buildingOwners:   { label: "Building Owner(s)",         default: true },
+  epMeasures:       { label: "EP Measures",               default: true },
+  training:         { label: "Training Records",          default: true },
+  works:            { label: "Fire Safety Works",         default: true },
+  drills:           { label: "Fire Drill Records",        default: true },
+  drillReview:      { label: "Review of Fire Drills",     default: true },
+  findings:         { label: "Findings & Rectification",  default: true },
+  schedule:         { label: "Next 12 Months Schedule",   default: true },
+  mattersArising:   { label: "Matters Arising",           default: true },
+  arsonPlan:        { label: "Arson Prevention Plan",     default: true },
+  otherActions:     { label: "Other Fire Safety Actions", default: true },
+  fsmDeclaration:   { label: "FSM Declaration",           default: true },
+  ownerDeclaration: { label: "Owner Declaration",         default: true }
 };
 
 const defaultSections = (type) => {
@@ -254,7 +258,11 @@ const AdminReports = () => {
     setGenerating(true);
     setGenerateError(null);
     try {
-      const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
+      const [inspections, issueList, inspectionResults] = await Promise.all([
+        getAllInspections(),
+        getIssues(),
+        getAllInspectionResults()
+      ]);
       const buildingsToUse = selectedBuilding === "all"
         ? buildings
         : buildings.filter((b) => b.id === selectedBuilding);
@@ -262,7 +270,7 @@ const AdminReports = () => {
       const generator = format === "pdf" ? generateMonthlyReportPdf : generateMonthlyReport;
       await generator({
         month: selectedMonth, year: selectedYear,
-        buildings: buildingsToUse, fireDrills: firedrills,
+        buildings: buildingsToUse,
         inspections, inspectionResults, issues: issueList, generatedBy: generatedByName()
       });
 
@@ -321,7 +329,7 @@ const AdminReports = () => {
       await generateAnnualReport({
         year: annualYear, buildings: annualBuildings,
         fireDrills: firedrills, inspections, inspectionResults,
-        issues: issueList, generatedBy: generatedByName()
+        issues: issueList, users, generatedBy: generatedByName()
       });
       await createReport({
         reportId:    `REP-${annualYear}-ANN-${Date.now()}`,
@@ -397,6 +405,7 @@ const AdminReports = () => {
         inspections,
         inspectionResults,
         issues:         issueList,
+        users,
         generatedBy:    generatedByName()
       });
 

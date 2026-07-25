@@ -7,6 +7,7 @@ const initialForm = {
   buildingName: "",
   address: "",
   storeys: "",
+  grossFloorArea: "",
   occupantLoad: "",
   assignedFsm: "",
   status: "Compliant"
@@ -21,7 +22,7 @@ const normalizeBuildingPayload = (form) => ({
   occupantLoad: String(form.occupantLoad || "").trim(),
   assignedFsmId: String(form.assignedFsm || "").trim(),
   occupancyType: "",
-  grossFloorAreaGfa: "",
+  grossFloorAreaGfa: String(form.grossFloorArea || "").trim(),
   customerId: "",
   status: form.status
 });
@@ -121,6 +122,19 @@ const CreateBuilding = () => {
                 onChange={handleChange("storeys")}
               />
             </div>
+            <div className="form-field">
+              <label className="form-label">Gross Floor Area (m²)</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. 12,500"
+                value={form.grossFloorArea}
+                onChange={handleChange("grossFloorArea")}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid">
             <div className="form-field">
               <label className="form-label">Occupant Load</label>
               <input
