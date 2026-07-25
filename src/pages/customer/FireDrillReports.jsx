@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getAllFireDrills, updateFireDrill } from "../../services/fireDrillService";
+import { Link } from "react-router-dom";
+import { addFireDrillCustomerFeedback, getAllFireDrills } from "../../services/fireDrillService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import FeedbackHistory from "../../components/customer/FeedbackHistory";
+import { useAuthContext } from "../../context/AuthContext";
 
 const fallbackDrills = [
   {
@@ -130,6 +133,7 @@ const buildFireDrillPdf = (drill) => {
 };
 
 const FireDrillReports = () => {
+  const { user } = useAuthContext();
   const [drills, setDrills] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -206,10 +210,19 @@ const FireDrillReports = () => {
     setDrillCommentMessage("");
 
     try {
-      await updateFireDrill(latestDrill.id, { customerComments: drillComment });
+      const submittedAt = new Date();
+      const feedbackEntry = {
+        message: drillComment.trim(),
+        submittedAt,
+        customerId: user?.uid || user?.authUid || "",
+        customerName: user?.fullName || user?.name || user?.email || "Customer"
+      };
+      await addFireDrillCustomerFeedback(latestDrill.id, drillComment, user);
       setDrills((currentDrills) =>
         currentDrills.map((drill) =>
-          drill.id === latestDrill.id ? { ...drill, customerComments: drillComment } : drill
+          drill.id === latestDrill.id
+            ? { ...drill, customerComments: feedbackEntry.message, customerFeedbackUpdatedAt: submittedAt, customerFeedbackHistory: [...(drill.customerFeedbackHistory || []), feedbackEntry] }
+            : drill
         )
       );
       setDrillCommentMessage("Feedback saved successfully.");
@@ -370,6 +383,7 @@ const FireDrillReports = () => {
                     {drillCommentMessage}
                   </p>
                 )}
+                <FeedbackHistory record={latestDrill} />
               </div>
             </div>
           </div>
@@ -469,9 +483,9 @@ const FireDrillReports = () => {
             <p style={{ margin: "0 0 12px", color: "#64748b", lineHeight: "1.6" }}>
               Contact the fire safety team if you need a full drill report, a briefing, or help with corrective actions.
             </p>
-            <button type="button" className="secondary-btn" style={{ width: "100%" }}>
+            <Link to="/feedbacks" className="secondary-btn" style={{ width: "100%" }}>
               Contact Support
-            </button>
+            </Link>
           </div>
         </div>
       </div>

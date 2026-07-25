@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -62,6 +63,25 @@ export const getAllFireDrills = async () => {
 export const updateFireDrill = async (id, data) => {
   return updateDoc(doc(db, COLLECTION_NAMES.FIRE_DRILLS, id), {
     ...data,
+    updatedAt: serverTimestamp()
+  });
+};
+
+export const addFireDrillCustomerFeedback = async (id, feedback, customer = {}) => {
+  const message = String(feedback || "").trim();
+  if (!message) throw new Error("Feedback cannot be empty.");
+
+  const entry = {
+    message,
+    submittedAt: new Date(),
+    customerId: customer.uid || customer.authUid || "",
+    customerName: customer.fullName || customer.name || customer.email || "Customer"
+  };
+
+  return updateDoc(doc(db, COLLECTION_NAMES.FIRE_DRILLS, id), {
+    customerComments: message,
+    customerFeedbackUpdatedAt: entry.submittedAt,
+    customerFeedbackHistory: arrayUnion(entry),
     updatedAt: serverTimestamp()
   });
 };

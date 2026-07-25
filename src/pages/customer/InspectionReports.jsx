@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
-import { getAllReports, updateReport } from "../../services/reportService";
+import FeedbackHistory from "../../components/customer/FeedbackHistory";
+import { useAuthContext } from "../../context/AuthContext";
+import { addReportCustomerFeedback, getAllReports } from "../../services/reportService";
 
 const parseReportYear = (dateString) => {
   const yearMatch = String(dateString || "").match(/\b(?:19|20)\d{2}\b/);
@@ -194,6 +197,7 @@ const buildInspectionOverviewPdf = (report) => {
 };
 
 const InspectionReports = () => {
+  const { user } = useAuthContext();
   const [search, setSearch] = useState("");
 
   const [yearFilter, setYearFilter] = useState("");
@@ -369,13 +373,14 @@ const InspectionReports = () => {
 
       setRemarksSavedMessage("");
 
-      await updateReport(selectedFeedbackReport.id, {
-        customerComments: remarks,
-        customerFeedbackStatus: remarks.trim()
-          ? "Submitted"
-          : "Not submitted",
-        customerFeedbackUpdatedAt: new Date(),
-      });
+      const submittedAt = new Date();
+      const feedbackEntry = {
+        message: remarks.trim(),
+        submittedAt,
+        customerId: user?.uid || user?.authUid || "",
+        customerName: user?.fullName || user?.name || user?.email || "Customer"
+      };
+      await addReportCustomerFeedback(selectedFeedbackReport.id, remarks, user);
 
       // Update the UI immediately
       setReports((currentReports) =>
@@ -383,11 +388,13 @@ const InspectionReports = () => {
           report.id === selectedFeedbackReport.id
             ? {
                 ...report,
-                customerComments: remarks,
-                customerFeedbackStatus: remarks.trim()
-                  ? "Submitted"
-                  : "Not submitted",
-                customerFeedbackUpdatedAt: new Date(),
+                customerComments: feedbackEntry.message,
+                customerFeedbackStatus: "Submitted",
+                customerFeedbackUpdatedAt: submittedAt,
+                customerFeedbackHistory: [
+                  ...(report.customerFeedbackHistory || []),
+                  feedbackEntry
+                ],
               }
             : report
         )
@@ -789,7 +796,7 @@ const InspectionReports = () => {
                     </button>
                   </div>
 
-                  {remarksSavedMessage && (
+                {remarksSavedMessage && (
                     <p
                       style={{
                         margin:
@@ -804,7 +811,8 @@ const InspectionReports = () => {
                     >
                       {remarksSavedMessage}
                     </p>
-                  )}
+                )}
+                <FeedbackHistory record={selectedFeedbackReport} />
 
                 </div>
 
@@ -1162,15 +1170,15 @@ const InspectionReports = () => {
               clarifications.
             </p>
 
-            <button
-              type="button"
+            <Link
+              to="/feedbacks"
               className="secondary-btn"
               style={{
                 width: "100%",
               }}
             >
               Contact Support
-            </button>
+            </Link>
 
           </div>
 

@@ -67,21 +67,21 @@ const recentIssues = [
 const latestReports = [
   {
     title: "Latest Monthly Report",
-    subtitle: "September 2026",
+    subtitle: "July 2026",
     icon: "📋",
     iconBg: "#ecfdf5",
     path: "/inspection-reports"
   },
   {
     title: "Latest Fire Drill",
-    subtitle: "August 15, 2026",
+    subtitle: "July 24, 2026",
     icon: "🚒",
     iconBg: "#fce7f3",
     path: "/fire-drill-reports"
   },
   {
     title: "Annual Safety Report",
-    subtitle: "Year 2025",
+    subtitle: "Year 2026",
     icon: "📊",
     iconBg: "#ecfdf5",
     path: "/annual-reports"
