@@ -89,6 +89,17 @@ const normalizeInspectionReport = (report) => {
     customerComments:
       report.customerComments || "",
 
+    customerFeedbackStatus:
+      report.customerFeedbackStatus ||
+      (String(report.customerComments || "").trim()
+        ? "Submitted"
+        : "Not submitted"),
+
+    customerFeedbackUpdatedAt:
+      report.customerFeedbackUpdatedAt ||
+      report.updatedAt ||
+      null,
+
     status:
       report.status || "Pending",
   };
@@ -201,6 +212,9 @@ const InspectionReports = () => {
   const [remarksSavedMessage, setRemarksSavedMessage] =
     useState("");
 
+  const [selectedFeedbackReportId, setSelectedFeedbackReportId] =
+    useState("");
+
   const [isDownloadingPdf, setIsDownloadingPdf] =
     useState(false);
 
@@ -300,14 +314,30 @@ const InspectionReports = () => {
   const latestReport =
     filteredReports[0] || reports[0] || null;
 
-  // Load feedback when selected report changes
+  const selectedFeedbackReport =
+    reports.find(
+      (report) => report.id === selectedFeedbackReportId
+    ) || latestReport;
+
+  // Keep feedback focused on a report selected from the customer's history.
+  useEffect(() => {
+    if (
+      latestReport?.id &&
+      !reports.some(
+        (report) => report.id === selectedFeedbackReportId
+      )
+    ) {
+      setSelectedFeedbackReportId(latestReport.id);
+    }
+  }, [latestReport?.id, reports, selectedFeedbackReportId]);
+
   useEffect(() => {
     setRemarks(
-      latestReport?.customerComments || ""
+      selectedFeedbackReport?.customerComments || ""
     );
 
     setRemarksSavedMessage("");
-  }, [latestReport?.id]);
+  }, [selectedFeedbackReport?.id]);
 
   // Get years from Firestore reports
   const years = useMemo(() => {
@@ -326,7 +356,7 @@ const InspectionReports = () => {
 
   // Save feedback to Firestore
   const handleSaveRemarks = async () => {
-    if (!latestReport?.id) {
+    if (!selectedFeedbackReport?.id) {
       setRemarksSavedMessage(
         "Unable to save feedback for this report."
       );
@@ -339,17 +369,25 @@ const InspectionReports = () => {
 
       setRemarksSavedMessage("");
 
-      await updateReport(latestReport.id, {
+      await updateReport(selectedFeedbackReport.id, {
         customerComments: remarks,
+        customerFeedbackStatus: remarks.trim()
+          ? "Submitted"
+          : "Not submitted",
+        customerFeedbackUpdatedAt: new Date(),
       });
 
       // Update the UI immediately
       setReports((currentReports) =>
         currentReports.map((report) =>
-          report.id === latestReport.id
+          report.id === selectedFeedbackReport.id
             ? {
                 ...report,
                 customerComments: remarks,
+                customerFeedbackStatus: remarks.trim()
+                  ? "Submitted"
+                  : "Not submitted",
+                customerFeedbackUpdatedAt: new Date(),
               }
             : report
         )
@@ -372,7 +410,8 @@ const InspectionReports = () => {
     }
   };
 
-  // Download latest report PDF
+  // Retained for future generated exports; the customer download serves the approved source document.
+  // eslint-disable-next-line no-unused-vars
   const handleDownloadLatestInspectionPdf = () => {
     if (!latestReport) {
       alert("No inspection report is selected.");
@@ -450,20 +489,13 @@ const InspectionReports = () => {
           </div>
 
           <div className="header-actions">
-            <button
-              type="button"
+            <a
               className="primary-btn"
-              onClick={
-                handleDownloadLatestInspectionPdf
-              }
-              disabled={
-                isDownloadingPdf || !latestReport
-              }
+              href="/fireguardCBRE_MONTHLY_INSPECTION_REPORT.pdf"
+              download="fireguardCBRE_MONTHLY_INSPECTION_REPORT.pdf"
             >
-              {isDownloadingPdf
-                ? "Preparing PDF..."
-                : "Download Latest Report"}
-            </button>
+              Download Latest Report
+            </a>
           </div>
         </div>
       </div>
@@ -701,6 +733,15 @@ const InspectionReports = () => {
                     Your Remarks / Feedback
                   </label>
 
+                  <small
+                    className="overflow-safe"
+                    style={{ color: "#64748b", marginBottom: "8px" }}
+                  >
+                    {selectedFeedbackReport
+                      ? `Feedback for ${selectedFeedbackReport.inspectionMonth} (${selectedFeedbackReport.reportId}).`
+                      : "Select an inspection report to view its feedback."}
+                  </small>
+
                   <textarea
                     className="form-input"
                     rows={5}
@@ -739,7 +780,7 @@ const InspectionReports = () => {
                       }
                       disabled={
                         isSavingRemarks ||
-                        !latestReport.id
+                        !selectedFeedbackReport?.id
                       }
                     >
                       {isSavingRemarks
@@ -778,7 +819,7 @@ const InspectionReports = () => {
 
             <div className="card-header-row">
               <h2 className="section-title">
-                Inspection History
+                Inspection &amp; Feedback History
               </h2>
             </div>
 
@@ -880,6 +921,8 @@ const InspectionReports = () => {
                       <th>MONTH</th>
                       <th>DATE</th>
                       <th>STATUS</th>
+                      <th>YOUR FEEDBACK</th>
+                      <th aria-label="Feedback action" />
                     </tr>
                   </thead>
 
@@ -911,6 +954,52 @@ const InspectionReports = () => {
                               {report.status}
                             </span>
 
+                          </td>
+
+                          <td data-label="Your feedback">
+                            <span
+                              className="status-badge"
+                              style={{
+                                color:
+                                  report.customerFeedbackStatus === "Submitted"
+                                    ? "#1d4ed8"
+                                    : "#64748b",
+                                backgroundColor:
+                                  report.customerFeedbackStatus === "Submitted"
+                                    ? "#eff6ff"
+                                    : "#f1f5f9",
+                              }}
+                            >
+                              {report.customerFeedbackStatus}
+                            </span>
+                            {report.customerFeedbackStatus === "Submitted" && (
+                              <small
+                                style={{
+                                  display: "block",
+                                  marginTop: "6px",
+                                  color: "#64748b",
+                                }}
+                              >
+                                Updated {formatReportDate(report.customerFeedbackUpdatedAt)}
+                              </small>
+                            )}
+                          </td>
+
+                          <td data-label="Action">
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() =>
+                                setSelectedFeedbackReportId(report.id)
+                              }
+                              aria-pressed={
+                                selectedFeedbackReport?.id === report.id
+                              }
+                            >
+                              {selectedFeedbackReport?.id === report.id
+                                ? "Viewing"
+                                : "View feedback"}
+                            </button>
                           </td>
 
                         </tr>
