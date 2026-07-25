@@ -9,6 +9,8 @@ const initialForm = {
   address: "",
   storeys: "",
   occupantLoad: "",
+  assignedFsm: "",
+  customerId: "",
   status: "Compliant"
 };
 
@@ -21,7 +23,7 @@ const normalizeBuildingPayload = (form) => ({
   occupantLoad: String(form.occupantLoad || "").trim(),
   occupancyType: "",
   grossFloorAreaGfa: "",
-  customerId: "",
+  customerId: String(form.customerId || "").trim(),
   status: form.status
 });
 
@@ -47,6 +49,8 @@ const EditBuilding = () => {
           address: building.address || "",
           storeys: building.noOfStoreys ? String(building.noOfStoreys) : "",
           occupantLoad: building.occupantLoad || "",
+          assignedFsm: building.assignedFsmId || "",
+          customerId: building.customerId || "",
           status: building.status || "Compliant"
         });
       } catch (error) {

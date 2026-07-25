@@ -534,7 +534,6 @@ const ConductForm = ({
   formError,
   saving,
   selectedDrill,
-  availableDrills,
   onChange,
   onCancel,
   onSubmit
@@ -547,23 +546,6 @@ const ConductForm = ({
       </button>
     </div>
     <form onSubmit={onSubmit}>
-      {availableDrills.length > 1 && (
-        <label className="fire-drill-form-field">
-          <span>Available Drill</span>
-          <select
-            value={form.scheduledDrillId}
-            onChange={(event) => onChange("scheduledDrillId", event.target.value)}
-            required
-          >
-            {availableDrills.map((drill) => (
-              <option key={drill.id} value={drill.id}>
-                {drill.drillType} - {formatDate(drill.drillDate)} - {drill.buildingName}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
       <div className="conduct-drill-summary">
         <ReadOnlyItem label="Building" value={selectedDrill?.buildingName} />
         <ReadOnlyItem label="Scheduled Date" value={formatDate(selectedDrill?.drillDate)} />
@@ -928,12 +910,6 @@ const FireDrill = () => {
   };
 
   const handleConductChange = (field, value) => {
-    if (field === "scheduledDrillId") {
-      const selectedDrill = availableDrills.find((drill) => drill.id === value);
-      setConductForm(createConductFormFromDrill(selectedDrill));
-      return;
-    }
-
     setConductForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -1020,7 +996,7 @@ const FireDrill = () => {
     const selectedDrill = availableDrills.find((drill) => drill.id === conductForm.scheduledDrillId);
 
     if (!selectedDrill) {
-      setFormError("Select an available scheduled drill before conducting it.");
+      setFormError("The selected scheduled drill is no longer available.");
       return;
     }
 
@@ -1147,7 +1123,6 @@ const FireDrill = () => {
           formError={formError}
           saving={saving}
           selectedDrill={selectedConductDrill}
-          availableDrills={availableDrills}
           onChange={handleConductChange}
           onCancel={closeForm}
           onSubmit={handleConductSubmit}

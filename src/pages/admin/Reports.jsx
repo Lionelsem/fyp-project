@@ -105,7 +105,7 @@ const getReportParams = (report) => {
   if (report.reportType === "Annual") {
     const year = Number(report.reportYear) || Number(report.period);
     if (!year) return null;
-    return { year, buildingId: "all" };
+    return { year, buildingId: report.buildingId || "all" };
   }
 
   return null;
@@ -129,10 +129,10 @@ const ModalHeader = ({ title, onClose, generating }) => (
   </div>
 );
 
-const ModalActions = ({ onCancel, onSubmit, generating, submitLabel = "Generate & Download" }) => (
+const ModalActions = ({ onCancel, onSubmit, generating, disabled = false, submitLabel = "Generate & Download" }) => (
   <div className="report-modal-actions">
     <button type="button" className="secondary-btn" onClick={onCancel} disabled={generating}>Cancel</button>
-    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating}>{generating ? "Generating..." : submitLabel}</button>
+    <button type="button" className="primary-btn" onClick={onSubmit} disabled={generating || disabled}>{generating ? "Generating..." : submitLabel}</button>
   </div>
 );
 
@@ -156,6 +156,7 @@ const AdminReports = () => {
   // Annual modal
   const [showAnnualModal, setShowAnnualModal] = useState(false);
   const [annualYear,      setAnnualYear]      = useState(CURRENT_YEAR);
+  const [annualBuilding,  setAnnualBuilding]  = useState("");
 
   // Custom modal
   const [showCustomModal,      setShowCustomModal]      = useState(false);
@@ -358,31 +359,48 @@ const AdminReports = () => {
   const openAnnualModal = () => {
     setGenerateError(null);
     setAnnualYear(CURRENT_YEAR);
+    setAnnualBuilding("");
     setShowAnnualModal(true);
   };
 
   const doGenerateAnnual = async () => {
+    if (!annualBuilding) {
+      setGenerateError("Please select a building for the annual report.");
+      return;
+    }
+
     setGenerating(true);
     setGenerateError(null);
     try {
       const [firedrills, inspections, issueList, inspectionResults] = await fetchOperationalData();
+      const selectedAnnualBuilding = buildings.find((building) => building.id === annualBuilding);
+      if (!selectedAnnualBuilding) {
+        throw new Error("The selected building could not be found.");
+      }
+      const annualBuildings = [selectedAnnualBuilding];
+      const annualBuildingName =
+        selectedAnnualBuilding.buildingName ||
+        selectedAnnualBuilding.building_name ||
+        selectedAnnualBuilding.buildingId ||
+        selectedAnnualBuilding.id;
+
       await generateAnnualReport({
-        year: annualYear, buildings,
+        year: annualYear, buildings: annualBuildings,
         fireDrills: firedrills, inspections, inspectionResults,
         issues: issueList, generatedBy: generatedByName()
       });
       await createReport({
         reportId:    `REP-${annualYear}-ANN-${Date.now()}`,
         reportType:  "Annual",
-        buildingId:  null,
+        buildingId:  annualBuilding,
         generatedBy: user?.uid || "admin",
         generatedDate: new Date(),
-        reportTitle: `Annual Report ${annualYear}`,
+        reportTitle: `Annual Report ${annualYear} — ${annualBuildingName}`,
         status:   "Generated",
         priority: "Normal",
         period:   String(annualYear),
         reportYear: annualYear,
-        reportParams: { year: annualYear, buildingId: "all" }
+        reportParams: { year: annualYear, buildingId: annualBuilding }
       });
       await refreshReports();
       setShowAnnualModal(false);
@@ -677,10 +695,38 @@ const AdminReports = () => {
         <div className="issue-ticket-modal-backdrop" onClick={() => !generating && setShowAnnualModal(false)}>
           <div className="issue-ticket-modal" style={{ width: "min(100%, 480px)" }} onClick={(e) => e.stopPropagation()}>
             <ModalHeader title="Generate Annual Report" onClose={() => setShowAnnualModal(false)} generating={generating} />
-            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>Generates a full annual report covering all buildings for the selected year.</p>
-            <div className="form-field"><label className="form-label">Year</label><select className="form-input" value={annualYear} onChange={(e) => setAnnualYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
+              Select one building and year. The report will only include records belonging to that building.
+            </p>
+            <div className="form-field">
+              <label className="form-label">Year</label>
+              <select className="form-input" value={annualYear} onChange={(e) => setAnnualYear(Number(e.target.value))}>
+                {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div className="form-field">
+              <label className="form-label" htmlFor="annual-report-building">Building</label>
+              <select
+                id="annual-report-building"
+                className="form-input"
+                value={annualBuilding}
+                onChange={(event) => setAnnualBuilding(event.target.value)}
+              >
+                <option value="">Select a building</option>
+                {buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {building.buildingName || building.building_name || building.buildingId || "Unnamed building"}
+                  </option>
+                ))}
+              </select>
+            </div>
             {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
-            <ModalActions onCancel={() => setShowAnnualModal(false)} onSubmit={doGenerateAnnual} generating={generating} />
+            <ModalActions
+              onCancel={() => setShowAnnualModal(false)}
+              onSubmit={doGenerateAnnual}
+              generating={generating}
+              disabled={!annualBuilding}
+            />
           </div>
         </div>
       )}
@@ -692,29 +738,157 @@ const AdminReports = () => {
             <ModalHeader title="Custom Report" onClose={() => setShowCustomModal(false)} generating={generating} />
 
             {/* Report type */}
-            <div className="form-field"><label className="form-label">Report Type</label><div className="report-type-options">{["Monthly", "Annual", "DateRange"].map((type) => (<button key={type} type="button" onClick={() => handleCustomTypeChange(type)} className={`report-type-btn ${customReportType === type ? "active" : ""}`}>{type === "DateRange" ? "Date Range" : type}</button>))}</div></div>
+            <div className="form-field">
+              <label className="form-label">Report Type</label>
+              <div className="report-type-options">
+                {["Monthly", "Annual", "DateRange"].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => handleCustomTypeChange(type)}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: "6px",
+                      fontSize: "clamp(0.75rem, 0.74rem + 0.15vw, 0.8125rem)",
+                      fontWeight: "500",
+                      cursor: "pointer", border: "2px solid",
+                      borderColor: customReportType === type ? "#047857" : "#e5e7eb",
+                      backgroundColor: customReportType === type ? "#ecfdf5" : "#fff",
+                      color: customReportType === type ? "#047857" : "#374151"
+                    }}
+                  >
+                    {type === "DateRange" ? "Date Range" : type}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Time scope inputs */}
-            {customReportType === "Monthly" && (<div className="report-modal-grid"><div className="form-field"><label className="form-label">Month</label><select className="form-input" value={customMonth} onChange={(e) => setCustomMonth(Number(e.target.value))}>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select></div><div className="form-field"><label className="form-label">Year</label><select className="form-input" value={customYear} onChange={(e) => setCustomYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div></div>)}
+            {customReportType === "Monthly" && (
+              <div className="report-modal-grid">
+                <div className="form-field">
+                  <label className="form-label">Month</label>
+                  <select className="form-input" value={customMonth} onChange={(e) => setCustomMonth(Number(e.target.value))}>
+                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Year</label>
+                  <select className="form-input" value={customYear} onChange={(e) => setCustomYear(Number(e.target.value))}>
+                    {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
 
-            {customReportType === "Annual" && (<div className="form-field"><label className="form-label">Year</label><select className="form-input" value={customAnnualYear} onChange={(e) => setCustomAnnualYear(Number(e.target.value))}>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select></div>)}
+            {customReportType === "Annual" && (
+              <div className="form-field">
+                <label className="form-label">Year</label>
+                <select className="form-input" value={customAnnualYear} onChange={(e) => setCustomAnnualYear(Number(e.target.value))}>
+                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            )}
 
-            {customReportType === "DateRange" && (<div className="report-modal-grid"><div className="form-field"><label className="form-label">From Date</label><span className="temporal-control form-input form-temporal-control"><input type="date" value={customDateFrom} onChange={(e) => setCustomDateFrom(e.target.value)} /></span></div><div className="form-field"><label className="form-label">To Date</label><span className="temporal-control form-input form-temporal-control"><input type="date" value={customDateTo} onChange={(e) => setCustomDateTo(e.target.value)} /></span></div></div>)}
+            {customReportType === "DateRange" && (
+              <div className="report-modal-grid">
+                <div className="form-field">
+                  <label className="form-label">From Date</label>
+                  <span className="temporal-control form-input form-temporal-control">
+                    <input
+                      type="date"
+                      value={customDateFrom}
+                      onChange={(e) => setCustomDateFrom(e.target.value)}
+                    />
+                  </span>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">To Date</label>
+                  <span className="temporal-control form-input form-temporal-control">
+                    <input
+                      type="date"
+                      value={customDateTo}
+                      onChange={(e) => setCustomDateTo(e.target.value)}
+                    />
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Building */}
-            <div className="form-field"><label className="form-label">Building</label><select className="form-input" value={customBuilding} onChange={(e) => setCustomBuilding(e.target.value)}><option value="all">All Buildings</option>{buildings.map((b) => <option key={b.id} value={b.id}>{b.buildingName || b.building_name || "Unnamed building"}</option>)}</select></div>
+            <div className="form-field">
+              <label className="form-label">Building</label>
+              <select className="form-input" value={customBuilding} onChange={(e) => setCustomBuilding(e.target.value)}>
+                <option value="all">All Buildings</option>
+                {buildings.map((b) => (
+                  <option key={b.id} value={b.id}>{b.buildingName || b.building_name || "Unnamed building"}</option>
+                ))}
+              </select>
+            </div>
 
             {/* Custom title */}
-            <div className="form-field"><label className="form-label">Report Title <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label><input type="text" className="form-input" placeholder="e.g. Q2 Fire Safety Summary — Building A" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} /></div>
+            <div className="form-field">
+              <label className="form-label">Report Title <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Q2 Fire Safety Summary — Building A"
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+              />
+            </div>
 
             {/* Priority */}
-            <div className="form-field"><label className="form-label">Priority</label><select className="form-input" value={customPriority} onChange={(e) => setCustomPriority(e.target.value)}>{["Low", "Normal", "High", "Urgent"].map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
+            <div className="form-field">
+              <label className="form-label">Priority</label>
+              <select className="form-input" value={customPriority} onChange={(e) => setCustomPriority(e.target.value)}>
+                {["Low", "Normal", "High", "Urgent"].map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
 
             {/* Opening remarks */}
-            <div className="form-field"><label className="form-label">Opening Remarks <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label><textarea className="form-input" rows={3} placeholder="Additional notes that will appear at the top of the report..." value={customOpeningRemarks} onChange={(e) => setCustomOpeningRemarks(e.target.value)} style={{ resize: "vertical", minHeight: "72px" }} /></div>
+            <div className="form-field">
+              <label className="form-label">Opening Remarks <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label>
+              <textarea
+                className="form-input"
+                rows={3}
+                placeholder="Additional notes that will appear at the top of the report..."
+                value={customOpeningRemarks}
+                onChange={(e) => setCustomOpeningRemarks(e.target.value)}
+                style={{
+                  resize: "vertical",
+                  minHeight: "clamp(4.5rem, 4rem + 2vw, 6rem)",
+                }}
+              />
+            </div>
 
             {/* Section toggles */}
-            <div className="form-field"><label className="form-label">Sections to Include</label><div className="report-section-grid">{Object.entries(sectionDefs).map(([key, { label }]) => (<label key={key} className="report-section-item"><input type="checkbox" checked={!!customSections[key]} onChange={() => toggleSection(key)} />{label}</label>))}</div></div>
+            <div className="form-field">
+              <label className="form-label">Sections to Include</label>
+              <div className="report-section-grid">
+                {Object.entries(sectionDefs).map(([key, { label }]) => (
+                  <label
+                    key={key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer",
+                      fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
+                      color: "#374151",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!customSections[key]}
+                      onChange={() => toggleSection(key)}
+                      style={{ accentColor: "#047857", width: "16px", height: "16px" }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
 
             {generateError && <div className="error-state" style={{ fontSize: "13px", padding: "10px 14px" }}>{generateError}</div>}
             <ModalActions onCancel={() => setShowCustomModal(false)} onSubmit={doGenerateCustom} generating={generating} />

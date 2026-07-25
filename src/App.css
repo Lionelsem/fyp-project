@@ -234,6 +234,53 @@ button {
   color: #94a3b8;
 }
 
+.login-password-control {
+  position: relative;
+  display: block;
+}
+
+.login-password-control input {
+  padding-inline-end: calc(14px + var(--control-height));
+}
+
+.login-password-control input::-ms-reveal,
+.login-password-control input::-ms-clear {
+  display: none;
+}
+
+.login-password-toggle {
+  position: absolute;
+  z-index: 1;
+  inset-inline-end: 0;
+  inset-block: 0;
+  margin-block: auto;
+  display: grid;
+  width: var(--compact-control-height);
+  height: var(--compact-control-height);
+  min-height: 0;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.login-password-toggle:hover,
+.login-password-toggle:focus-visible {
+  background: transparent;
+  color: #64748b;
+}
+
+.login-password-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+}
+
 .login-checkbox-row {
   display: flex;
   align-items: center;
@@ -1683,6 +1730,22 @@ button {
   background: #f8fafc;
 }
 
+.verification-photo-preview-button {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.verification-photo-preview-button:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, 0.55);
+  outline-offset: 3px;
+}
+
 .verification-fix-photo-upload {
   display: grid;
   gap: 8px;
@@ -2079,6 +2142,15 @@ button {
 .compact-photo-field__stack .issue-photo-preview { width: 92px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18); }
 .compact-photo-field__limit { color: #64748b; font-weight: 600; }
 
+.compact-photo-field--locked,
+.compact-photo-field--locked * {
+  cursor: not-allowed;
+}
+
+.compact-photo-field--locked {
+  opacity: 0.65;
+}
+
 .compact-photo-field__preview-button {
   display: block;
   width: 100%;
@@ -2364,6 +2436,7 @@ button {
   border-radius: 12px;
   border: 1px solid #d1d5db;
   padding: 10px 12px;
+  font-family: inherit;
   font-size: var(--text-md);
   color: #0f172a;
   background: #ffffff;
@@ -4449,8 +4522,8 @@ select.inspection-row-control {
 .issue-ticket-table--history th:nth-child(6),
 .issue-ticket-table--history td:nth-child(6) { width: 13%; }
 
-.issue-ticket-table--history th:nth-child(7),
-.issue-ticket-table--history td:nth-child(7) {
+.issue-ticket-table th:nth-child(7),
+.issue-ticket-table td:nth-child(7) {
   position: sticky;
   right: 0;
   z-index: 1;
@@ -4463,17 +4536,17 @@ select.inspection-row-control {
   box-shadow: -8px 0 12px -12px rgba(15, 23, 42, 0.45);
 }
 
-.issue-ticket-table--history thead th:nth-child(7) {
+.issue-ticket-table thead th:nth-child(7) {
   z-index: 2;
   background: #ffffff;
 }
 
-.issue-ticket-table--history tbody tr:hover td:nth-child(7),
-.issue-ticket-table--history tbody tr.issue-ticket-row-active td:nth-child(7) {
+.issue-ticket-table tbody tr:hover td:nth-child(7),
+.issue-ticket-table tbody tr.issue-ticket-row-active td:nth-child(7) {
   background: #ecfdf5;
 }
 
-.issue-ticket-table--history td:nth-child(7) .issue-overview-action {
+.issue-ticket-table td:nth-child(7) .issue-overview-action {
   display: inline-grid;
   flex: none;
   min-width: 34px;
@@ -5901,6 +5974,7 @@ select.inspection-row-control {
 }
 
 .fsm-trend-canvas {
+  min-width: var(--trend-min-width);
   height: 176px;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -6639,6 +6713,46 @@ textarea {
   overflow: visible;
 }
 
+.portal-sidebar-drawer > .admin-sidebar,
+.portal-sidebar-drawer .sidebar-menu {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.portal-sidebar-drawer > .admin-sidebar {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.portal-sidebar-drawer .sidebar-menu {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.portal-sidebar-drawer .sidebar-footer {
+  flex: 0 0 auto;
+}
+
+.ai-priority-policy-form textarea {
+  height: var(--control-height);
+  min-height: var(--control-height);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre;
+  resize: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.portal-sidebar-drawer > .admin-sidebar::-webkit-scrollbar,
+.portal-sidebar-drawer .sidebar-menu::-webkit-scrollbar,
+.ai-priority-policy-form textarea::-webkit-scrollbar {
+  display: none;
+}
+
 /* Keep the longer customer navigation scrollable without showing a scrollbar. */
 .customer-sidebar,
 .customer-sidebar .sidebar-menu {
@@ -6651,7 +6765,18 @@ textarea {
   display: none;
 }
 
-.user-name,
+.user-info {
+  flex: 1 1 auto;
+}
+
+.user-name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
 .user-role {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -9209,5 +9334,119 @@ select.responsive-control {
   .portal-shell .appendix-table.responsive-card-table td {
     grid-template-columns: minmax(76px, 0.7fr) minmax(0, 1.3fr);
     gap: 8px;
+  }
+}
+/* AI-assisted FSM priority review and policy settings */
+.ai-priority-review-modal {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.ai-priority-review-modal__body,
+.ai-priority-review-list {
+  display: grid;
+  gap: 16px;
+}
+
+.ai-priority-review-intro {
+  margin: 0;
+  color: #475569;
+}
+
+.ai-priority-review-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+  gap: 20px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ai-priority-review-item p {
+  margin: 6px 0;
+  color: #475569;
+}
+
+.ai-priority-review-item small {
+  color: #166534;
+  font-weight: 700;
+}
+
+.ai-priority-field-note {
+  display: block;
+  margin-top: 6px;
+  color: #166534;
+  font-weight: 700;
+}
+
+.ai-priority-review-item label,
+.ai-priority-review-item label span {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-priority-review-item select {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ai-priority-policy-form {
+  max-width: 860px;
+}
+
+.inspection-form-typography {
+  font-family: inherit;
+}
+
+@media (min-width: 1121px) {
+  .fsm-trend-chart {
+    overflow-x: hidden;
+  }
+
+  .fsm-trend-canvas {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .fsm-trend-group {
+    gap: clamp(2px, 0.55vw, 9px);
+    padding-inline: clamp(1px, 0.35vw, 5px);
+  }
+
+  .fsm-trend-bar {
+    width: clamp(5px, 1.2vw, 20px);
+  }
+}
+
+.ai-priority-enable-field {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+
+.ai-priority-enable-field input {
+  margin-top: 4px;
+}
+
+.ai-priority-enable-field span {
+  display: grid;
+  gap: 4px;
+}
+
+.ai-priority-enable-field small {
+  color: #475569;
+}
+
+@media (max-width: 640px) {
+  .ai-priority-review-item {
+    grid-template-columns: 1fr;
   }
 }

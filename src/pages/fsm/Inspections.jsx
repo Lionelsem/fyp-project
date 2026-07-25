@@ -10,7 +10,7 @@ import {
   upsertInspectionResult
 } from "../../services/inspectionService";
 import { addClosureVerification, getIssueById, upsertIssue } from "../../services/issueService";
-import { APPROVAL_STATUS, ISSUE_STATUS, REPORT_STATUS } from "../../constants/status";
+import { APPROVAL_STATUS, CHECKLIST_CONDITION, ISSUE_STATUS, REPORT_STATUS } from "../../constants/status";
 import { useAuth } from "../../hooks/useAuth";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { getInspectionDefectPhotoFolder, uploadFile } from "../../services/storageService";
@@ -18,6 +18,11 @@ import { upsertReport } from "../../services/reportService";
 import ImageSourcePicker from "../../components/common/ImageSourcePicker";
 import Modal from "../../components/common/Modal";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import AiPriorityReviewModal from "../../components/fsm/AiPriorityReviewModal";
+import {
+  assessIssuePriority,
+  recordIssuePriorityDecision
+} from "../../services/aiPriorityService";
 
 const initialChecklist = [
   {
@@ -184,15 +189,20 @@ const inspectionInfo = {
 };
 
 const conditionOptions = [
-  { value: "Good", label: "Good" },
-  { value: "Faulty", label: "Faulty" },
-  { value: "N.A.", label: "N.A." }
+  { value: CHECKLIST_CONDITION.GOOD, label: CHECKLIST_CONDITION.GOOD },
+  { value: CHECKLIST_CONDITION.FAULTY, label: CHECKLIST_CONDITION.FAULTY },
+  { value: CHECKLIST_CONDITION.NOT_APPLICABLE, label: CHECKLIST_CONDITION.NOT_APPLICABLE }
 ];
 
 const validConditionValues = new Set(conditionOptions.map((option) => option.value));
 
 const normalizeChecklistCondition = (condition) =>
   validConditionValues.has(condition) ? condition : "";
+
+const getEffectiveChecklistCondition = (result, fallbackCondition = "") =>
+  result?.issueStatus === ISSUE_STATUS.CLOSED || result?.issue?.status === ISSUE_STATUS.CLOSED
+    ? CHECKLIST_CONDITION.GOOD
+    : normalizeChecklistCondition(result?.condition) || fallbackCondition;
 
 const buildAppendixEntriesFromChecklist = (checklist, fallbackLocation) =>
   checklist.flatMap((category) =>
@@ -447,9 +457,9 @@ const formatLastUpdated = () =>
   });
 
 const getPassFail = (condition) => {
-  if (condition === "Good") return "Pass";
-  if (condition === "Faulty") return "Fail";
-  if (condition === "N.A.") return "N.A.";
+  if (condition === CHECKLIST_CONDITION.GOOD) return "Pass";
+  if (condition === CHECKLIST_CONDITION.FAULTY) return "Fail";
+  if (condition === CHECKLIST_CONDITION.NOT_APPLICABLE) return CHECKLIST_CONDITION.NOT_APPLICABLE;
   return "";
 };
 
@@ -524,7 +534,7 @@ const hydrateChecklistFromPreviousMonth = (templateChecklist, previousResults = 
       return {
         ...item,
         condition: previousResult
-          ? normalizeChecklistCondition(previousResult.condition) || item.condition
+          ? getEffectiveChecklistCondition(previousResult, item.condition)
           : item.condition,
         remark: previousResult ? previousResult.remark || "" : item.remark || "",
         photo: "",
@@ -534,6 +544,7 @@ const hydrateChecklistFromPreviousMonth = (templateChecklist, previousResults = 
           ...item.issue,
           description: previousResult?.issueDescription || previousResult?.issue?.description || item.issue?.description || "",
           rectification: previousResult?.rectification || previousResult?.issue?.rectification || item.issue?.rectification || "",
+          verificationComments: previousResult?.verificationComments || previousResult?.issue?.verificationComments || "",
           priority: previousResult?.priority || previousResult?.issue?.priority || item.issue?.priority || "Medium",
           status: "Open",
           photo: ""
@@ -556,7 +567,7 @@ const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) 
 
       if (!savedResult) return item;
 
-      const condition = normalizeChecklistCondition(savedResult.condition) || item.condition;
+      const condition = getEffectiveChecklistCondition(savedResult, item.condition);
       const defectPhotoUrls = getDefectPhotoUrls(savedResult);
       const defectPhotoUrl = defectPhotoUrls[0] || "";
 
@@ -582,6 +593,7 @@ const hydrateChecklistFromSavedResults = (templateChecklist, savedResults = []) 
           ...item.issue,
           description: savedResult.issueDescription || savedResult.issue?.description || "",
           rectification: savedResult.rectification || savedResult.issue?.rectification || "",
+          verificationComments: savedResult.verificationComments || savedResult.issue?.verificationComments || "",
           priority: savedResult.priority || savedResult.issue?.priority || item.issue?.priority || "Medium",
           status: savedResult.issueStatus || savedResult.issue?.status || "Open",
           photo: ""
@@ -679,11 +691,19 @@ const applyIssueFocusToChecklist = (sourceChecklist, issue, expandTarget = true)
                 ...item.issue,
                 description: issue.issueDescription || item.issue?.description || "",
                 rectification: issue.rectification || item.issue?.rectification || "",
+                verificationComments:
+                  issue.verificationComments || item.issue?.verificationComments || "",
                 priority: issue.priority || item.issue?.priority || "Medium",
                 status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
+                aiSuggestedPriority:
+                  issue.aiSuggestedPriority || item.issue?.aiSuggestedPriority || "",
+                aiPriorityAccepted:
+                  issue.aiPriorityAccepted ?? item.issue?.aiPriorityAccepted ?? null,
                 history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
               },
               defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
+              defectPhotoStoragePath:
+                issue.defectPhotoStoragePath || item.defectPhotoStoragePath || "",
               fixPhotoUrls: getFixPhotoUrls(issue),
               fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
               fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
@@ -708,11 +728,19 @@ const mergeIssueTicketsIntoChecklist = (sourceChecklist, issues = []) =>
           ...item.issue,
           description: issue.issueDescription || item.issue?.description || "",
           rectification: issue.rectification || item.issue?.rectification || "",
+          verificationComments:
+            issue.verificationComments || item.issue?.verificationComments || "",
           priority: issue.priority || item.issue?.priority || "Medium",
           status: issue.status || item.issue?.status || ISSUE_STATUS.OPEN,
+          aiSuggestedPriority:
+            issue.aiSuggestedPriority || item.issue?.aiSuggestedPriority || "",
+          aiPriorityAccepted:
+            issue.aiPriorityAccepted ?? item.issue?.aiPriorityAccepted ?? null,
           history: Array.isArray(issue.history) ? issue.history : item.issue?.history || []
         },
         defectPhotoUrls: getDefectPhotoUrls(issue).length ? getDefectPhotoUrls(issue) : item.defectPhotoUrls,
+        defectPhotoStoragePath:
+          issue.defectPhotoStoragePath || item.defectPhotoStoragePath || "",
         fixPhotoUrls: getFixPhotoUrls(issue),
         fixPhotoStoragePath: issue.fixPhotoStoragePath || "",
         fixPhotoUploadedAt: issue.fixPhotoUploadedAt || null,
@@ -914,7 +942,7 @@ const IssueHistoryTimeline = ({ history = [] }) => {
               <span className={statusClassName(entry.status)}>{entry.status || "Update"}</span>
               <div>
                 <strong>{String(entry.eventType || "status update").replace(/_/g, " ")}</strong>
-                <p>{entry.updatedBy || "-"} · {formatAuditDateTime(entry.updatedAt)}</p>
+                <p>{formatAuditDateTime(entry.updatedAt)}</p>
                 {entry.note ? <small>{entry.note}</small> : null}
               </div>
             </li>
@@ -1004,10 +1032,9 @@ const InspectionChecklistRow = ({ item, categoryId, onUpdate, onPhotoChange, onI
               <h4>Issue Details <span className="issue-badge">Auto created when marked as Faulty</span></h4>
               <label>
                 <span>Issue Description</span>
-                <textarea
-                  className="issue-description-input"
+                <input
+                  type="text"
                   value={item.issue.description}
-                  rows={2}
                   placeholder="Describe the fault"
                   onChange={(e) => onIssueUpdate(categoryId, item.id, { description: e.target.value })}
                 />
@@ -1092,19 +1119,24 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
     setExpandedPhotoGroups((current) => ({ ...current, [group]: !current[group] }));
   };
 
-  const renderPhotoEvidence = ({ group, urls, label, alt, canAdd, onAdd, onRemove }) => {
+  const renderPhotoEvidence = ({ group, urls, label, alt, canAdd, locked = false, lockedMessage = "", onAdd, onRemove }) => {
     const expanded = expandedPhotoGroups[group];
     const hasPhotos = urls.length > 0;
     const atLimit = urls.length >= PHOTO_LIMIT;
 
     return (
-      <div className={`compact-photo-field${expanded ? " compact-photo-field--expanded" : ""}`}>
+      <div
+        className={`compact-photo-field${expanded ? " compact-photo-field--expanded" : ""}${locked ? " compact-photo-field--locked" : ""}`}
+        aria-disabled={locked || undefined}
+        title={locked ? lockedMessage : undefined}
+      >
         <div className="compact-photo-field__summary">
           {hasPhotos ? (
             <button
               type="button"
               className="compact-photo-field__cover"
-              onClick={() => togglePhotoGroup(group)}
+              onClick={() => { if (!locked) togglePhotoGroup(group); }}
+              disabled={locked}
               aria-expanded={expanded}
               aria-label={`${expanded ? "Hide" : "View"} ${urls.length} ${label.toLowerCase()}`}
             >
@@ -1130,7 +1162,8 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 <button
                   type="button"
                   className="compact-photo-field__preview-button"
-                  onClick={() => setPreviewPhoto({ url: photoUrl, alt: `${alt} ${index + 1}` })}
+                  onClick={() => { if (!locked) setPreviewPhoto({ url: photoUrl, alt: `${alt} ${index + 1}` }); }}
+                  disabled={locked}
                   aria-label={`View ${label.toLowerCase()} ${index + 1} full size`}
                 >
                   <img className="issue-photo-preview" src={photoUrl} alt={`${alt} ${index + 1}`} />
@@ -1222,10 +1255,9 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
             </div>
             <label>
               <span>Issue Description</span>
-              <textarea
-                className="issue-description-input"
+              <input
+                type="text"
                 value={item.issue.description}
-                rows={2}
                 placeholder="Describe the fault"
                 onChange={(e) => onIssueUpdate(categoryId, item.id, { description: e.target.value })}
                 disabled={!isIssueEditing}
@@ -1254,6 +1286,12 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   <option value="Medium">Medium</option>
                   <option value="Low">Low</option>
                 </select>
+                {item.issue.aiSuggestedPriority && (
+                  <small className="ai-priority-field-note">
+                    AI suggested {item.issue.aiSuggestedPriority}
+                    {item.issue.aiPriorityAccepted === false ? " (overridden)" : ""}
+                  </small>
+                )}
               </label>
               <label className="issue-status-field">
                 <span>Status</span>
@@ -1269,6 +1307,19 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                 </select>
               </label>
             </div>
+            {isClosedIssue && (
+              <label>
+                <span>Verification Comments</span>
+                <textarea
+                  value={item.issue.verificationComments || ""}
+                  rows={3}
+                  placeholder="Confirm the completed repair and closure checks"
+                  onChange={(e) => onIssueUpdate(categoryId, item.id, { verificationComments: e.target.value })}
+                  disabled={!isIssueEditing}
+                  required
+                />
+              </label>
+            )}
             <div className="issue-evidence-sections">
               <section className="issue-evidence-section" aria-label="Fault Photos Before">
                 <h5>Fault Photos (Before)</h5>
@@ -1285,11 +1336,21 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
                   >
                     !
                     <span id={`after-repair-help-${categoryId}-${item.id}`} role="tooltip">
-                      After-repair evidence is required before changing the status to Closed.
+                      After-repair evidence is available when the status is Closed.
                     </span>
                   </button>
                 </h5>
-                {renderPhotoEvidence({ group: "after", urls: afterPhotoUrls, label: "After-repair photos", alt: "After-repair evidence", canAdd: isIssueEditing, onAdd: (files) => onFixPhotoChange(categoryId, item.id, files), onRemove: (index) => onRemoveFixPhoto(categoryId, item.id, index) })}
+                {renderPhotoEvidence({
+                  group: "after",
+                  urls: afterPhotoUrls,
+                  label: "After-repair photos",
+                  alt: "After-repair evidence",
+                  canAdd: isIssueEditing && isClosedIssue,
+                  locked: !isClosedIssue,
+                  lockedMessage: `Available when status is ${ISSUE_STATUS.CLOSED}`,
+                  onAdd: (files) => onFixPhotoChange(categoryId, item.id, files),
+                  onRemove: (index) => onRemoveFixPhoto(categoryId, item.id, index)
+                })}
               </section>
             </div>
             <IssueHistoryTimeline history={item.issue?.history || []} />
@@ -1311,11 +1372,11 @@ const FaultProofChecklistRow = ({ item, categoryId, isHighlighted, isVerifyMode,
 const AppendixTable = ({ entries }) => (
   <section className="inspection-card appendix-card">
     <div className="card-title-row">
-      <p className="overline">Appendix A</p>
-      <h3>Findings & Rectification</h3>
+      <p className="overline">Inspection findings</p>
+      <h3>Remarks Summary</h3>
     </div>
     <ResponsiveTableRegion
-      label="Inspection findings and rectification appendix"
+      label="Inspection remarks summary"
       className="appendix-table-wrapper responsive-table-region--cards"
     >
       <table className="appendix-table responsive-card-table">
@@ -1498,6 +1559,9 @@ const Inspections = () => {
   const [issueEditSnapshot, setIssueEditSnapshot] = useState(null);
   const [fixProofPhotoFile, setFixProofPhotoFile] = useState(null);
   const [fixProofPhotoPreview, setFixProofPhotoPreview] = useState("");
+  const [priorityReviewEntries, setPriorityReviewEntries] = useState([]);
+  const priorityReviewResolver = useRef(null);
+  const [verificationPhotoPreview, setVerificationPhotoPreview] = useState(null);
 
   const assignedBuilding =
     (verificationIssue?.buildingId
@@ -1534,6 +1598,94 @@ const Inspections = () => {
     }),
     [buildingName, periodKey, user]
   );
+
+  const requestPriorityReview = (entries) =>
+    new Promise((resolve) => {
+      priorityReviewResolver.current = resolve;
+      setPriorityReviewEntries(entries);
+    });
+
+  const closePriorityReview = (priorities) => {
+    const resolve = priorityReviewResolver.current;
+    priorityReviewResolver.current = null;
+    setPriorityReviewEntries([]);
+    resolve?.(priorities);
+  };
+
+  useEffect(() => () => {
+    priorityReviewResolver.current?.(null);
+    priorityReviewResolver.current = null;
+  }, []);
+
+  const buildPriorityDraft = ({
+    category,
+    item,
+    issueKey,
+    relatedInspectionKey = inspectionKey,
+    photoPaths = []
+  }) => ({
+    issueId: issueKey,
+    inspectionKey: relatedInspectionKey,
+    buildingId: selectedBuilding,
+    floorId: selectedLevel,
+    categoryCode: category.id,
+    categoryName: category.title,
+    itemCode: item.code,
+    itemLabel: item.label,
+    condition: item.condition,
+    remark: item.remark || "",
+    issueDescription: item.issue?.description || item.remark || "",
+    rectification: item.issue?.rectification || "",
+    status: item.issue?.status || ISSUE_STATUS.OPEN,
+    photoPaths: uniqueValues(photoPaths)
+  });
+
+  const assessPriorityDraft = async ({ key, category, item, issueKey, relatedInspectionKey, photoPaths }) => {
+    try {
+      const assessment = await assessIssuePriority(
+        buildPriorityDraft({
+          category,
+          item,
+          issueKey,
+          relatedInspectionKey,
+          photoPaths
+        })
+      );
+      return {
+        key,
+        assessmentId: assessment.assessmentId,
+        suggestedPriority: assessment.suggestedPriority,
+        currentPriority: item.issue?.priority || "Medium",
+        itemLabel: item.label,
+        issueDescription: item.issue?.description || item.remark || "",
+        reused: !!assessment.reused
+      };
+    } catch (error) {
+      return {
+        key,
+        currentPriority: item.issue?.priority || "Medium",
+        error: error.message || "AI priority assessment was unavailable."
+      };
+    }
+  };
+
+  const recordPriorityDecisionSafely = async ({
+    assessment,
+    issueId,
+    finalPriority
+  }) => {
+    if (!assessment?.assessmentId || assessment.reused) return "";
+    try {
+      await recordIssuePriorityDecision({
+        assessmentId: assessment.assessmentId,
+        issueId,
+        finalPriority
+      });
+      return "";
+    } catch (error) {
+      return error.message || "The AI decision audit could not be recorded.";
+    }
+  };
 
   useEffect(() => {
     if (!isVerifyMode && !issueIdFromQuery && !location.state?.issue) {
@@ -1867,15 +2019,6 @@ const Inspections = () => {
         [selectedLevel]: nextChecklist
       };
     });
-  };
-
-  const setRemarksForSelectedLevel = (value) => {
-    if (!selectedLevel) return;
-
-    setLevelRemarks((current) => ({
-      ...current,
-      [selectedLevel]: value
-    }));
   };
 
   const totalRows = useMemo(
@@ -2220,13 +2363,13 @@ const Inspections = () => {
       let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
       let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
       let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
+      let uploadedPhotos = [];
       const selectedPhotoFiles = [
         ...(item.photoFiles || []),
         ...(item.photoFile ? [item.photoFile] : [])
       ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
 
       if (selectedPhotoFiles.length > 0 && isFaultyItem) {
-        const uploadedPhotos = [];
         for (const file of selectedPhotoFiles) {
           const uploaded = await uploadFile(
             file,
@@ -2239,6 +2382,33 @@ const Inspections = () => {
         defectPhotoStoragePath = uploadedPhotos[uploadedPhotos.length - 1]?.path || "";
         defectPhotoUploadedAt = new Date();
         defectPhotoUploadedBy = fsmId;
+      }
+
+      let priorityAssessment = null;
+      let finalPriority = item.issue?.priority || "Medium";
+      let priorityWarning = "";
+      if (
+        isFaultyItem &&
+        ![ISSUE_STATUS.RESOLVED, ISSUE_STATUS.CLOSED].includes(item.issue?.status)
+      ) {
+        priorityAssessment = await assessPriorityDraft({
+          key: resultKey,
+          category,
+          item,
+          issueKey,
+          relatedInspectionKey: inspectionKey,
+          photoPaths: [
+            item.defectPhotoStoragePath,
+            ...uploadedPhotos.map((photo) => photo.path)
+          ].filter(Boolean)
+        });
+        if (priorityAssessment.error) {
+          priorityWarning = `AI priority was unavailable; kept ${finalPriority}.`;
+        } else if (!priorityAssessment.reused) {
+          const reviewed = await requestPriorityReview([priorityAssessment]);
+          if (!reviewed) return false;
+          finalPriority = reviewed[resultKey] || finalPriority;
+        }
       }
 
       const result = await upsertInspectionResult({
@@ -2269,7 +2439,7 @@ const Inspections = () => {
         defectPhotoUploadedBy,
         issueDescription: item.issue?.description || "",
         rectification: item.issue?.rectification || "",
-        priority: item.issue?.priority || "",
+        priority: finalPriority,
         issueStatus: item.issue?.status || "",
         manualVerificationRequired: !!item.isManualVerification,
         checkedAt: new Date(),
@@ -2329,7 +2499,7 @@ const Inspections = () => {
           issueTitle: item.label,
           issueDescription: item.issue?.description || item.remark || "",
           rectification: item.issue?.rectification || "",
-          priority: item.issue?.priority || "High",
+          priority: finalPriority,
           status: item.issue?.status || ISSUE_STATUS.OPEN,
           issuePhotoUrl: photoUrl,
           defectPhotoUrl: photoUrl,
@@ -2338,11 +2508,30 @@ const Inspections = () => {
           defectPhotoUploadedAt,
           defectPhotoUploadedBy,
           aiRecommendation: "",
+          ...(priorityAssessment?.assessmentId && !priorityAssessment.reused
+            ? {
+                aiSuggestedPriority: priorityAssessment.suggestedPriority,
+                aiPriorityAssessmentId: priorityAssessment.assessmentId,
+                aiPriorityAccepted:
+                  priorityAssessment.suggestedPriority === finalPriority,
+                aiPriorityAssessedAt: new Date()
+              }
+            : {}),
           ...(historyEntries.length ? { history: appendHistory(existingIssue, historyEntries) } : {})
         });
+        const auditWarning = await recordPriorityDecisionSafely({
+          assessment: priorityAssessment,
+          issueId: issueKey,
+          finalPriority
+        });
+        if (auditWarning) {
+          priorityWarning = "Issue saved, but the AI decision audit could not be recorded.";
+        }
       }
 
-      setInspectionSubmitSuccess(`${item.code} saved successfully.`);
+      setInspectionSubmitSuccess(
+        `${item.code} saved successfully.${priorityWarning ? ` ${priorityWarning}` : ""}`
+      );
       return true;
     } catch (err) {
       console.error("Checklist item save failed", err);
@@ -2377,6 +2566,11 @@ const Inspections = () => {
       const statusChanged = String(existingIssue.status || "") !== String(item.issue.status || "");
       const isClosing = item.issue.status === ISSUE_STATUS.CLOSED;
       const pendingFixPhotoFiles = item.fixPhotoFiles || [];
+      if (isClosing && !String(item.issue.verificationComments || "").trim()) {
+        setInspectionSubmitError("Please add verification comments before closing this issue.");
+        setInspectionSubmitting(false);
+        return;
+      }
       if (isClosing && getFixPhotoUrls(existingIssue).length === 0 && pendingFixPhotoFiles.length === 0) {
         setInspectionSubmitError("Please upload after-repair evidence before closing this issue.");
         setInspectionSubmitting(false);
@@ -2431,6 +2625,32 @@ const Inspections = () => {
         fixPhotoUploadedBy = fsmId;
       }
 
+      let priorityAssessment = null;
+      let finalPriority = item.issue.priority || existingIssue.priority || "Medium";
+      let priorityWarning = "";
+      if (
+        ![ISSUE_STATUS.RESOLVED, ISSUE_STATUS.CLOSED].includes(item.issue.status)
+      ) {
+        priorityAssessment = await assessPriorityDraft({
+          key: issueKey,
+          category,
+          item,
+          issueKey,
+          relatedInspectionKey: existingIssue.inspectionKey || inspectionKey,
+          photoPaths: [
+            defectPhotoStoragePath,
+            ...uploadedPhotos.map((photo) => photo.path)
+          ].filter(Boolean)
+        });
+        if (priorityAssessment.error) {
+          priorityWarning = `AI priority was unavailable; kept ${finalPriority}.`;
+        } else if (!priorityAssessment.reused) {
+          const reviewed = await requestPriorityReview([priorityAssessment]);
+          if (!reviewed) return;
+          finalPriority = reviewed[issueKey] || finalPriority;
+        }
+      }
+
       const removedPhotoCount = previouslySavedPhotoUrls.filter((url) => !defectPhotoUrls.includes(url)).length;
       const photoHistoryEntries = [
         removedPhotoCount > 0
@@ -2456,7 +2676,8 @@ const Inspections = () => {
         issueId: existingIssue.issueId || issueKey,
         issueDescription: item.issue.description || "",
         rectification: item.issue.rectification || "",
-        priority: item.issue.priority || existingIssue.priority || "Medium",
+        verificationComments: item.issue.verificationComments || "",
+        priority: finalPriority,
         status: item.issue.status || ISSUE_STATUS.OPEN,
         reportedBy: existingIssue.reportedBy || fsmId,
         issuePhotoUrl: defectPhotoUrls[0] || "",
@@ -2484,7 +2705,16 @@ const Inspections = () => {
             updatedBy: fsmId,
             eventType: "photos_uploaded"
           }) : null
-        ])
+        ]),
+        ...(priorityAssessment?.assessmentId && !priorityAssessment.reused
+          ? {
+              aiSuggestedPriority: priorityAssessment.suggestedPriority,
+              aiPriorityAssessmentId: priorityAssessment.assessmentId,
+              aiPriorityAccepted:
+                priorityAssessment.suggestedPriority === finalPriority,
+              aiPriorityAssessedAt: new Date()
+            }
+          : {})
       };
 
       if (isClosing && statusChanged) {
@@ -2502,12 +2732,20 @@ const Inspections = () => {
           fixPhotoStoragePath,
           fixPhotoUploadedAt,
           fixPhotoUploadedBy,
-          verificationComments: item.issue.rectification || "Closed from inspection checklist",
+          verificationComments: item.issue.verificationComments,
           approvalStatus: APPROVAL_STATUS.APPROVED
         });
       }
 
       await upsertIssue(updatedIssue);
+      const auditWarning = await recordPriorityDecisionSafely({
+        assessment: priorityAssessment,
+        issueId: issueKey,
+        finalPriority
+      });
+      if (auditWarning) {
+        priorityWarning = "Issue saved, but the AI decision audit could not be recorded.";
+      }
       const resultDocumentId = existingIssue.resultKey || existingIssue.resultId;
       if (resultDocumentId) {
         await updateInspectionResult(resultDocumentId, {
@@ -2516,6 +2754,7 @@ const Inspections = () => {
           remark: item.remark || "",
           issueDescription: updatedIssue.issueDescription,
           rectification: updatedIssue.rectification,
+          verificationComments: updatedIssue.verificationComments,
           priority: updatedIssue.priority,
           issueStatus: updatedIssue.status,
           photoUrl: updatedIssue.defectPhotoUrl,
@@ -2563,7 +2802,9 @@ const Inspections = () => {
       );
       setEditingIssueRowKey("");
       setIssueEditSnapshot(null);
-      setInspectionSubmitSuccess("Issue updated from the inspection checklist.");
+      setInspectionSubmitSuccess(
+        `Issue updated from the inspection checklist.${priorityWarning ? ` ${priorityWarning}` : ""}`
+      );
     } catch (error) {
       setInspectionSubmitError(error.message || "Could not update issue.");
     } finally {
@@ -2674,6 +2915,7 @@ const Inspections = () => {
         issueId: verificationIssue.issueId || issueKey,
         reportedBy: verificationIssue.reportedBy || fsmId,
         status: ISSUE_STATUS.CLOSED,
+        condition: CHECKLIST_CONDITION.GOOD,
         defectPhotoUrl: getDefectPhotoUrl(verificationIssue),
         defectPhotoUrls: getDefectPhotoUrls(verificationIssue),
         defectPhotoStoragePath: verificationIssue.defectPhotoStoragePath || "",
@@ -2702,15 +2944,44 @@ const Inspections = () => {
         ])
       });
 
+      const resultDocumentId = verificationIssue.resultKey || verificationIssue.resultId;
+      if (resultDocumentId) {
+        await updateInspectionResult(resultDocumentId, {
+          condition: CHECKLIST_CONDITION.GOOD,
+          passFail: getPassFail(CHECKLIST_CONDITION.GOOD),
+          issueStatus: ISSUE_STATUS.CLOSED,
+          fixPhotoUrl,
+          fixPhotoUrls,
+          fixPhotoStoragePath,
+          fixPhotoUploadedAt,
+          fixPhotoUploadedBy
+        });
+      }
+
       setVerificationIssue((current) => ({
         ...current,
         status: ISSUE_STATUS.CLOSED,
+        condition: CHECKLIST_CONDITION.GOOD,
         fixPhotoUrl,
         fixPhotoUrls,
         fixPhotoStoragePath,
         fixPhotoUploadedAt,
         fixPhotoUploadedBy
       }));
+      setChecklistForSelectedLevel((current) =>
+        current.map((category) => ({
+          ...category,
+          items: category.items.map((item) =>
+            isIssueTargetRow(verificationIssue, category, item)
+              ? {
+                  ...item,
+                  condition: CHECKLIST_CONDITION.GOOD,
+                  issue: { ...item.issue, status: ISSUE_STATUS.CLOSED }
+                }
+              : item
+          )
+        }))
+      );
       setFixProofPhotoFile([]);
       setFixProofPhotoPreview([]);
       setInspectionSubmitSuccess("Verification submitted and issue closed successfully.");
@@ -2767,6 +3038,25 @@ const Inspections = () => {
       return;
     }
 
+    const closingWithoutComments = checklist
+      .flatMap((category) => category.items.map((item) => ({ category, item })))
+      .find(({ item }) =>
+        item.condition === CHECKLIST_CONDITION.FAULTY &&
+        item.issue?.status === ISSUE_STATUS.CLOSED &&
+        !String(item.issue?.verificationComments || "").trim()
+      );
+    if (status === "Submitted" && closingWithoutComments) {
+      setInspectionSubmitError("Please add verification comments before closing an issue.");
+      setChecklistForSelectedLevel((current) => current.map((category) => ({
+        ...category,
+        expanded: category.id === closingWithoutComments.category.id ? true : category.expanded,
+        items: category.items.map((item) =>
+          item.id === closingWithoutComments.item.id ? { ...item, expanded: true } : item
+        )
+      })));
+      return;
+    }
+
     if (status === "Submitted" && !confirmed) {
       setIsSubmitConfirmationOpen(true);
       return;
@@ -2775,7 +3065,7 @@ const Inspections = () => {
     try {
       setInspectionSubmitting(true);
       setInspectionSubmitError("");
-      const created = await upsertInspection({
+      const inspectionPayload = {
         inspectionKey,
         inspectionId: inspectionKey,
         buildingId: selectedBuilding,
@@ -2792,26 +3082,132 @@ const Inspections = () => {
         aiAssistanceUsed: false,
         aiSummary: "",
         status
+      };
+      let created = await upsertInspection({
+        ...inspectionPayload,
+        status: status === "Submitted" ? "Draft" : status
       });
+      const priorityPreparations = new Map();
+      const priorityReviewQueue = [];
+      const priorityWarnings = [];
+
+      if (status === "Submitted") {
+        for (const category of checklist) {
+          for (const item of category.items) {
+            if (
+              item.condition !== "Faulty" ||
+              [ISSUE_STATUS.RESOLVED, ISSUE_STATUS.CLOSED].includes(item.issue?.status)
+            ) {
+              continue;
+            }
+
+            const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
+            const issueKey = resultKey;
+            const defectPhotoUrls = uniqueValues([
+              ...(item.defectPhotoUrls || []),
+              item.photo
+            ]).slice(0, PHOTO_LIMIT);
+            const selectedPhotoFiles = [
+              ...(item.photoFiles || []),
+              ...(item.photoFile ? [item.photoFile] : [])
+            ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
+            const uploadedPhotos = [];
+            for (const file of selectedPhotoFiles) {
+              const uploaded = await uploadFile(
+                file,
+                getInspectionDefectPhotoFolder({
+                  inspectionKey,
+                  categoryId: category.id,
+                  itemId: item.id
+                })
+              );
+              if (uploaded?.url) uploadedPhotos.push(uploaded);
+            }
+            const preparedPhotoUrls = uniqueValues([
+              ...defectPhotoUrls,
+              ...uploadedPhotos.map((photo) => photo.url)
+            ]).slice(0, PHOTO_LIMIT);
+            const preparedStoragePath =
+              uploadedPhotos[uploadedPhotos.length - 1]?.path ||
+              item.defectPhotoStoragePath ||
+              "";
+            const assessment = await assessPriorityDraft({
+              key: resultKey,
+              category,
+              item,
+              issueKey,
+              relatedInspectionKey: inspectionKey,
+              photoPaths: [
+                item.defectPhotoStoragePath,
+                ...uploadedPhotos.map((photo) => photo.path)
+              ].filter(Boolean)
+            });
+            if (assessment.error) {
+              priorityWarnings.push(`${item.code}: AI unavailable; kept manual priority.`);
+            } else if (!assessment.reused) {
+              priorityReviewQueue.push(assessment);
+            }
+            priorityPreparations.set(resultKey, {
+              assessment,
+              finalPriority: item.issue?.priority || "Medium",
+              defectPhotoUrls: preparedPhotoUrls,
+              defectPhotoStoragePath: preparedStoragePath,
+              defectPhotoUploadedAt: uploadedPhotos.length
+                ? new Date()
+                : item.defectPhotoUploadedAt || null,
+              defectPhotoUploadedBy: uploadedPhotos.length
+                ? fsmId
+                : item.defectPhotoUploadedBy || "",
+              uploadedPhotos
+            });
+          }
+        }
+
+        if (priorityReviewQueue.length) {
+          const reviewedPriorities = await requestPriorityReview(priorityReviewQueue);
+          if (!reviewedPriorities) return;
+          priorityReviewQueue.forEach((assessment) => {
+            const prepared = priorityPreparations.get(assessment.key);
+            if (prepared) {
+              prepared.finalPriority =
+                reviewedPriorities[assessment.key] || prepared.finalPriority;
+            }
+          });
+        }
+
+        created = await upsertInspection(inspectionPayload);
+      }
 
       for (const category of checklist) {
         for (const item of category.items) {
           const resultKey = buildRecordKey(inspectionKey, category.id, item.id);
+          const priorityPreparation = priorityPreparations.get(resultKey);
           const isFaultyItem = item.condition === "Faulty";
           const issueKey = isFaultyItem ? buildRecordKey(inspectionKey, category.id, item.id) : "";
-          let photoUrl = item.photo || "";
-          let defectPhotoUrls = uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
-          let defectPhotoStoragePath = item.defectPhotoStoragePath || "";
-          let defectPhotoUploadedAt = item.defectPhotoUploadedAt || null;
-          let defectPhotoUploadedBy = item.defectPhotoUploadedBy || "";
+          let photoUrl = priorityPreparation?.defectPhotoUrls?.[0] || item.photo || "";
+          let defectPhotoUrls = priorityPreparation?.defectPhotoUrls ||
+            uniqueValues([...(item.defectPhotoUrls || []), item.photo]).slice(0, PHOTO_LIMIT);
+          let defectPhotoStoragePath =
+            priorityPreparation?.defectPhotoStoragePath ||
+            item.defectPhotoStoragePath ||
+            "";
+          let defectPhotoUploadedAt =
+            priorityPreparation?.defectPhotoUploadedAt ||
+            item.defectPhotoUploadedAt ||
+            null;
+          let defectPhotoUploadedBy =
+            priorityPreparation?.defectPhotoUploadedBy ||
+            item.defectPhotoUploadedBy ||
+            "";
           const selectedPhotoFiles = [
             ...(item.photoFiles || []),
             ...(item.photoFile ? [item.photoFile] : [])
           ].slice(0, Math.max(PHOTO_LIMIT - defectPhotoUrls.length, 0));
+          const filesToUpload = priorityPreparation ? [] : selectedPhotoFiles;
+          const uploadedPhotos = priorityPreparation?.uploadedPhotos || [];
 
-          if (selectedPhotoFiles.length > 0 && isFaultyItem) {
-            const uploadedPhotos = [];
-            for (const file of selectedPhotoFiles) {
+          if (filesToUpload.length > 0 && isFaultyItem) {
+            for (const file of filesToUpload) {
               const uploaded = await uploadFile(
                 file,
                 getInspectionDefectPhotoFolder({
@@ -2827,7 +3223,7 @@ const Inspections = () => {
             defectPhotoStoragePath = uploadedPhotos[uploadedPhotos.length - 1]?.path || "";
             defectPhotoUploadedAt = new Date();
             defectPhotoUploadedBy = fsmId;
-          } else if (selectedPhotoFiles.length > 0) {
+          } else if (filesToUpload.length > 0) {
             console.warn("Skipped non-faulty checklist photo upload", {
               resultKey,
               itemCode: item.code,
@@ -2859,6 +3255,10 @@ const Inspections = () => {
           }
 
           const defectPhotoUrl = photoUrl;
+          const finalPriority =
+            priorityPreparation?.finalPriority ||
+            item.issue?.priority ||
+            "Medium";
 
           const result = await upsertInspectionResult({
             resultKey,
@@ -2893,7 +3293,8 @@ const Inspections = () => {
             fixPhotoUploadedBy,
             issueDescription: item.issue?.description || "",
             rectification: item.issue?.rectification || "",
-            priority: item.issue?.priority || "",
+            verificationComments: item.issue?.verificationComments || "",
+            priority: finalPriority,
             issueStatus: item.issue?.status || "",
             manualVerificationRequired: !!item.isManualVerification,
             checkedAt: new Date(),
@@ -2933,10 +3334,10 @@ const Inspections = () => {
                 eventType: "status_update"
               }));
             }
-            if (selectedPhotoFiles.length > 0) {
+            if (uploadedPhotos.length > 0) {
               historyEntries.push(createAuditEntry({
                 status: item.issue?.status || ISSUE_STATUS.OPEN,
-                note: `${selectedPhotoFiles.length} defect photo(s) uploaded`,
+                note: `${uploadedPhotos.length} defect photo(s) uploaded`,
                 updatedBy: fsmId,
                 eventType: "photos_uploaded"
               }));
@@ -2967,7 +3368,7 @@ const Inspections = () => {
                 fixPhotoStoragePath,
                 fixPhotoUploadedAt,
                 fixPhotoUploadedBy,
-                verificationComments: item.issue?.rectification || "Closed from inspection checklist",
+                verificationComments: item.issue?.verificationComments || "",
                 approvalStatus: APPROVAL_STATUS.APPROVED
               });
             }
@@ -2992,7 +3393,8 @@ const Inspections = () => {
               issueTitle: item.label,
               issueDescription: item.issue?.description || item.remark || "",
               rectification: item.issue?.rectification || "",
-              priority: item.issue?.priority || "High",
+              verificationComments: item.issue?.verificationComments || "",
+              priority: finalPriority,
               status: item.issue?.status || ISSUE_STATUS.OPEN,
               issuePhotoUrl: photoUrl,
               defectPhotoUrl,
@@ -3006,8 +3408,31 @@ const Inspections = () => {
               fixPhotoUploadedAt,
               fixPhotoUploadedBy,
               aiRecommendation: "",
+              ...(priorityPreparation?.assessment?.assessmentId &&
+              !priorityPreparation.assessment.reused
+                ? {
+                    aiSuggestedPriority:
+                      priorityPreparation.assessment.suggestedPriority,
+                    aiPriorityAssessmentId:
+                      priorityPreparation.assessment.assessmentId,
+                    aiPriorityAccepted:
+                      priorityPreparation.assessment.suggestedPriority ===
+                      finalPriority,
+                    aiPriorityAssessedAt: new Date()
+                  }
+                : {}),
               ...(historyEntries.length ? { history: appendHistory(existingIssue, historyEntries) } : {})
             });
+            const auditWarning = await recordPriorityDecisionSafely({
+              assessment: priorityPreparation?.assessment,
+              issueId: issueKey,
+              finalPriority
+            });
+            if (auditWarning) {
+              priorityWarnings.push(
+                `${item.code}: issue saved, but the AI audit was not recorded.`
+              );
+            }
           }
         }
       }
@@ -3037,7 +3462,11 @@ const Inspections = () => {
       console.log(`Inspection ${status.toLowerCase()}`, created.id);
       setInspectionSubmitSuccess(
         status === "Submitted"
-          ? "Inspection checklist submitted and monthly report record created successfully."
+          ? `Inspection checklist submitted and monthly report record created successfully.${
+              priorityWarnings.length
+                ? ` ${priorityWarnings.length} AI priority warning(s); manual priorities were retained where needed.`
+                : ""
+            }`
           : "Inspection checklist saved successfully."
       );
       setEditingIssueRowKey("");
@@ -3110,7 +3539,17 @@ const Inspections = () => {
                       {getDefectPhotoUrls(verificationIssue).map((photoUrl, index) => (
                         <figure key={`before-${photoUrl}-${index}`} className="verification-photo">
                           <figcaption>Before {index + 1}</figcaption>
-                          <img src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
+                          <button
+                            type="button"
+                            className="verification-photo-preview-button"
+                            onClick={() => setVerificationPhotoPreview({
+                              url: photoUrl,
+                              alt: `Original defect evidence ${index + 1}`
+                            })}
+                            aria-label={`View before photo ${index + 1}`}
+                          >
+                            <img src={photoUrl} alt={`Original defect evidence ${index + 1}`} />
+                          </button>
                         </figure>
                       ))}
                     </div>
@@ -3123,7 +3562,17 @@ const Inspections = () => {
                         .map((photoUrl, index) => (
                           <figure key={`after-${photoUrl}-${index}`} className="verification-photo">
                             <figcaption>After {index + 1}</figcaption>
-                            <img src={photoUrl} alt={`Closure evidence ${index + 1}`} />
+                            <button
+                              type="button"
+                              className="verification-photo-preview-button"
+                              onClick={() => setVerificationPhotoPreview({
+                                url: photoUrl,
+                                alt: `Closure evidence ${index + 1}`
+                              })}
+                              aria-label={`View after photo ${index + 1}`}
+                            >
+                              <img src={photoUrl} alt={`Closure evidence ${index + 1}`} />
+                            </button>
                             {index >= getFixPhotoUrls(verificationIssue).length && (
                               <button
                                 type="button"
@@ -3352,22 +3801,6 @@ const Inspections = () => {
 
           <AppendixTable entries={appendixEntries} />
 
-          <section className="inspection-card remarks-card">
-            <div className="card-title-row">
-              <p className="overline">General Observation</p>
-              <h3>Remarks</h3>
-            </div>
-            <label>
-              <span className="sr-only">General observation and remarks</span>
-              <textarea
-                value={generalRemarks}
-                rows={5}
-                placeholder="Add general observation or notes for this inspection..."
-                onChange={(e) => setRemarksForSelectedLevel(e.target.value)}
-                disabled={isChecklistReviewMode && !editIssueFromQuery}
-              />
-            </label>
-          </section>
         </div>
       </div>
       {isSubmitConfirmationOpen && (
@@ -3378,6 +3811,21 @@ const Inspections = () => {
           onCancel={() => setIsSubmitConfirmationOpen(false)}
           onConfirm={confirmInspectionSubmit}
         />
+      )}
+      {priorityReviewEntries.length > 0 && (
+        <AiPriorityReviewModal
+          entries={priorityReviewEntries}
+          onCancel={() => closePriorityReview(null)}
+          onConfirm={closePriorityReview}
+        />
+      )}
+      {verificationPhotoPreview && (
+        <div className="inspection-image-lightbox" role="presentation" onClick={() => setVerificationPhotoPreview(null)}>
+          <div className="inspection-image-lightbox__dialog" role="dialog" aria-modal="true" aria-label="Full-size verification photo" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="inspection-image-lightbox__close" onClick={() => setVerificationPhotoPreview(null)} aria-label="Close photo preview">&times;</button>
+            <img src={verificationPhotoPreview.url} alt={verificationPhotoPreview.alt} />
+          </div>
+        </div>
       )}
       {(inspectionSubmitError || inspectionSubmitSuccess) && (
         <div className="issue-ticket-modal-backdrop inspection-notification-backdrop" role="presentation">

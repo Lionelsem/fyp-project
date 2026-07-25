@@ -8,6 +8,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  getDoc,
   getDocs,
   arrayUnion,
   writeBatch,
@@ -15,6 +16,125 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
+
+const textValue = (value) => String(value || "").trim();
+
+const getUserLookupIds = (user) => new Set([
+  user?.uid,
+  user?.authUid,
+  user?.profileId,
+  user?.id,
+  user?.userId,
+  user?.customerId,
+  user?.accountId,
+  user?.fullName,
+  user?.displayName,
+  user?.email
+].map(textValue).filter(Boolean));
+
+const getBuildingName = (building) =>
+  textValue(
+    building?.buildingName ||
+    building?.building_name ||
+    building?.name ||
+    building?.buildingId ||
+    building?.id
+  );
+
+const isCustomerBuilding = (building, customerIds, assignedBuildingIds) => {
+  const customerFields = [
+    building?.customerId,
+    building?.customer,
+    building?.customerName,
+    building?.ownerId,
+    building?.createdBy
+  ].map(textValue).filter(Boolean);
+
+  const buildingIds = [
+    building?.id,
+    building?.buildingId,
+    building?.buildingName,
+    building?.building_name,
+    building?.name
+  ].map(textValue).filter(Boolean);
+
+  return (
+    customerFields.some((value) => customerIds.has(value)) ||
+    buildingIds.some((value) => assignedBuildingIds.has(value))
+  );
+};
+
+export const getCustomerFeedbackRecipients = async (user) => {
+  if (!user) return [];
+
+  const customerIds = getUserLookupIds(user);
+  const assignedBuildingIds = new Set(
+    [
+      user.assignedBuildingId,
+      user.buildingId,
+      user.assignedBuilding,
+      user.building,
+      ...(Array.isArray(user.assignedBuildingIds) ? user.assignedBuildingIds : []),
+      ...(Array.isArray(user.buildingIds) ? user.buildingIds : [])
+    ].map(textValue).filter(Boolean)
+  );
+
+  const buildingsSnapshot = await getDocs(collection(db, COLLECTION_NAMES.BUILDINGS));
+  const linkedBuildings = buildingsSnapshot.docs
+    .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
+    .filter((building) => isCustomerBuilding(building, customerIds, assignedBuildingIds));
+
+  const assignments = linkedBuildings
+    .map((building) => ({
+      fsmId: textValue(building.assignedFsmId || building.fsmId),
+      fallbackName: textValue(
+        building.assignedFsmName || building.assignedFsm || "Assigned FSM"
+      ),
+      buildingId: textValue(building.id || building.buildingId),
+      buildingName: getBuildingName(building)
+    }))
+    .filter((assignment) => assignment.fsmId);
+
+  const profileFsmId = textValue(user.assignedFsmId || user.fsmId);
+  if (profileFsmId && !assignments.some(({ fsmId }) => fsmId === profileFsmId)) {
+    assignments.push({
+      fsmId: profileFsmId,
+      fallbackName: textValue(user.assignedFsmName || user.assignedFsm || "Assigned FSM"),
+      buildingId: "",
+      buildingName: ""
+    });
+  }
+
+  const fsmProfiles = new Map();
+  await Promise.all(
+    Array.from(new Set(assignments.map(({ fsmId }) => fsmId))).map(async (fsmId) => {
+      try {
+        const snapshot = await getDoc(doc(db, COLLECTION_NAMES.USERS, fsmId));
+        if (snapshot.exists()) {
+          fsmProfiles.set(fsmId, snapshot.data());
+        }
+      } catch (error) {
+        console.warn(`Could not load display details for assigned FSM ${fsmId}.`, error);
+      }
+    })
+  );
+
+  return assignments.map((assignment) => {
+    const profile = fsmProfiles.get(assignment.fsmId);
+    const fsmName = textValue(
+      profile?.fullName ||
+      profile?.displayName ||
+      profile?.email ||
+      assignment.fallbackName
+    );
+
+    return {
+      ...assignment,
+      fsmName,
+      key: `${assignment.fsmId}::${assignment.buildingId || "profile"}`
+    };
+  });
+};
 
 export const listenToCustomerFeedbackThreads = (customerId, onUpdate, onError) => {
   const threadsQuery = query(

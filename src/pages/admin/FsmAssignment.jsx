@@ -9,6 +9,7 @@ const FsmAssignment = () => {
   const [users, setUsers] = useState([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
   const [selectedFsmId, setSelectedFsmId] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -27,6 +28,7 @@ const FsmAssignment = () => {
         setUsers(userData);
         setSelectedBuildingId(buildingData[0]?.id || "");
         setSelectedFsmId(buildingData[0]?.assignedFsmId || "");
+        setSelectedCustomerId(buildingData[0]?.customerId || "");
       } catch (loadError) {
         console.error("Failed to load assignment data", loadError);
         if (active) setMessage({ type: "error", text: loadError.message || "Could not load assignment data." });
@@ -45,6 +47,10 @@ const FsmAssignment = () => {
     () => users.filter((user) => user.role === ROLES.FSM),
     [users]
   );
+  const customerUsers = useMemo(
+    () => users.filter((user) => user.role === ROLES.CUSTOMER),
+    [users]
+  );
 
   const buildingMap = useMemo(
     () => new Map(buildings.map((building) => [building.id, building])),
@@ -56,6 +62,7 @@ const FsmAssignment = () => {
   useEffect(() => {
     if (selectedBuilding) {
       setSelectedFsmId(selectedBuilding.assignedFsmId || "");
+      setSelectedCustomerId(selectedBuilding.customerId || "");
     }
   }, [selectedBuilding]);
 
@@ -71,6 +78,7 @@ const FsmAssignment = () => {
   };
 
   const selectedFsmName = getFsmName(selectedFsmId);
+  const selectedCustomerName = getFsmName(selectedCustomerId);
   const currentBuildingName = selectedBuilding?.buildingName || selectedBuilding?.building_name || selectedBuilding?.buildingId || "";
 
   const handleSubmit = async (event) => {
@@ -85,12 +93,17 @@ const FsmAssignment = () => {
     setSaving(true);
     try {
       await updateBuilding(selectedBuildingId, {
-        assignedFsmId: selectedFsmId || ""
+        assignedFsmId: selectedFsmId || "",
+        customerId: selectedCustomerId || ""
       });
-      setMessage({ type: "success", text: "FSM assignment saved successfully." });
+      setMessage({ type: "success", text: "Building assignments saved successfully." });
       const updatedBuildings = buildings.map((building) =>
         building.id === selectedBuildingId
-          ? { ...building, assignedFsmId: selectedFsmId }
+          ? {
+              ...building,
+              assignedFsmId: selectedFsmId,
+              customerId: selectedCustomerId
+            }
           : building
       );
       setBuildings(updatedBuildings);
@@ -109,7 +122,7 @@ const FsmAssignment = () => {
           <div>
             <h2 className="section-title">FSM Assignment</h2>
             <p style={{ color: "#6b7280", marginTop: "4px" }}>
-              Assign Fire Safety Managers to specific buildings and manage their portfolios.
+              Link customers and Fire Safety Managers to specific buildings.
             </p>
           </div>
         </div>
@@ -127,7 +140,7 @@ const FsmAssignment = () => {
                   fontSize: "clamp(0.8125rem, 0.8rem + 0.15vw, 0.875rem)",
                 }}
               >
-                Select a building and FSM to create the next assignment.
+                Select a building, customer, and FSM to create the assignment.
               </p>
             </div>
           </div>
@@ -164,6 +177,22 @@ const FsmAssignment = () => {
                 >
                   <option value="">Unassigned</option>
                   {fsmUsers.map((user) => (
+                    <option key={user.uid} value={user.uid}>
+                      {user.fullName || user.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">Select Customer</label>
+                <select
+                  className="form-input"
+                  value={selectedCustomerId}
+                  onChange={(event) => setSelectedCustomerId(event.target.value)}
+                >
+                  <option value="">Unassigned</option>
+                  {customerUsers.map((user) => (
                     <option key={user.uid} value={user.uid}>
                       {user.fullName || user.email}
                     </option>
@@ -224,6 +253,9 @@ const FsmAssignment = () => {
                   </div>
                   <div style={{ color: "#6b7280", marginTop: "4px" }}>
                     {currentBuildingName}
+                  </div>
+                  <div style={{ color: "#6b7280", marginTop: "4px" }}>
+                    Customer: {selectedCustomerId ? selectedCustomerName : "Unassigned"}
                   </div>
                 </div>
               </div>
