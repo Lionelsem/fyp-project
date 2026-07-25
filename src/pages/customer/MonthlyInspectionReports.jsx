@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
-import { getAllReports, updateReport } from "../../services/reportService";
+import FeedbackHistory from "../../components/customer/FeedbackHistory";
+import { useAuthContext } from "../../context/AuthContext";
+import { addReportCustomerFeedback } from "../../services/reportService";
+import { useCustomerLiveData } from "../../hooks/useCustomerLiveData";
 
 const parseReportYear = (dateString) => {
   const yearMatch = String(dateString || "").match(/\b(?:19|20)\d{2}\b/);
@@ -194,15 +198,16 @@ const buildInspectionOverviewPdf = (report) => {
 };
 
 const InspectionReports = () => {
+  const { user } = useAuthContext();
+  const { reports: liveReports, inspections, issues, loading: liveLoading, error: liveError } = useCustomerLiveData(user);
   const [search, setSearch] = useState("");
 
   const [yearFilter, setYearFilter] = useState("");
 
   const [reports, setReports] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState("");
+  const loading = liveLoading;
+  const error = liveError;
 
   const [remarks, setRemarks] = useState("");
 
@@ -218,65 +223,10 @@ const InspectionReports = () => {
   const [isDownloadingPdf, setIsDownloadingPdf] =
     useState(false);
 
-  // Load live inspection data from Firestore
   useEffect(() => {
-    let active = true;
-
-    const loadReports = async () => {
-      try {
-        setLoading(true);
-
-        setError("");
-
-        const data = await getAllReports();
-
-        // Only display monthly inspection reports
-        const inspectionReports = (data || []).filter(
-          (report) => {
-            const type = String(
-              report.reportType ||
-                report.reportTitle ||
-                ""
-            ).toLowerCase();
-
-            return !type.includes("annual");
-          }
-        );
-
-        if (active) {
-          const normalizedReports =
-            inspectionReports.map(
-              normalizeInspectionReport
-            );
-
-          setReports(normalizedReports);
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load inspection reports:",
-          error
-        );
-
-        if (active) {
-          setError(
-            "Unable to load inspection reports from Firebase."
-          );
-
-          setReports([]);
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadReports();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    const monthlyReports = liveReports.filter((report) => !String(report.reportType || report.reportTitle || "").toLowerCase().includes("annual"));
+    setReports(monthlyReports.map(normalizeInspectionReport));
+  }, [liveReports]);
 
   // Search and year filtering
   const filteredReports = useMemo(() => {
@@ -369,13 +319,14 @@ const InspectionReports = () => {
 
       setRemarksSavedMessage("");
 
-      await updateReport(selectedFeedbackReport.id, {
-        customerComments: remarks,
-        customerFeedbackStatus: remarks.trim()
-          ? "Submitted"
-          : "Not submitted",
-        customerFeedbackUpdatedAt: new Date(),
-      });
+      const submittedAt = new Date();
+      const feedbackEntry = {
+        message: remarks.trim(),
+        submittedAt,
+        customerId: user?.uid || user?.authUid || "",
+        customerName: user?.fullName || user?.name || user?.email || "Customer"
+      };
+      await addReportCustomerFeedback(selectedFeedbackReport.id, remarks, user);
 
       // Update the UI immediately
       setReports((currentReports) =>
@@ -383,11 +334,13 @@ const InspectionReports = () => {
           report.id === selectedFeedbackReport.id
             ? {
                 ...report,
-                customerComments: remarks,
-                customerFeedbackStatus: remarks.trim()
-                  ? "Submitted"
-                  : "Not submitted",
-                customerFeedbackUpdatedAt: new Date(),
+                customerComments: feedbackEntry.message,
+                customerFeedbackStatus: "Submitted",
+                customerFeedbackUpdatedAt: submittedAt,
+                customerFeedbackHistory: [
+                  ...(report.customerFeedbackHistory || []),
+                  feedbackEntry
+                ],
               }
             : report
         )
@@ -789,7 +742,7 @@ const InspectionReports = () => {
                     </button>
                   </div>
 
-                  {remarksSavedMessage && (
+                {remarksSavedMessage && (
                     <p
                       style={{
                         margin:
@@ -804,7 +757,8 @@ const InspectionReports = () => {
                     >
                       {remarksSavedMessage}
                     </p>
-                  )}
+                )}
+                <FeedbackHistory record={selectedFeedbackReport} />
 
                 </div>
 
@@ -921,8 +875,6 @@ const InspectionReports = () => {
                       <th>MONTH</th>
                       <th>DATE</th>
                       <th>STATUS</th>
-                      <th>YOUR FEEDBACK</th>
-                      <th aria-label="Feedback action" />
                     </tr>
                   </thead>
 
@@ -954,52 +906,6 @@ const InspectionReports = () => {
                               {report.status}
                             </span>
 
-                          </td>
-
-                          <td data-label="Your feedback">
-                            <span
-                              className="status-badge"
-                              style={{
-                                color:
-                                  report.customerFeedbackStatus === "Submitted"
-                                    ? "#1d4ed8"
-                                    : "#64748b",
-                                backgroundColor:
-                                  report.customerFeedbackStatus === "Submitted"
-                                    ? "#eff6ff"
-                                    : "#f1f5f9",
-                              }}
-                            >
-                              {report.customerFeedbackStatus}
-                            </span>
-                            {report.customerFeedbackStatus === "Submitted" && (
-                              <small
-                                style={{
-                                  display: "block",
-                                  marginTop: "6px",
-                                  color: "#64748b",
-                                }}
-                              >
-                                Updated {formatReportDate(report.customerFeedbackUpdatedAt)}
-                              </small>
-                            )}
-                          </td>
-
-                          <td data-label="Action">
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() =>
-                                setSelectedFeedbackReportId(report.id)
-                              }
-                              aria-pressed={
-                                selectedFeedbackReport?.id === report.id
-                              }
-                            >
-                              {selectedFeedbackReport?.id === report.id
-                                ? "Viewing"
-                                : "View feedback"}
-                            </button>
                           </td>
 
                         </tr>
@@ -1162,15 +1068,15 @@ const InspectionReports = () => {
               clarifications.
             </p>
 
-            <button
-              type="button"
+            <Link
+              to="/feedbacks"
               className="secondary-btn"
               style={{
                 width: "100%",
               }}
             >
               Contact Support
-            </button>
+            </Link>
 
           </div>
 

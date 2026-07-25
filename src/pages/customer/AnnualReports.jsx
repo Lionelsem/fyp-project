@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getAllReports, updateReport } from "../../services/reportService";
+import { Link } from "react-router-dom";
+import { addReportCustomerFeedback, getAllReports } from "../../services/reportService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import FeedbackHistory from "../../components/customer/FeedbackHistory";
+import { useAuthContext } from "../../context/AuthContext";
 
 const fallbackReports = [
   {
@@ -123,6 +126,7 @@ const buildAnnualReportPdf = (report) => {
 };
 
 const AnnualReports = () => {
+  const { user } = useAuthContext();
   const [reports, setReports] = useState([]);
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -203,10 +207,19 @@ const AnnualReports = () => {
     setRemarksSavedMessage("");
 
     try {
-      await updateReport(latestReport.id, { customerComments: remarks });
+      const submittedAt = new Date();
+      const feedbackEntry = {
+        message: remarks.trim(),
+        submittedAt,
+        customerId: user?.uid || user?.authUid || "",
+        customerName: user?.fullName || user?.name || user?.email || "Customer"
+      };
+      await addReportCustomerFeedback(latestReport.id, remarks, user);
       setReports((currentReports) =>
         currentReports.map((report) =>
-          report.id === latestReport.id ? { ...report, customerComments: remarks } : report
+          report.id === latestReport.id
+            ? { ...report, customerComments: feedbackEntry.message, customerFeedbackUpdatedAt: submittedAt, customerFeedbackHistory: [...(report.customerFeedbackHistory || []), feedbackEntry] }
+            : report
         )
       );
       setRemarksSavedMessage("Remarks saved successfully.");
@@ -338,6 +351,7 @@ const AnnualReports = () => {
                     {remarksSavedMessage}
                   </p>
                 )}
+                <FeedbackHistory record={latestReport} />
               </div>
             </div>
           </div>
@@ -441,9 +455,9 @@ const AnnualReports = () => {
             <p style={{ margin: "0 0 12px", color: "#64748b", lineHeight: "1.6" }}>
               If you need a formal copy or want a detailed explanation of any section, contact the fire safety team.
             </p>
-            <button type="button" className="secondary-btn" style={{ width: "100%" }}>
+            <Link to="/feedbacks" className="secondary-btn" style={{ width: "100%" }}>
               Contact Support
-            </button>
+            </Link>
           </div>
         </div>
       </div>

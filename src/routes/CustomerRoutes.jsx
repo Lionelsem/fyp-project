@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import CustomerLayout from "../layouts/CustomerLayout";
 import CustomerDashboard from "../pages/customer/CustomerDashboard";
 import IssueProgress from "../pages/customer/IssueProgress";
-import InspectionReports from "../pages/customer/InspectionReports";
+import InspectionReports from "../pages/customer/MonthlyInspectionReports";
 import FireDrillReports from "../pages/customer/FireDrillReports";
 import AnnualReports from "../pages/customer/AnnualReports";
 import MyBuildings from "../pages/customer/MyBuildings";

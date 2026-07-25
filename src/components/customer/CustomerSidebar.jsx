@@ -10,7 +10,7 @@ const menuItems = [
     label: "Reports",
     icon: "📊",
     submenu: [
-      { path: "/inspection-reports", label: "Inspection", icon: "📋" },
+      { path: "/inspection-reports", label: "Monthly Inspection", icon: "📋" },
       { path: "/fire-drill-reports", label: "Fire Drills", icon: "🚒" },
       { path: "/annual-reports", label: "Annual", icon: "📈" }
     ]

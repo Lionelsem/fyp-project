@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { getAllUsers } from "../../services/userService";
+import {
+  buildFireDrillAuditRecord,
+  isSubmittedFireDrill
+} from "../../services/fireDrillService";
 
 const mockBuildings = [
   {
@@ -340,7 +344,8 @@ const MyBuilding = () => {
     loading,
     error,
     buildings: liveBuildings,
-    reports,
+    reports = [],
+    fireDrills = [],
     inspections,
     issues
   } = useFsmDashboardData(getFsmLookupIds(user));
@@ -365,6 +370,20 @@ const MyBuilding = () => {
   }, []);
 
   const userNameMap = useMemo(() => buildUserNameMap(users), [users]);
+  const reportRecords = useMemo(() => {
+    const reportedFireDrillIds = new Set(
+      reports.map((report) => String(report.fireDrillId || "")).filter(Boolean)
+    );
+    const historicalFireDrillAudits = fireDrills
+      .filter(
+        (drill) =>
+          isSubmittedFireDrill(drill) &&
+          !reportedFireDrillIds.has(String(drill.id || ""))
+      )
+      .map((drill) => buildFireDrillAuditRecord(drill.id, drill));
+
+    return [...reports, ...historicalFireDrillAudits];
+  }, [fireDrills, reports]);
 
   const buildingCards = useMemo(() => {
     const sourceBuildings = liveBuildings.length > 0 ? liveBuildings : loading ? [] : mockBuildings;
@@ -372,14 +391,14 @@ const MyBuilding = () => {
     return sourceBuildings.map((building) =>
       buildBuildingCard({
         building,
-        reports,
+        reports: reportRecords,
         inspections,
         issues,
         userNameMap,
         currentUser: user
       })
     );
-  }, [inspections, issues, liveBuildings, loading, reports, user, userNameMap]);
+  }, [inspections, issues, liveBuildings, loading, reportRecords, user, userNameMap]);
 
   const selectedBuilding = buildingCards[0];
   const selectedReportAction =
@@ -387,14 +406,14 @@ const MyBuilding = () => {
   const selectedBuildingReports = useMemo(() => {
     if (!selectedBuilding) return [];
 
-    const relatedReports = reports.filter((report) =>
+    const relatedReports = reportRecords.filter((report) =>
       isForBuilding(report, selectedBuilding) &&
       isReportType(report, selectedReportType) &&
       matchesReportMonth(report, selectedReportMonth)
     );
 
     return sortByLatestDate(relatedReports, ["generatedDate", "createdAt", "date"]);
-  }, [reports, selectedBuilding, selectedReportMonth, selectedReportType]);
+  }, [reportRecords, selectedBuilding, selectedReportMonth, selectedReportType]);
 
   return (
     <div className="dashboard-container my-building-page">

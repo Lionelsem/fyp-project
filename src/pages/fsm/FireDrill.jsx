@@ -1035,6 +1035,11 @@ const FireDrill = () => {
         : [];
 
       await completeFireDrill(selectedDrill.id, {
+        buildingId: selectedDrill.buildingId,
+        buildingName: selectedDrill.buildingName,
+        fsmId: selectedDrill.fsmId || getPrimaryFsmId(user),
+        drillDate: selectedDrill.drillDate,
+        drillType: selectedDrill.drillType,
         actualDate: conductForm.actualDate,
         actualTime: conductForm.actualTime,
         scheduledParticipants: selectedDrill.scheduledParticipants || selectedDrill.participants,
