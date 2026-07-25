@@ -4518,8 +4518,8 @@ select.inspection-row-control {
 .issue-ticket-table--history th:nth-child(6),
 .issue-ticket-table--history td:nth-child(6) { width: 13%; }
 
-.issue-ticket-table--history th:nth-child(7),
-.issue-ticket-table--history td:nth-child(7) {
+.issue-ticket-table th:nth-child(7),
+.issue-ticket-table td:nth-child(7) {
   position: sticky;
   right: 0;
   z-index: 1;
@@ -4532,17 +4532,17 @@ select.inspection-row-control {
   box-shadow: -8px 0 12px -12px rgba(15, 23, 42, 0.45);
 }
 
-.issue-ticket-table--history thead th:nth-child(7) {
+.issue-ticket-table thead th:nth-child(7) {
   z-index: 2;
   background: #ffffff;
 }
 
-.issue-ticket-table--history tbody tr:hover td:nth-child(7),
-.issue-ticket-table--history tbody tr.issue-ticket-row-active td:nth-child(7) {
+.issue-ticket-table tbody tr:hover td:nth-child(7),
+.issue-ticket-table tbody tr.issue-ticket-row-active td:nth-child(7) {
   background: #ecfdf5;
 }
 
-.issue-ticket-table--history td:nth-child(7) .issue-overview-action {
+.issue-ticket-table td:nth-child(7) .issue-overview-action {
   display: inline-grid;
   flex: none;
   min-width: 34px;

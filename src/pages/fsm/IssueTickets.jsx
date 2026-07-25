@@ -6,6 +6,7 @@ import { useFsmDashboardData } from "../../hooks/useFsmDashboardData";
 import { deleteIssue } from "../../services/issueService";
 import { buildIssuePeriodSnapshot, getMonthBounds, parseReportDate } from "../../utils/issueReporting";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
+import { ClosedIssueHistoryModal } from "./Issues";
 
 const getFsmLookupIds = (user) => [
   user?.uid,
@@ -23,6 +24,13 @@ const getFsmLookupIds = (user) => [
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
 const getIssueKey = (issue) => issue.issueKey || issue.id || issue.issueId;
+const getBuildingKey = (building) => building?.id || building?.buildingId;
+const getBuildingName = (building) =>
+  building?.building_name ||
+  building?.buildingName ||
+  building?.name ||
+  building?.building ||
+  "";
 
 const formatDate = (value) => {
   const date = parseReportDate(value);
@@ -49,13 +57,19 @@ const priorityClassName = (priority) => {
 const IssueTickets = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
-  const { loading, error, issues } = useFsmDashboardData(getFsmLookupIds(user));
+  const { loading, error, buildings, issues } = useFsmDashboardData(getFsmLookupIds(user));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
   const [deletingIssueKey, setDeletingIssueKey] = useState("");
   const [actionError, setActionError] = useState("");
+  const [viewIssue, setViewIssue] = useState(null);
+
+  const buildingMap = useMemo(
+    () => new Map(buildings.map((building) => [getBuildingKey(building), building])),
+    [buildings]
+  );
 
   const issueRecords = useMemo(() => {
     if (!monthFilter) {
@@ -107,9 +121,9 @@ const IssueTickets = () => {
     };
   }, [issueRecords]);
 
-  const openChecklistIssue = (issue, mode = "view") => {
+  const openChecklistIssueForEdit = (issue) => {
     const issueKey = getIssueKey(issue);
-    navigate(`/fsm/inspections?issueId=${encodeURIComponent(issueKey)}&mode=${mode}`, { state: { issue } });
+    navigate(`/fsm/inspections?issueId=${encodeURIComponent(issueKey)}&mode=edit`, { state: { issue } });
   };
 
   const handleDeleteIssue = async (issue) => {
@@ -243,16 +257,22 @@ const IssueTickets = () => {
                         <button
                           type="button"
                           className="issue-overview-action issue-overview-action--view"
-                          onClick={() => openChecklistIssue(issue, "view")}
-                          aria-label={`View checklist for ${issue.issueTitle || "issue"}`}
-                          title="View checklist"
+                          onClick={() => {
+                            const building = buildingMap.get(issue.buildingId);
+                            setViewIssue({
+                              ...issue,
+                              buildingName: issue.buildingName || getBuildingName(building)
+                            });
+                          }}
+                          aria-label={`View issue details for ${issue.issueTitle || "issue"}`}
+                          title="View issue details"
                         >
                           <span aria-hidden="true">{"\uD83D\uDC41"}</span>
                         </button>
                         <button
                           type="button"
                           className="issue-overview-action issue-overview-action--edit"
-                          onClick={() => openChecklistIssue(issue, "edit")}
+                          onClick={() => openChecklistIssueForEdit(issue)}
                           disabled={normalizeText(statusAtEnd) === normalizeText(ISSUE_STATUS.CLOSED)}
                           aria-label={`Edit ${issue.issueTitle || "issue"} in checklist`}
                           title={normalizeText(statusAtEnd) === normalizeText(ISSUE_STATUS.CLOSED) ? "Closed issues cannot be edited" : "Edit in checklist"}
@@ -279,6 +299,13 @@ const IssueTickets = () => {
           </ResponsiveTableRegion>
         )}
       </section>
+      {viewIssue && (
+        <ClosedIssueHistoryModal
+          issue={viewIssue}
+          onClose={() => setViewIssue(null)}
+          closeLabel="Close issue details"
+        />
+      )}
     </div>
   );
 };

@@ -628,7 +628,7 @@ const VerifyClosePanel = ({
   </section>
 );
 
-const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onViewChecklist, historyOnly = false, hideHeader = false }) => (
+const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, historyOnly = false, hideHeader = false }) => (
   <aside className="dashboard-card issue-ticket-detail">
     {!hideHeader && <div className="card-header-row">
       <div>
@@ -691,15 +691,6 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onV
     {!historyOnly && <div className="issue-ticket-actions">
       <button
         type="button"
-        className="secondary-button issue-icon-action"
-        onClick={() => onViewChecklist(issue)}
-        aria-label="View Checklist"
-        title="View Checklist"
-      >
-        <span aria-hidden="true">{"\uD83D\uDC41"}</span>
-      </button>
-      <button
-        type="button"
         className="secondary-button"
         onClick={() => onEdit(issue)}
         disabled={normalizeText(issue.status) === normalizeText(ISSUE_STATUS.CLOSED)}
@@ -717,13 +708,17 @@ const IssueDetail = ({ issue, buildingName, onEdit, onDelete, onVerifyClose, onV
   </aside>
 );
 
-export const ClosedIssueHistoryModal = ({ issue, onClose }) => (
+export const ClosedIssueHistoryModal = ({
+  issue,
+  onClose,
+  closeLabel = "Close issue history"
+}) => (
   <Modal
     title={issue.issueTitle || "Untitled issue"}
     onClose={onClose}
     className="closed-issue-history-modal"
     bodyClassName="closed-issue-history-modal__body"
-    closeLabel="Close issue history"
+    closeLabel={closeLabel}
   >
     <div className="closed-issue-history-status-row">
       <p className="overline">Issue Detail</p>
@@ -738,6 +733,14 @@ export const ClosedIssueHistoryModal = ({ issue, onClose }) => (
       hideHeader
     />
   </Modal>
+);
+
+const IssueSummaryModal = ({ issue, onClose }) => (
+  <ClosedIssueHistoryModal
+    issue={issue}
+    onClose={onClose}
+    closeLabel="Close issue details"
+  />
 );
 
 const DeleteModal = ({ issue, saving, onCancel, onConfirm }) => {
@@ -777,6 +780,7 @@ const Issues = ({ verifyClosureMode = false }) => {
   const [issueForm, setIssueForm] = useState(emptyIssueForm);
   const [verificationForm, setVerificationForm] = useState(emptyVerificationForm);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [summaryIssue, setSummaryIssue] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
@@ -856,13 +860,6 @@ const Issues = ({ verifyClosureMode = false }) => {
   const openVerifyClose = (issue) => {
     const issueId = issue.id || getIssueKey(issue);
     navigate(`/fsm/inspections/verify?issueId=${encodeURIComponent(issueId)}`, {
-      state: { issue }
-    });
-  };
-
-  const openChecklistItem = (issue) => {
-    const issueId = issue.id || getIssueKey(issue);
-    navigate(`/fsm/inspections?issueId=${encodeURIComponent(issueId)}`, {
       state: { issue }
     });
   };
@@ -1355,7 +1352,6 @@ const Issues = ({ verifyClosureMode = false }) => {
             onEdit={openEditForm}
             onDelete={setDeleteTarget}
             onVerifyClose={openVerifyClose}
-            onViewChecklist={openChecklistItem}
             saving={saving}
           />
         ) : (
@@ -1426,7 +1422,7 @@ const Issues = ({ verifyClosureMode = false }) => {
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Updated</th>
-                  {verifyClosureMode && <th aria-label="Actions">View</th>}
+                  <th aria-label="Actions">View</th>
                 </tr>
               </thead>
               <tbody>
@@ -1448,19 +1444,24 @@ const Issues = ({ verifyClosureMode = false }) => {
                       <td data-label="Status"><span className={statusClassName(issue.status)}>{issue.status || ISSUE_STATUS.OPEN}</span></td>
                       <td data-label="Priority"><span className={priorityClassName(issue.priority)}>{issue.priority || PRIORITY.MEDIUM}</span></td>
                       <td data-label="Updated" title={issueUpdatedDateTime}>{issueUpdatedAt}</td>
-                      {verifyClosureMode && (
-                        <td data-label="View">
-                          <button
-                            type="button"
-                            className="issue-overview-action issue-overview-action--view"
-                            onClick={(event) => { event.stopPropagation(); setActiveIssueId(issue.id); }}
-                            aria-label={`View closed issue ${issue.issueTitle || issue.issueId || "details"}`}
-                            title="View closed issue"
-                          >
-                            <span aria-hidden="true">{"\uD83D\uDC41"}</span>
-                          </button>
-                        </td>
-                      )}
+                      <td data-label="View">
+                        <button
+                          type="button"
+                          className="issue-overview-action issue-overview-action--view"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (verifyClosureMode) {
+                              setActiveIssueId(issue.id);
+                            } else {
+                              setSummaryIssue(issue);
+                            }
+                          }}
+                          aria-label={`View issue details for ${issue.issueTitle || issue.issueId || "selected issue"}`}
+                          title="View issue details"
+                        >
+                          <span aria-hidden="true">{"\uD83D\uDC41"}</span>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1479,6 +1480,13 @@ const Issues = ({ verifyClosureMode = false }) => {
         <ClosedIssueHistoryModal
           issue={activeIssue}
           onClose={() => setActiveIssueId("")}
+        />
+      )}
+
+      {!verifyClosureMode && summaryIssue && (
+        <IssueSummaryModal
+          issue={summaryIssue}
+          onClose={() => setSummaryIssue(null)}
         />
       )}
 

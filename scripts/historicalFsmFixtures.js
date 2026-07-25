@@ -14,6 +14,27 @@ const buildInspectionDates = (now = new Date(), monthCount = 6) => {
   return dates;
 };
 
+const addCalendarMonths = (date, months) => {
+  const result = new Date(date);
+  const originalDay = result.getDate();
+  result.setDate(1);
+  result.setMonth(result.getMonth() + months);
+  const lastDay = new Date(
+    result.getFullYear(),
+    result.getMonth() + 1,
+    0
+  ).getDate();
+  result.setDate(Math.min(originalDay, lastDay));
+  return result;
+};
+
+const buildClosedIssueLifecycle = (createdAt) => {
+  const inProgressAt = new Date(createdAt.getTime() + 86400000);
+  const resolvedAt = addCalendarMonths(createdAt, 1);
+  const closedAt = new Date(resolvedAt.getTime() + 86400000);
+  return { inProgressAt, resolvedAt, closedAt };
+};
+
 const checklist = [
   ["encroachment", "A. Encroachment", "A", "Encroachment review"],
   ["fire-protection", "B. Fire Protection Systems", "1.0", "Main Fire Alarm Panel"],
@@ -34,15 +55,20 @@ const checklist = [
 ];
 
 const findings = [
-  ["fire-protection", "1.2", "Zone indicator lamp dim", "Zone indicator lamp was dim during testing.", "Replace the indicator lamp and function-test the panel.", "Medium", "Closed", 3],
-  ["hosereel", "3.1", "Hose reel access obstructed", "Cartons restricted access to the hose reel cabinet.", "Remove cartons and mark the keep-clear area.", "High", "Closed", 4],
-  ["extinguishers", "4.2", "Extinguisher partially obstructed", "A movable display partially blocked the extinguisher.", "Relocate the display and restore clear access.", "Medium", "Closed", 2],
-  ["escape", "5.2", "Escape route obstruction", "Stored items reduced the clear escape route width.", "Remove stored items and brief the tenant.", "High", "Closed", 8],
-  ["escape", "5.3", "Exit light not illuminated", "One exit light failed its functional test.", "Replace the battery pack and retest the fitting.", "High", "Resolved", 5],
-  ["sprinkler", "7.1.2", "Sprinkler valve strap worn", "The valve securing strap showed signs of wear.", "Install a new labelled strap and lock.", "Medium", "Closed", 4],
-  ["sprinkler", "7.1.8", "Control valve label faded", "The control valve identification label was faded.", "Install a new permanent identification label.", "Low", "Resolved", 6],
-  ["dry-riser", "8.4", "Dry riser inlet paint faded", "Yellow identification paint was faded.", "Clean and repaint the breeching inlet.", "Medium", "In Progress", 0],
-  ["others", "9.3", "Access route encroachment", "Delivery items encroached on the fire-engine access route.", "Remove the items and reinforce the no-storage rule.", "High", "Open", 0]
+  ["fire-protection", "1.2", "Zone indicator lamp dim", "Zone indicator lamp was dim during testing.", "Replace the indicator lamp and function-test the panel.", "Medium"],
+  ["hosereel", "3.1", "Hose reel access obstructed", "Cartons restricted access to the hose reel cabinet.", "Remove cartons and mark the keep-clear area.", "High"],
+  ["extinguishers", "4.2", "Extinguisher partially obstructed", "A movable display partially blocked the extinguisher.", "Relocate the display and restore clear access.", "Medium"],
+  ["escape", "5.2", "Escape route obstruction", "Stored items reduced the clear escape route width.", "Remove stored items and brief the tenant.", "High"],
+  ["escape", "5.3", "Exit light not illuminated", "One exit light failed its functional test.", "Replace the battery pack and retest the fitting.", "High"],
+  ["sprinkler", "7.1.2", "Sprinkler valve strap worn", "The valve securing strap showed signs of wear.", "Install a new labelled strap and lock.", "Medium"],
+  ["sprinkler", "7.1.8", "Control valve label faded", "The control valve identification label was faded.", "Install a new permanent identification label.", "Low"],
+  ["dry-riser", "8.4", "Dry riser inlet paint faded", "Yellow identification paint was faded.", "Clean and repaint the breeching inlet.", "Medium"],
+  ["others", "9.3", "Access route encroachment", "Delivery items encroached on the fire-engine access route.", "Remove the items and reinforce the no-storage rule.", "High"]
 ];
 
-module.exports = { checklist, findings, buildInspectionDates };
+module.exports = {
+  checklist,
+  findings,
+  buildInspectionDates,
+  buildClosedIssueLifecycle
+};
