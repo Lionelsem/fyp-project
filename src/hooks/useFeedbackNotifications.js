@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ROLES } from "../constants/roles";
 import {
   listenToCustomerFeedbackThreads,
-  listenToFeedbackThreadReplies,
   listenToFsmFeedbackThreads
 } from "../services/feedbackService";
 
@@ -39,9 +38,40 @@ const formatNotificationTime = (value) => {
   });
 };
 
+export const buildFeedbackNotifications = ({ threads = [], userIds = [], isFsm = false }) => {
+  const currentUserIds = new Set(userIds.map(String));
+  return threads.flatMap((thread) => {
+    const senderId = String(thread.lastMessageSenderId || "");
+    const readBy = new Set(
+      (Array.isArray(thread.lastMessageReadBy) ? thread.lastMessageReadBy : [])
+        .map(String)
+    );
+    const isOwnMessage = currentUserIds.has(senderId);
+    const hasBeenRead = userIds.some((userId) => readBy.has(String(userId)));
+    if (!senderId || isOwnMessage || hasBeenRead) return [];
+
+    const senderName =
+      thread.lastMessageSenderName ||
+      (isFsm ? thread.customerName || "Customer" : thread.recipient || "FSM");
+    const sortDate = toDate(thread.lastMessageAt);
+    return [{
+      id: `feedback-${thread.id}-${sortDate?.getTime() || "latest"}`,
+      type: "chat",
+      title: `New message from ${senderName}`,
+      message: `${thread.title || "Comments & Feedback"}: ${thread.lastMessage || "New message"}`,
+      time: formatNotificationTime(thread.lastMessageAt),
+      isRead: false,
+      dismissible: false,
+      threadId: thread.id,
+      sortDate: sortDate || new Date(0)
+    }];
+  })
+    .sort((first, second) => second.sortDate.getTime() - first.sortDate.getTime())
+    .map(({ sortDate, ...notification }) => notification);
+};
+
 export const useFeedbackNotifications = (user) => {
   const [threads, setThreads] = useState([]);
-  const [notificationsByThread, setNotificationsByThread] = useState({});
   const userIds = useMemo(() => getUserIds(user), [user]);
   const userIdsKey = JSON.stringify(userIds);
   const isFsm = user?.role === ROLES.FSM;
@@ -65,56 +95,13 @@ export const useFeedbackNotifications = (user) => {
       : listenToCustomerFeedbackThreads(user.uid, handleUpdate, handleError);
   }, [isFsm, user?.uid, userIdsKey]);
 
-  useEffect(() => {
-    const currentUserIds = new Set(JSON.parse(userIdsKey));
-    const activeThreadIds = new Set(threads.map((thread) => thread.id));
-    setNotificationsByThread((current) => Object.fromEntries(
-      Object.entries(current).filter(([threadId]) => activeThreadIds.has(threadId))
-    ));
-
-    const unsubscribes = threads.map((thread) => listenToFeedbackThreadReplies(
-      thread.id,
-      (snapshot) => {
-        const unreadNotifications = snapshot.docs.flatMap((docItem) => {
-          const message = docItem.data();
-          const senderId = String(message.createdBy || "");
-          const readBy = new Set((Array.isArray(message.readBy) ? message.readBy : []).map(String));
-          const isOwnMessage = currentUserIds.has(senderId);
-          const hasBeenRead = Array.from(currentUserIds).some((userId) => readBy.has(userId));
-          if (isOwnMessage || hasBeenRead) return [];
-
-          const createdAt = toDate(message.createdAt);
-          const senderName = message.senderName || message.sender || (isFsm ? "Customer" : "FSM");
-          return [{
-            id: `feedback-${thread.id}-${docItem.id}`,
-            type: "chat",
-            title: `New message from ${senderName}`,
-            message: `${thread.title || "Comments & Feedback"}: ${message.message || "New message"}`,
-            time: formatNotificationTime(message.createdAt),
-            isRead: false,
-            dismissible: false,
-            threadId: thread.id,
-            sortDate: createdAt || new Date(0)
-          }];
-        });
-
-        setNotificationsByThread((current) => ({
-          ...current,
-          [thread.id]: unreadNotifications
-        }));
-      },
-      (error) => console.error("Failed to load unread feedback messages:", error)
-    ));
-
-    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
-  }, [isFsm, threads, userIdsKey]);
-
   return useMemo(
-    () => Object.values(notificationsByThread)
-      .flat()
-      .sort((first, second) => second.sortDate.getTime() - first.sortDate.getTime())
-      .map(({ sortDate, ...notification }) => notification),
-    [notificationsByThread]
+    () => buildFeedbackNotifications({
+      threads,
+      userIds: JSON.parse(userIdsKey),
+      isFsm
+    }),
+    [isFsm, threads, userIdsKey]
   );
 };
 

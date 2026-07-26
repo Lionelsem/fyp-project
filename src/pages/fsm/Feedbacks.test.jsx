@@ -4,6 +4,7 @@ import Feedbacks from "./Feedbacks";
 import { useAuthContext } from "../../context/AuthContext";
 import {
   addFeedbackReply,
+  deleteCustomerFeedbackThread,
   deleteFeedbackReply,
   listenToFeedbackThreadReplies,
   listenToFsmFeedbackThreads,
@@ -17,6 +18,7 @@ jest.mock("../../context/AuthContext", () => ({
 
 jest.mock("../../services/feedbackService", () => ({
   addFeedbackReply: jest.fn(() => Promise.resolve()),
+  deleteCustomerFeedbackThread: jest.fn(() => Promise.resolve()),
   deleteFeedbackReply: jest.fn(() => Promise.resolve()),
   listenToFeedbackThreadReplies: jest.fn(),
   listenToFsmFeedbackThreads: jest.fn(),
@@ -121,4 +123,21 @@ test("lets an FSM edit and delete only their own sent message", async () => {
   await waitFor(() => {
     expect(deleteFeedbackReply).toHaveBeenCalledWith("thread-1", "message-2");
   });
+});
+
+test("lets an FSM delete a complete customer conversation", async () => {
+  window.confirm = jest.fn(() => true);
+  render(<Feedbacks />);
+
+  fireEvent.click(await screen.findByRole("button", {
+    name: "Delete conversation Monthly report question"
+  }));
+
+  expect(window.confirm).toHaveBeenCalledWith(
+    'Delete the conversation "Monthly report question" and all its messages?'
+  );
+  await waitFor(() => {
+    expect(deleteCustomerFeedbackThread).toHaveBeenCalledWith("thread-1");
+  });
+  expect(screen.queryByText("Can you clarify this item?")).not.toBeInTheDocument();
 });

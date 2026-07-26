@@ -3,8 +3,8 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
-  addDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -17,6 +17,8 @@ import {
 import { db } from "../config/firebase";
 import { COLLECTION_NAMES } from "../constants/collectionNames";
 
+const THREAD_LIMIT = 50;
+const MESSAGE_LIMIT = 50;
 const textValue = (value) => String(value || "").trim();
 
 const getUserLookupIds = (user) => new Set([
@@ -140,7 +142,8 @@ export const listenToCustomerFeedbackThreads = (customerId, onUpdate, onError) =
   const threadsQuery = query(
     collection(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS),
     where("customerId", "==", customerId),
-    orderBy("lastMessageAt", "desc")
+    orderBy("lastMessageAt", "desc"),
+    limit(THREAD_LIMIT)
   );
 
   return onSnapshot(threadsQuery, onUpdate, onError);
@@ -169,7 +172,8 @@ export const listenToFsmFeedbackThreads = (fsmIds, onUpdate, onError) => {
   const unsubscribes = ["assignedFsmId", "recipient"].map((fieldName) => {
     const threadsQuery = query(
       collection(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS),
-      buildFilter(fieldName)
+      buildFilter(fieldName),
+      limit(THREAD_LIMIT)
     );
 
     return onSnapshot(
@@ -197,16 +201,64 @@ export const listenToFeedbackThreadReplies = (threadId, onUpdate, onError) => {
     COLLECTION_NAMES.CUSTOMER_FEEDBACK_MESSAGES
   );
 
-  const repliesQuery = query(repliesCollection, orderBy("createdAt", "asc"));
-  return onSnapshot(repliesQuery, onUpdate, onError);
+  const repliesQuery = query(
+    repliesCollection,
+    orderBy("createdAt", "desc"),
+    limit(MESSAGE_LIMIT)
+  );
+  return onSnapshot(
+    repliesQuery,
+    (snapshot) => onUpdate({
+      docs: [...snapshot.docs].reverse(),
+      metadata: snapshot.metadata
+    }),
+    onError
+  );
 };
 
-export const createCustomerFeedbackThread = async (payload) => {
-  const threadRef = await addDoc(collection(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS), {
+const buildStoredReply = (reply) => ({
+  ...reply,
+  readBy: Array.from(new Set([
+    ...(Array.isArray(reply.readBy) ? reply.readBy : []),
+    reply.createdBy
+  ].filter(Boolean))),
+  createdAt: serverTimestamp()
+});
+
+const buildThreadMessageSummary = (reply) => ({
+  lastMessage: textValue(reply.message),
+  lastMessageSenderId: textValue(reply.createdBy),
+  lastMessageSenderName: textValue(reply.senderName || reply.sender),
+  lastMessageRole: textValue(reply.role),
+  lastMessageReadBy: Array.from(new Set([
+    ...(Array.isArray(reply.readBy) ? reply.readBy : []),
+    reply.createdBy
+  ].filter(Boolean))),
+  lastMessageAt: serverTimestamp()
+});
+
+export const createCustomerFeedbackThread = async (payload, initialReply) => {
+  const threadRef = doc(collection(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS));
+  const batch = writeBatch(db);
+  const threadData = {
     ...payload,
     createdAt: serverTimestamp(),
     lastMessageAt: serverTimestamp()
-  });
+  };
+
+  if (initialReply) {
+    const messageRef = doc(collection(
+      db,
+      COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS,
+      threadRef.id,
+      COLLECTION_NAMES.CUSTOMER_FEEDBACK_MESSAGES
+    ));
+    Object.assign(threadData, buildThreadMessageSummary(initialReply));
+    batch.set(messageRef, buildStoredReply(initialReply));
+  }
+
+  batch.set(threadRef, threadData);
+  await batch.commit();
   return threadRef;
 };
 
@@ -218,24 +270,19 @@ export const addFeedbackReply = async (threadId, reply) => {
     COLLECTION_NAMES.CUSTOMER_FEEDBACK_MESSAGES
   );
 
-  const replyDoc = await addDoc(messagesCollection, {
-    ...reply,
-    readBy: Array.from(new Set([
-      ...(Array.isArray(reply.readBy) ? reply.readBy : []),
-      reply.createdBy
-    ].filter(Boolean))),
-    createdAt: serverTimestamp()
-  });
-
-  const threadUpdate = { lastMessageAt: serverTimestamp() };
+  const replyDoc = doc(messagesCollection);
+  const threadUpdate = buildThreadMessageSummary(reply);
   if (reply.createdBy) {
     threadUpdate.participants = arrayUnion(reply.createdBy);
   }
 
-  await updateDoc(
+  const batch = writeBatch(db);
+  batch.set(replyDoc, buildStoredReply(reply));
+  batch.update(
     doc(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS, threadId),
     threadUpdate
   );
+  await batch.commit();
 
   return replyDoc;
 };
@@ -249,9 +296,9 @@ export const markFeedbackMessagesAsRead = async (threadId, messageDocs, readerId
     return String(data.createdBy || "") !== String(readerId) && !readBy.includes(String(readerId));
   });
 
-  for (let start = 0; start < unreadMessages.length; start += 500) {
+  for (let start = 0; start < unreadMessages.length; start += 499) {
     const batch = writeBatch(db);
-    unreadMessages.slice(start, start + 500).forEach((docItem) => {
+    unreadMessages.slice(start, start + 499).forEach((docItem) => {
       const messageRef = doc(
         db,
         COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS,
@@ -264,6 +311,15 @@ export const markFeedbackMessagesAsRead = async (threadId, messageDocs, readerId
         lastReadAt: serverTimestamp()
       });
     });
+    if (start === 0) {
+      batch.update(
+        doc(db, COLLECTION_NAMES.CUSTOMER_FEEDBACK_THREADS, threadId),
+        {
+          lastMessageReadBy: arrayUnion(readerId),
+          lastReadAt: serverTimestamp()
+        }
+      );
+    }
     await batch.commit();
   }
 };

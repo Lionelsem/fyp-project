@@ -7,6 +7,7 @@ import {
   createCustomerFeedbackThread,
   getCustomerFeedbackRecipients,
   listenToCustomerFeedbackThreads,
+  listenToFeedbackThreadReplies,
   markFeedbackMessagesAsRead
 } from "../../services/feedbackService";
 
@@ -25,6 +26,8 @@ jest.mock("../../services/feedbackService", () => ({
   markFeedbackMessagesAsRead: jest.fn(),
   updateFeedbackReply: jest.fn()
 }));
+
+const snapshotDoc = (id, data) => ({ id, data: () => data });
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -70,25 +73,27 @@ test("creates feedback using the customer's real FSM assignment", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Send Message" }));
 
   await waitFor(() => {
-    expect(createCustomerFeedbackThread).toHaveBeenCalledWith({
-      customerId: "customer-auth-1",
-      customerName: "Customer One",
-      title: "Annual report question",
-      recipient: "Alex Tan",
-      assignedFsmId: "fsm-user-1",
-      issueId: "",
-      buildingId: "building-1",
-      building: "North Tower",
-      participants: ["customer-auth-1", "fsm-user-1"],
-      createdBy: "customer-auth-1"
-    });
-  });
-
-  expect(addFeedbackReply).toHaveBeenCalledWith("thread-1", {
-    senderName: "Customer One",
-    role: "Customer",
-    createdBy: "customer-auth-1",
-    message: "Please clarify the inspection date."
+    expect(createCustomerFeedbackThread).toHaveBeenCalledWith(
+      {
+        customerId: "customer-auth-1",
+        customerName: "Customer One",
+        title: "Annual report question",
+        recipient: "Alex Tan",
+        assignedFsmId: "fsm-user-1",
+        issueId: "",
+        buildingId: "building-1",
+        building: "North Tower",
+        participants: ["customer-auth-1", "fsm-user-1"],
+        createdBy: "customer-auth-1"
+      },
+      expect.objectContaining({
+        senderName: "Customer One",
+        role: "Customer",
+        createdBy: "customer-auth-1",
+        message: "Please clarify the inspection date.",
+        clientId: expect.any(String)
+      })
+    );
   });
 });
 
@@ -102,4 +107,45 @@ test("blocks sending when no FSM assignment exists", async () => {
     "No FSM is assigned to your account or building."
   );
   expect(screen.getByRole("button", { name: "Send Message" })).toBeDisabled();
+});
+
+test("shows a reply immediately while Firestore is still saving it", async () => {
+  let finishSending;
+  addFeedbackReply.mockReturnValue(new Promise((resolve) => {
+    finishSending = resolve;
+  }));
+  listenToCustomerFeedbackThreads.mockImplementation((_customerId, onUpdate) => {
+    onUpdate({
+      docs: [snapshotDoc("thread-1", {
+        title: "Inspection question",
+        lastMessageAt: new Date("2026-07-21T09:00:00Z")
+      })]
+    });
+    return jest.fn();
+  });
+  listenToFeedbackThreadReplies.mockImplementation((_threadId, onUpdate) => {
+    onUpdate({ docs: [] });
+    return jest.fn();
+  });
+
+  render(<Feedbacks />);
+
+  const replyBox = await screen.findByLabelText("Reply message");
+  fireEvent.change(replyBox, { target: { value: "Can you check this today?" } });
+  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+  expect(screen.getByText("Can you check this today?")).toBeInTheDocument();
+  expect(screen.getAllByText("Sending...").length).toBeGreaterThan(0);
+  expect(replyBox).toHaveValue("");
+
+  finishSending({ id: "message-1" });
+  await waitFor(() => {
+    expect(addFeedbackReply).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({
+        message: "Can you check this today?",
+        clientId: expect.any(String)
+      })
+    );
+  });
 });

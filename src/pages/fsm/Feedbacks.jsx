@@ -4,6 +4,7 @@ import Modal from "../../components/common/Modal";
 import styles from "../customer/Feedbacks.module.css";
 import {
   addFeedbackReply,
+  deleteCustomerFeedbackThread,
   deleteFeedbackReply,
   listenToFeedbackThreadReplies,
   listenToFsmFeedbackThreads,
@@ -56,6 +57,7 @@ const Feedbacks = () => {
   const [editedReplyText, setEditedReplyText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [deletingThreadId, setDeletingThreadId] = useState("");
   const [error, setError] = useState("");
   const messagesThreadRef = useRef(null);
   const fsmIds = useMemo(() => getFsmLookupIds(user), [user]);
@@ -215,6 +217,30 @@ const Feedbacks = () => {
     }
   };
 
+  const handleDeleteThread = async (thread) => {
+    if (
+      !thread?.id ||
+      deletingThreadId ||
+      !window.confirm(`Delete the conversation "${thread.title || "Customer feedback"}" and all its messages?`)
+    ) {
+      return;
+    }
+
+    setDeletingThreadId(thread.id);
+    try {
+      await deleteCustomerFeedbackThread(thread.id);
+      setThreads((current) => current.filter((item) => item.id !== thread.id));
+      setSelectedThreadId((current) => current === thread.id ? null : current);
+      setMobileViewingThread(false);
+      setError("");
+    } catch (deleteError) {
+      console.error("Failed to delete FSM feedback conversation:", deleteError);
+      setError("The conversation could not be deleted. Please try again.");
+    } finally {
+      setDeletingThreadId("");
+    }
+  };
+
   return (
     <div className={styles.feedbacksContainer}>
       <header className={styles.header}>
@@ -291,6 +317,15 @@ const Feedbacks = () => {
                     </p>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className={styles.headerDeleteButton}
+                  onClick={() => handleDeleteThread(selectedThread)}
+                  disabled={deletingThreadId === selectedThread.id}
+                  aria-label={`Delete conversation ${selectedThread.title || "Customer feedback"}`}
+                >
+                  {deletingThreadId === selectedThread.id ? "Deleting..." : "Delete"}
+                </button>
               </div>
 
               <div className={styles.messagesThread} aria-live="polite" ref={messagesThreadRef}>

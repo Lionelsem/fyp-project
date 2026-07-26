@@ -24,12 +24,17 @@ const formatTimestamp = (timestamp) => {
   });
 };
 
+const createClientMessageId = (userId) =>
+  `${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 const Feedbacks = () => {
   const { user } = useAuthContext();
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [selectedThreadReplies, setSelectedThreadReplies] = useState([]);
+  const [pendingReplies, setPendingReplies] = useState([]);
   const [replyText, setReplyText] = useState("");
+  const [searchText, setSearchText] = useState("");
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [mobileViewingThread, setMobileViewingThread] = useState(false);
   const [showEditReplyModal, setShowEditReplyModal] = useState(false);
@@ -41,6 +46,11 @@ const Feedbacks = () => {
   const [recipientError, setRecipientError] = useState("");
   const [newThreadSubject, setNewThreadSubject] = useState("");
   const [newThreadBody, setNewThreadBody] = useState("");
+  const [isLoadingThreads, setIsLoadingThreads] = useState(true);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
   const messagesThreadRef = useRef(null);
 
   const selectedThread = useMemo(
@@ -53,9 +63,30 @@ const Feedbacks = () => {
     [recipientOptions, selectedRecipientKey]
   );
 
-  useEffect(() => {
-    if (!user?.uid) return undefined;
+  const filteredThreads = useMemo(() => {
+    const search = searchText.trim().toLowerCase();
+    if (!search) return threads;
+    return threads.filter((thread) => [
+      thread.title,
+      thread.recipient,
+      thread.issueId,
+      thread.building,
+      thread.lastMessage
+    ].some((value) => String(value || "").toLowerCase().includes(search)));
+  }, [searchText, threads]);
 
+  const displayedReplies = useMemo(
+    () => [...selectedThreadReplies, ...pendingReplies],
+    [pendingReplies, selectedThreadReplies]
+  );
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setIsLoadingThreads(false);
+      return undefined;
+    }
+
+    setIsLoadingThreads(true);
     const unsubscribe = listenToCustomerFeedbackThreads(
       user.uid,
       (snapshot) => {
@@ -74,9 +105,17 @@ const Feedbacks = () => {
         });
 
         setThreads(nextThreads);
+        setFeedbackError("");
+        setIsLoadingThreads(false);
       },
       (error) => {
         console.error("Failed to load chat threads:", error);
+        setFeedbackError(
+          error?.code === "failed-precondition"
+            ? "Chat needs a Firestore index before conversations can load."
+            : "Unable to load conversations. Please try again."
+        );
+        setIsLoadingThreads(false);
       }
     );
 
@@ -86,9 +125,14 @@ const Feedbacks = () => {
   useEffect(() => {
     if (!selectedThreadId) {
       setSelectedThreadReplies([]);
+      setPendingReplies([]);
+      setIsLoadingReplies(false);
       return undefined;
     }
 
+    setSelectedThreadReplies([]);
+    setPendingReplies([]);
+    setIsLoadingReplies(true);
     const unsubscribe = listenToFeedbackThreadReplies(
       selectedThreadId,
       (snapshot) => {
@@ -102,16 +146,25 @@ const Feedbacks = () => {
             createdBy: data.createdBy,
             readBy: Array.isArray(data.readBy) ? data.readBy : [],
             isOwn: data.createdBy === user?.uid,
+            clientId: data.clientId || "",
             time: formatTimestamp(data.createdAt)
           };
         });
         setSelectedThreadReplies(nextReplies);
+        const savedClientIds = new Set(nextReplies.map((reply) => reply.clientId).filter(Boolean));
+        setPendingReplies((current) =>
+          current.filter((reply) => !savedClientIds.has(reply.clientId))
+        );
         markFeedbackMessagesAsRead(selectedThreadId, snapshot.docs, user?.uid).catch((error) => {
           console.error("Failed to mark customer feedback as read:", error);
         });
+        setFeedbackError("");
+        setIsLoadingReplies(false);
       },
       (error) => {
         console.error("Failed to load chat replies:", error);
+        setFeedbackError("Unable to load this conversation. Please try again.");
+        setIsLoadingReplies(false);
       }
     );
 
@@ -143,22 +196,45 @@ const Feedbacks = () => {
   useEffect(() => {
     if (!messagesThreadRef.current) return;
     messagesThreadRef.current.scrollTop = messagesThreadRef.current.scrollHeight;
-  }, [selectedThreadReplies]);
+  }, [displayedReplies]);
 
   const handleSendReply = async () => {
-    if (!replyText.trim() || !selectedThreadId || !user?.uid) return;
+    const message = replyText.trim();
+    if (!message || !selectedThreadId || !user?.uid || isSending) return;
 
+    const clientId = createClientMessageId(user.uid);
+    const pendingReply = {
+      id: `pending-${clientId}`,
+      clientId,
+      sender: user.fullName || user.email || "You",
+      role: "Customer",
+      message,
+      createdBy: user.uid,
+      readBy: [user.uid],
+      isOwn: true,
+      isPending: true,
+      time: "Sending..."
+    };
+
+    setReplyText("");
+    setPendingReplies((current) => [...current, pendingReply]);
+    setIsSending(true);
     try {
       await addFeedbackReply(selectedThreadId, {
         senderName: user.fullName || user.email || "You",
         role: "Customer",
         createdBy: user.uid,
-        message: replyText.trim()
+        message,
+        clientId
       });
-      setReplyText("");
+      setFeedbackError("");
     } catch (error) {
       console.error("Failed to send reply:", error);
-      alert("Unable to send message. Please try again.");
+      setPendingReplies((current) => current.filter((reply) => reply.clientId !== clientId));
+      setReplyText((current) => current || message);
+      setFeedbackError("Unable to send your message. Please try again.");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -204,8 +280,10 @@ const Feedbacks = () => {
       return;
     }
 
+    setIsCreatingThread(true);
     try {
-      const threadRef = await createCustomerFeedbackThread({
+      const clientId = createClientMessageId(user.uid);
+      const threadPayload = {
         customerId: user.uid,
         customerName: user.fullName || user.displayName || user.email || "Customer",
         title: newThreadSubject.trim(),
@@ -216,14 +294,15 @@ const Feedbacks = () => {
         building: selectedRecipient.buildingName,
         participants: [user.uid, selectedRecipient.fsmId],
         createdBy: user.uid
-      });
-
-      await addFeedbackReply(threadRef.id, {
+      };
+      const initialReply = {
         senderName: user.fullName || user.email || "You",
         role: "Customer",
         createdBy: user.uid,
-        message: newThreadBody.trim()
-      });
+        message: newThreadBody.trim(),
+        clientId
+      };
+      const threadRef = await createCustomerFeedbackThread(threadPayload, initialReply);
 
       setShowNewMessageModal(false);
       setRecipientOptions([]);
@@ -231,10 +310,22 @@ const Feedbacks = () => {
       setRecipientError("");
       setNewThreadSubject("");
       setNewThreadBody("");
+      setThreads((current) => [{
+        id: threadRef.id,
+        ...threadPayload,
+        lastMessage: initialReply.message,
+        lastMessageSenderId: initialReply.createdBy,
+        lastMessageSenderName: initialReply.senderName,
+        lastMessageReadBy: [initialReply.createdBy],
+        lastMessageAt: new Date()
+      }, ...current.filter((thread) => thread.id !== threadRef.id)]);
       setSelectedThreadId(threadRef.id);
+      setFeedbackError("");
     } catch (error) {
       console.error("Failed to create new thread:", error);
-      alert("Unable to create new conversation. Please try again.");
+      setFeedbackError("Unable to create the conversation. Please try again.");
+    } finally {
+      setIsCreatingThread(false);
     }
   };
 
@@ -280,6 +371,8 @@ const Feedbacks = () => {
         </div>
       </header>
 
+      {feedbackError && <div className="error-state" role="alert">{feedbackError}</div>}
+
       <div
         className={`${styles.contentWrapper} ${
           mobileViewingThread ? styles.mobileConversationVisible : styles.mobileListVisible
@@ -295,16 +388,26 @@ const Feedbacks = () => {
               type="search"
               placeholder="Search messages..."
               aria-label="Search messages"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
             />
           </div>
 
           <div className={styles.messagesList}>
-              {threads.length === 0 ? (
+            {isLoadingThreads ? (
               <div className={styles.emptyState}>
-                <p>No conversations yet. Start a new message.</p>
+                <p>Loading conversations...</p>
+              </div>
+            ) : filteredThreads.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p>
+                  {threads.length === 0
+                    ? "No conversations yet. Start a new message."
+                    : "No matching conversations."}
+                </p>
               </div>
             ) : (
-              threads.map((thread) => (
+              filteredThreads.map((thread) => (
                 <div
                   key={thread.id}
                   role="button"
@@ -376,17 +479,21 @@ const Feedbacks = () => {
               </div>
 
               <div className={styles.messagesThread} aria-live="polite" ref={messagesThreadRef}>
-                {selectedThreadReplies.length === 0 ? (
+                {isLoadingReplies ? (
+                  <div className={styles.emptyState}>
+                    <p>Loading messages...</p>
+                  </div>
+                ) : displayedReplies.length === 0 ? (
                   <div className={styles.emptyState}>
                     <p>Write the first reply to start the conversation.</p>
                   </div>
                 ) : (
-                  selectedThreadReplies.map((reply) => (
+                  displayedReplies.map((reply) => (
                     <div
                       key={reply.id}
                       className={`${styles.message} ${
                         reply.isOwn ? styles.ownMessage : styles.otherMessage
-                      }`}
+                      } ${reply.isPending ? styles.pendingMessage : ""}`}
                     >
                       <div className={styles.messageContent}>
                         <div className={styles.senderInfo}>
@@ -394,7 +501,7 @@ const Feedbacks = () => {
                             <strong>{reply.sender}</strong>
                             <span className={styles.time}>{reply.time}</span>
                           </div>
-                          {reply.isOwn && (
+                          {reply.isOwn && !reply.isPending && (
                             <div className={styles.messageActions}>
                               <button
                                 type="button"
@@ -418,7 +525,9 @@ const Feedbacks = () => {
                         <p className={styles.messageText}>{reply.message}</p>
                         {reply.isOwn && (
                           <span className={styles.readStatus}>
-                            {(Array.isArray(reply.readBy) ? reply.readBy : [])
+                            {reply.isPending
+                              ? "Sending..."
+                              : (Array.isArray(reply.readBy) ? reply.readBy : [])
                               .some((readerId) => String(readerId) !== String(reply.createdBy || ""))
                               ? "Read"
                               : "Unread"}
@@ -447,9 +556,9 @@ const Feedbacks = () => {
                   type="button"
                   className={styles.sendButton}
                   onClick={handleSendReply}
-                  disabled={!replyText.trim()}
+                  disabled={!replyText.trim() || isSending}
                 >
-                  Send
+                  {isSending ? "Sending..." : "Send"}
                 </button>
               </div>
             </>
@@ -524,10 +633,11 @@ const Feedbacks = () => {
                     !selectedRecipient ||
                     !newThreadSubject.trim() ||
                     !newThreadBody.trim() ||
-                    isLoadingRecipients
+                    isLoadingRecipients ||
+                    isCreatingThread
                   }
                 >
-                  Send Message
+                  {isCreatingThread ? "Sending..." : "Send Message"}
                 </button>
               </div>
             </form>

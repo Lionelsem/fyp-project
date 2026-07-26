@@ -834,6 +834,10 @@
   margin-bottom: 0.1rem;
 }
 
+.pendingMessage {
+  opacity: 0.72;
+}
+
 .messageContent {
   max-width: min(72%, 38rem);
   padding: 0.75rem 0.9rem;
@@ -1124,6 +1128,26 @@
 
   .sendButton {
     width: 100%;
+  }
+
+  .mobileBackButton {
+    display: inline-flex;
+  }
+
+  .contentWrapper.mobileListVisible .messagesPanel {
+    display: flex;
+  }
+
+  .contentWrapper.mobileListVisible .conversationPanel {
+    display: none;
+  }
+
+  .contentWrapper.mobileConversationVisible .messagesPanel {
+    display: none;
+  }
+
+  .contentWrapper.mobileConversationVisible .conversationPanel {
+    display: flex;
   }
 
   .searchBox input,
