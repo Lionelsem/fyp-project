@@ -340,7 +340,6 @@ const AnnualReports = () => {
       <div className="dashboard-card" style={{ marginBottom: "24px" }}>
         <div className="card-header-row" style={{ justifyContent: "space-between", marginBottom: "12px" }}>
           <div>
-            <h2 className="section-title" style={{ fontSize: "1.5rem", marginBottom: "4px" }}>Annual Building Reports</h2>
             <h4 className="page-subtitle" style={{ margin: 0 }}>
               Review your yearly compliance summary, inspection outcomes, and annual fire drill exercise records all in one place.
             </h4>
