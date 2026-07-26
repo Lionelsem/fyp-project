@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFsmDashboardData } from "./useFsmDashboardData";
 import { normalizeNotificationPreferences } from "../constants/notificationPreferences";
 
@@ -34,6 +34,25 @@ const formatDate = (date) =>
     month: "short",
     year: "numeric"
   }) || "Date to be confirmed";
+
+const formatDrillTime = (value) => {
+  const time = String(value || "").trim();
+  const timeMatch = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!timeMatch) return time;
+
+  const hours = Number(timeMatch[1]);
+  if (hours > 23) return time;
+
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${timeMatch[2]} ${period}`;
+};
+
+const toLocalDateKey = (date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, "0"),
+  String(date.getDate()).padStart(2, "0")
+].join("-");
 
 const formatRelativeTime = (date, now) => {
   if (!date) return "Recently";
@@ -109,17 +128,30 @@ export const buildFsmNotifications = ({
     if (notificationPreferences.inspectionReminders && scheduledDate && !isFinished) {
       const daysUntil = Math.round((getStartOfDay(scheduledDate) - today) / DAY_IN_MS);
       if (daysUntil >= 0 && daysUntil <= 3) {
-        const timing = daysUntil === 0
-          ? "today"
-          : daysUntil === 1
-            ? "tomorrow"
-            : `in ${daysUntil} days`;
+        const drillTime = formatDrillTime(drill.drillTime);
         const buildingName = getBuildingName(drill, buildingMap);
+
+        if (daysUntil === 0) {
+          notifications.push({
+            id: `schedule-fire-drill-${drill.id}-today-${toLocalDateKey(scheduledDate)}`,
+            type: "schedule",
+            title: drillTime ? `Fire drill today at ${drillTime}` : "Fire drill today",
+            message: `You have a scheduled fire drill at ${buildingName}.`,
+            time: formatDate(scheduledDate),
+            isRead: false,
+            sortDate: now
+          });
+          return;
+        }
+
+        const timing = daysUntil === 1
+          ? "tomorrow"
+          : `in ${daysUntil} days`;
         notifications.push({
           id: `schedule-fire-drill-${drill.id}`,
           type: "schedule",
           title: `Fire drill ${timing}`,
-          message: `${buildingName} · ${formatDate(scheduledDate)}${drill.drillTime ? ` at ${drill.drillTime}` : ""}`,
+          message: `${buildingName} · ${formatDate(scheduledDate)}${drillTime ? ` at ${drillTime}` : ""}`,
           time: "Upcoming schedule",
           isRead: false,
           sortDate: now
@@ -217,10 +249,30 @@ const getFsmLookupIds = (user) => [
 export const useFsmNotifications = (user) => {
   const lookupIds = useMemo(() => getFsmLookupIds(user), [user]);
   const { buildings, inspections, reports, fireDrills, issues } = useFsmDashboardData(lookupIds);
+  const [notificationNow, setNotificationNow] = useState(() => new Date());
   const preferences = useMemo(
     () => normalizeNotificationPreferences(user?.notificationPreferences),
     [user?.notificationPreferences]
   );
+
+  useEffect(() => {
+    let refreshTimer;
+
+    const scheduleNextDayRefresh = () => {
+      const currentTime = new Date();
+      const nextDay = new Date(currentTime);
+      nextDay.setDate(currentTime.getDate() + 1);
+      nextDay.setHours(0, 0, 1, 0);
+
+      refreshTimer = window.setTimeout(() => {
+        setNotificationNow(new Date());
+        scheduleNextDayRefresh();
+      }, nextDay.getTime() - currentTime.getTime());
+    };
+
+    scheduleNextDayRefresh();
+    return () => window.clearTimeout(refreshTimer);
+  }, []);
 
   return useMemo(
     () => buildFsmNotifications({
@@ -229,8 +281,9 @@ export const useFsmNotifications = (user) => {
       reports,
       fireDrills,
       issues,
-      preferences
+      preferences,
+      now: notificationNow
     }),
-    [buildings, fireDrills, inspections, issues, preferences, reports]
+    [buildings, fireDrills, inspections, issues, notificationNow, preferences, reports]
   );
 };

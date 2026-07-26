@@ -24,6 +24,50 @@ test("builds reminders for schedules happening within three days", () => {
   ]));
 });
 
+test("builds a dedicated same-day fire drill reminder with its scheduled time", () => {
+  const notifications = buildFsmNotifications({
+    now,
+    buildings: [{ id: "building-1", buildingName: "Harbour Centre" }],
+    fireDrills: [{
+      id: "drill-today",
+      buildingId: "building-1",
+      drillDate: "2026-07-21",
+      drillTime: "14:30",
+      status: "Scheduled"
+    }]
+  });
+
+  expect(notifications).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      id: "schedule-fire-drill-drill-today-today-2026-07-21",
+      title: "Fire drill today at 2:30 PM",
+      message: "You have a scheduled fire drill at Harbour Centre.",
+      time: "21 Jul 2026",
+      type: "schedule",
+      isRead: false
+    })
+  ]));
+});
+
+test("does not remind the FSM about a same-day drill that is already completed", () => {
+  const notifications = buildFsmNotifications({
+    now,
+    fireDrills: [{
+      id: "completed-drill",
+      drillDate: "2026-07-21",
+      drillTime: "09:00",
+      status: "Completed",
+      completedAt: now
+    }],
+    preferences: {
+      inspectionReminders: true,
+      reportUpdates: false
+    }
+  });
+
+  expect(notifications).toEqual([]);
+});
+
 test("builds submitted, completed, and customer remark notifications", () => {
   const notifications = buildFsmNotifications({
     now,
