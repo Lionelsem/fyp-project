@@ -447,7 +447,7 @@ const InspectionReports = () => {
               href="/fireguardCBRE_MONTHLY_INSPECTION_REPORT.pdf"
               download="fireguardCBRE_MONTHLY_INSPECTION_REPORT.pdf"
             >
-              Download Latest Report
+              Download Monthly Report
             </a>
           </div>
         </div>

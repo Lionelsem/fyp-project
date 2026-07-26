@@ -81,7 +81,6 @@ const CustomerDashboard = () => {
     const drill = latest(fireDrills, () => true);
     return [
       { title: "Latest Monthly Report", subtitle: monthly ? (monthly.inspectionMonth || formatDate(monthly.createdAt)) : "No report available", icon: "📋", iconBg: "#ecfdf5", path: "/inspection-reports" },
-      { title: "Latest Fire Drill", subtitle: drill ? formatDate(drill.actualDate || drill.conductedDate || drill.drillDate) : "No drill available", icon: "🚒", iconBg: "#fce7f3", path: "/fire-drill-reports" },
       { title: "Annual Safety Report", subtitle: annual ? (annual.period || formatDate(annual.createdAt)) : "No report available", icon: "📊", iconBg: "#ecfdf5", path: "/annual-reports" }
     ];
   }, [fireDrills, reports]);

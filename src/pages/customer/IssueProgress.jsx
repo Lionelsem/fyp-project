@@ -12,8 +12,7 @@ const mockIssues = [
     location: "Lobby Level 1",
     finding: "Fire Extinguisher Expired",
     proposedRectification: "Replace with new 3kg ABC powder extinguisher",
-    status: "Open",
-    lastUpdated: "Today"
+    status: "Open"
   },
   {
     id: "DEF-2026-088",
@@ -21,8 +20,7 @@ const mockIssues = [
     location: "Basement 2",
     finding: "Blocked Fire Exit Route",
     proposedRectification: "Clear pallets from fire escape pathway immediately",
-    status: "In Progress",
-    lastUpdated: "Yesterday"
+    status: "In Progress"
   },
   {
     id: "DEF-2026-085",
@@ -30,8 +28,7 @@ const mockIssues = [
     location: "Level 4, South Wing",
     finding: "Faulty Fire Alarm Panel Zone 3",
     proposedRectification: "Vendor to troubleshoot loop fault on zone 3",
-    status: "Resolved",
-    lastUpdated: "2 days ago"
+    status: "Resolved"
   },
   {
     id: "DEF-2026-080",
@@ -39,8 +36,7 @@ const mockIssues = [
     location: "Roof Deck",
     finding: "Hose Reel Pressure Low",
     proposedRectification: "Repair jockey pump seals",
-    status: "Closed",
-    lastUpdated: "5 days ago"
+    status: "Closed"
   },
   {
     id: "DEF-2026-079",
@@ -48,8 +44,7 @@ const mockIssues = [
     location: "Level 2, North Wing",
     finding: "Emergency Light Faulty",
     proposedRectification: "Replace battery pack",
-    status: "Closed",
-    lastUpdated: "1 week ago"
+    status: "Closed"
   }
 ];
 
@@ -86,16 +81,14 @@ const IssueProgress = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const itemsPerPage = 5;
+
   const issues = useMemo(() => liveIssues.map((issue) => {
-    const updatedAt = issue.updatedAt?.toDate?.() || issue.updatedAt || issue.createdAt?.toDate?.() || issue.createdAt || issue.reportedAt?.toDate?.() || issue.reportedAt;
-    const date = updatedAt ? new Date(updatedAt) : null;
     return {
       ...issue,
       issueId: issue.issueId || issue.id,
       location: issue.location || issue.storey || issue.floor || "-",
       finding: issue.issueTitle || issue.issueDescription || issue.finding || "-",
-      proposedRectification: issue.proposedRectification || issue.rectification || issue.recommendation || "-",
-      lastUpdated: date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" }) : "-"
+      proposedRectification: issue.proposedRectification || issue.rectification || issue.recommendation || "-"
     };
   }), [liveIssues]);
 
@@ -134,6 +127,8 @@ const IssueProgress = () => {
   const handleNext = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
+
+  const columnWidthStyle = { width: "20%", padding: "12px 16px", textAlign: "left" };
 
   return (
     <div className="dashboard-container">
@@ -198,43 +193,44 @@ const IssueProgress = () => {
           label="Issue progress"
           className="fire-drill-history-table-wrapper responsive-table-region--cards"
         >
-          <table className="dashboard-table responsive-card-table">
+          <table 
+            className="dashboard-table responsive-card-table" 
+            style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}
+          >
             <thead>
               <tr>
-                <th>LOCATION</th>
-                <th>FINDING</th>
-                <th>PROPOSED RECTIFICATION</th>
-                <th>STATUS</th>
-                <th>LAST UPDATED</th>
-                <th>ACTION</th>
+                <th style={columnWidthStyle}>LOCATION</th>
+                <th style={columnWidthStyle}>FINDING</th>
+                <th style={columnWidthStyle}>PROPOSED RECTIFICATION</th>
+                <th style={columnWidthStyle}>STATUS</th>
+                <th style={columnWidthStyle}>ACTION</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                     Loading issues...
                   </td>
                 </tr>
               ) : filteredIssues.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "24px 0" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "24px 0" }}>
                     No issues found.
                   </td>
                 </tr>
               ) : (
                 paginatedIssues.map((issue) => (
                   <tr key={issue.id}>
-                    <td data-label="Location">{issue.location}</td>
-                    <td data-label="Finding">{issue.finding}</td>
-                    <td data-label="Rectification">{issue.proposedRectification}</td>
-                    <td data-label="Status">
+                    <td data-label="Location" style={columnWidthStyle}>{issue.location}</td>
+                    <td data-label="Finding" style={columnWidthStyle}>{issue.finding}</td>
+                    <td data-label="Rectification" style={columnWidthStyle}>{issue.proposedRectification}</td>
+                    <td data-label="Status" style={columnWidthStyle}>
                       <span className="status-badge" style={getStatusStyle(issue.status)}>
                         {issue.status}
                       </span>
                     </td>
-                    <td data-label="Last updated" style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", color: "#6b7280" }}>{issue.lastUpdated}</td>
-                    <td data-label="Action">
+                    <td data-label="Action" style={columnWidthStyle}>
                       <button
                         type="button"
                         className="table-action-button"
@@ -302,28 +298,22 @@ const IssueProgress = () => {
           onClose={() => setSelectedIssue(null)}
           bodyClassName="modal-body"
         >
-          <div style={{ padding: "1rem", display: "grid", gap: "1rem" }}>
+          <div style={{ padding: "1.25rem", display: "grid", gap: "1.25rem" }}>
             <div>
               <strong>Location</strong>
-              <p>{selectedIssue.location}</p>
+              <p style={{ marginTop: "0.25rem" }}>{selectedIssue.location}</p>
             </div>
             <div>
               <strong>Finding</strong>
-              <p>{selectedIssue.finding}</p>
+              <p style={{ marginTop: "0.25rem" }}>{selectedIssue.finding}</p>
             </div>
             <div>
               <strong>Proposed Rectification</strong>
-              <p>{selectedIssue.proposedRectification}</p>
+              <p style={{ marginTop: "0.25rem" }}>{selectedIssue.proposedRectification}</p>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1rem" }}>
-              <div>
-                <strong>Status</strong>
-                <p>{selectedIssue.status}</p>
-              </div>
-              <div>
-                <strong>Last Updated</strong>
-                <p>{selectedIssue.lastUpdated}</p>
-              </div>
+            <div>
+              <strong>Status</strong>
+              <p style={{ marginTop: "0.25rem" }}>{selectedIssue.status}</p>
             </div>
           </div>
         </Modal>

@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { addFireDrillCustomerFeedback } from "../../services/fireDrillService";
 import { addReportCustomerFeedback, getAllReports } from "../../services/reportService";
 import ResponsiveTableRegion from "../../components/common/ResponsiveTableRegion";
 import FeedbackHistory from "../../components/customer/FeedbackHistory";
 import { useAuthContext } from "../../context/AuthContext";
+import { useCustomerLiveData } from "../../hooks/useCustomerLiveData";
 
+// --- Fallback Data ---
 const fallbackReports = [
   {
     id: "annual-2025",
@@ -25,19 +28,25 @@ const fallbackReports = [
     generatedDate: new Date("2025-01-15T09:00:00"),
     status: "Reviewed",
     priority: "Normal"
-  },
-  {
-    id: "annual-2023",
-    reportId: "REP-2023-ANN-01",
-    reportType: "Annual",
-    reportTitle: "Annual Compliance Report 2023",
-    period: "2023",
-    generatedDate: new Date("2024-01-12T09:00:00"),
-    status: "Archived",
-    priority: "Normal"
   }
 ];
 
+const fallbackDrills = [
+  {
+    id: "DR-001",
+    drillType: "Annual Full Building Evacuation Drill",
+    buildingName: "Tech Park B",
+    drillDate: "2026-05-15",
+    status: "Completed",
+    performanceStatus: "Passed",
+    actualDate: "2026-05-15",
+    totalEvacuationTime: "6 min 20 sec",
+    observations: "Evacuation was completed smoothly with minor delay at the west stairwell.",
+    recommendations: "Reinforce stairwell briefing for new occupants."
+  }
+];
+
+// --- Helper Functions ---
 const parseDate = (value) => {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -59,10 +68,10 @@ const formatDate = (value) => {
 
 const getStatusStyle = (status) => {
   const value = String(status || "").toLowerCase();
-  if (["submitted", "generated", "approved"].includes(value)) {
+  if (["completed", "passed", "submitted", "generated", "approved"].includes(value)) {
     return { color: "#047857", backgroundColor: "#ecfdf5" };
   }
-  if (["reviewed", "in review"].includes(value)) {
+  if (["needs improvement", "pending", "scheduled", "reviewed", "in review"].includes(value)) {
     return { color: "#b45309", backgroundColor: "#fef3c7" };
   }
   return { color: "#475569", backgroundColor: "#f1f5f9" };
@@ -75,20 +84,21 @@ const escapePdfText = (value) => {
     .replace(/\)/g, "\\)");
 };
 
-// Retained for future report exports; the customer download serves the approved source document.
-// eslint-disable-next-line no-unused-vars
-const buildAnnualReportPdf = (report) => {
-  const title = "Latest Annual Report";
+const buildFireDrillPdf = (drill) => {
+  const title = "Annual Fire Drill Report";
   const lines = [
     title,
     "",
-    `Report ID: ${report?.reportId || "—"}`,
-    `Report Title: ${report?.reportTitle || "—"}`,
-    `Period: ${report?.period || "—"}`,
-    `Generated Date: ${formatDate(report?.generatedDate)}`,
-    `Status: ${report?.status || "Pending"}`,
-    `Priority: ${report?.priority || "—"}`,
-    `Customer Feedback: ${report?.customerComments || "No feedback added."}`,
+    `Drill ID: ${drill?.id || "—"}`,
+    `Drill Type: ${drill?.drillType || "—"}`,
+    `Building: ${drill?.buildingName || "—"}`,
+    `Drill Date: ${formatDate(drill?.actualDate || drill?.drillDate)}`,
+    `Status: ${drill?.status || "Pending"}`,
+    `Performance Status: ${drill?.performanceStatus || "—"}`,
+    `Evacuation Time: ${drill?.totalEvacuationTime || "—"}`,
+    `Observations: ${drill?.observations || "No observations recorded."}`,
+    `Recommendations: ${drill?.recommendations || "No recommendations recorded."}`,
+    `Customer Feedback: ${drill?.customerComments || "No feedback added."}`
   ];
 
   const contentStream = lines
@@ -104,7 +114,7 @@ const buildAnnualReportPdf = (report) => {
     "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
     "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
     `4 0 obj\n<< /Length ${contentStreamLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`,
-    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n"
   ];
 
   let pdf = "%PDF-1.4\n";
@@ -125,16 +135,18 @@ const buildAnnualReportPdf = (report) => {
   return pdf;
 };
 
+// --- Combined Component ---
 const AnnualReports = () => {
   const { user } = useAuthContext();
+
+  // ---------------- Annual Compliance Reports State ----------------
   const [reports, setReports] = useState([]);
-  const [search, setSearch] = useState("");
+  const [annualSearch, setAnnualSearch] = useState("");
   const [yearFilter, setYearFilter] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [reportsLoading, setReportsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-
     const loadReports = async () => {
       try {
         const data = await getAllReports();
@@ -152,7 +164,7 @@ const AnnualReports = () => {
         }
       } finally {
         if (active) {
-          setLoading(false);
+          setReportsLoading(false);
         }
       }
     };
@@ -164,7 +176,7 @@ const AnnualReports = () => {
   }, []);
 
   const filteredReports = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = annualSearch.trim().toLowerCase();
     return reports.filter((report) => {
       const matchesSearch =
         !query ||
@@ -175,27 +187,21 @@ const AnnualReports = () => {
       const matchesYear = !yearFilter || String(report.period || "").includes(yearFilter);
       return matchesSearch && matchesYear;
     });
-  }, [reports, search, yearFilter]);
+  }, [reports, annualSearch, yearFilter]);
 
   const years = useMemo(() => {
     return Array.from(new Set(reports.map((report) => String(report.period || "")).filter(Boolean))).sort((a, b) => b.localeCompare(a));
   }, [reports]);
 
   const latestReport = filteredReports[0] || reports[0] || fallbackReports[0];
-  const [remarks, setRemarks] = useState(latestReport.customerComments || "");
+  const [remarks, setRemarks] = useState(latestReport?.customerComments || "");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
   const [remarksSavedMessage, setRemarksSavedMessage] = useState("");
 
   useEffect(() => {
-    setRemarks(latestReport.customerComments || "");
+    setRemarks(latestReport?.customerComments || "");
     setRemarksSavedMessage("");
-    // Comments are edited by this form; resync only when the selected report changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestReport.id]);
-
-  const totalReports = reports.length;
-  const submittedCount = reports.filter((report) => String(report.status || "").toLowerCase() === "submitted").length;
-  const reviewedCount = reports.filter((report) => String(report.status || "").toLowerCase() === "reviewed").length;
+  }, [latestReport?.id]);
 
   const handleSaveRemarks = async () => {
     if (!latestReport?.id) {
@@ -231,13 +237,112 @@ const AnnualReports = () => {
     }
   };
 
+  // ---------------- Annual Fire Drill Reports State ----------------
+  const { fireDrills: liveFireDrills, loading: drillsLoading } = useCustomerLiveData(user);
+  const [drills, setDrills] = useState([]);
+  const [drillComment, setDrillComment] = useState("");
+  const [isSavingDrillComment, setIsSavingDrillComment] = useState(false);
+  const [drillCommentMessage, setDrillCommentMessage] = useState("");
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  useEffect(() => {
+    if (Array.isArray(liveFireDrills) && liveFireDrills.length > 0) {
+      setDrills(liveFireDrills);
+    } else {
+      setDrills(fallbackDrills);
+    }
+  }, [liveFireDrills]);
+
+  const latestDrill = drills[0] || fallbackDrills[0];
+
+  useEffect(() => {
+    setDrillComment(latestDrill?.customerComments || "");
+    setDrillCommentMessage("");
+  }, [latestDrill?.id]);
+
+  const handleSaveDrillComment = async () => {
+    if (!latestDrill?.id) {
+      alert("Cannot save feedback for this drill because no record is available.");
+      return;
+    }
+
+    if (!drillComment.trim()) {
+      setDrillCommentMessage("Please enter feedback before saving.");
+      return;
+    }
+
+    setIsSavingDrillComment(true);
+    setDrillCommentMessage("");
+
+    try {
+      const submittedAt = new Date();
+      const feedbackEntry = {
+        message: drillComment.trim(),
+        submittedAt,
+        customerId: user?.uid || user?.authUid || "",
+        customerName: user?.fullName || user?.name || user?.email || "Customer"
+      };
+
+      await addFireDrillCustomerFeedback(latestDrill.id, drillComment, user);
+
+      setDrills((currentDrills) =>
+        currentDrills.map((drill) =>
+          drill.id === latestDrill.id
+            ? {
+                ...drill,
+                customerComments: feedbackEntry.message,
+                customerFeedbackUpdatedAt: submittedAt,
+                customerFeedbackHistory: [...(drill.customerFeedbackHistory || []), feedbackEntry]
+              }
+            : drill
+        )
+      );
+
+      setDrillCommentMessage("Feedback saved successfully.");
+    } catch (error) {
+      setDrillCommentMessage("Unable to save feedback. Please try again.");
+      console.error(error);
+    } finally {
+      setIsSavingDrillComment(false);
+    }
+  };
+
+  const handleDownloadLatestDrillPdf = () => {
+    if (!latestDrill) {
+      alert("No fire drill report is selected.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+
+    try {
+      const pdf = buildFireDrillPdf(latestDrill);
+      const blob = new Blob([pdf], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${latestDrill.id || "annual-fire-drill-report"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export fire drill report to PDF", error);
+      alert("Unable to download the fire drill report PDF right now.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
+      {/* Top Banner */}
       <div className="dashboard-card" style={{ marginBottom: "24px" }}>
-        <div className="card-header-row" style={{ justifyContent: "space-between", marginBottom: "20px" }}>
+        <div className="card-header-row" style={{ justifyContent: "space-between", marginBottom: "12px" }}>
           <div>
-            <h4 className="page-subtitle">
-              Review your building's yearly compliance summary, inspection outcomes, and key fire safety highlights in one place.
+            <h2 className="section-title" style={{ fontSize: "1.5rem", marginBottom: "4px" }}>Annual Building Reports</h2>
+            <h4 className="page-subtitle" style={{ margin: 0 }}>
+              Review your yearly compliance summary, inspection outcomes, and annual fire drill exercise records all in one place.
             </h4>
           </div>
           <div className="header-actions">
@@ -246,57 +351,53 @@ const AnnualReports = () => {
               href="/FSM_Annual_Report_Pioneer_Tech_Hub_2026.docx"
               download="FSM_Annual_Report_Pioneer_Tech_Hub_2026.docx"
             >
-              Download Latest Report
+              Download Annual Report
             </a>
           </div>
         </div>
       </div>
 
+      {/* Metric Cards */}
       <div className="summary-grid compact-summary-grid">
         <div className="summary-card">
           <div className="card-top">
-            <div className="card-icon" style={{ backgroundColor: "#ecfdf5", color: "#047857" }}>
-              📊
-            </div>
+            <div className="card-icon" style={{ backgroundColor: "#ecfdf5", color: "#047857" }}>📊</div>
             <div className="card-label">Total Annual Reports</div>
           </div>
-          <div className="card-value">{totalReports}</div>
+          <div className="card-value">{reports.length}</div>
         </div>
         <div className="summary-card">
           <div className="card-top">
-            <div className="card-icon" style={{ backgroundColor: "#eff6ff", color: "#2563eb" }}>
-              ✅
-            </div>
-            <div className="card-label">Submitted</div>
-          </div>
-          <div className="card-value">{submittedCount}</div>
-        </div>
-        <div className="summary-card">
-          <div className="card-top">
-            <div className="card-icon" style={{ backgroundColor: "#fef3c7", color: "#b45309" }}>
-              👀
-            </div>
-            <div className="card-label">Reviewed</div>
-          </div>
-          <div className="card-value">{reviewedCount}</div>
-        </div>
-        <div className="summary-card">
-          <div className="card-top">
-            <div className="card-icon" style={{ backgroundColor: "#fce7f3", color: "#be185d" }}>
-              🏢
-            </div>
+            <div className="card-icon" style={{ backgroundColor: "#eff6ff", color: "#2563eb" }}>🏢</div>
             <div className="card-label">Latest Period</div>
           </div>
           <div className="card-value">{latestReport?.period || "—"}</div>
         </div>
+        <div className="summary-card">
+          <div className="card-top">
+            <div className="card-icon" style={{ backgroundColor: "#fef3c7", color: "#b45309" }}>🚒</div>
+            <div className="card-label">Annual Drill Status</div>
+          </div>
+          <div className="card-value">{latestDrill?.status || "—"}</div>
+        </div>
+        <div className="summary-card">
+          <div className="card-top">
+            <div className="card-icon" style={{ backgroundColor: "#fce7f3", color: "#be185d" }}>⏱️</div>
+            <div className="card-label">Latest Evacuation Time</div>
+          </div>
+          <div className="card-value">{latestDrill?.totalEvacuationTime || "—"}</div>
+        </div>
       </div>
 
+      {/* Main Grid Content */}
       <div className="dashboard-grid">
         <div className="content-left">
-          <div className="dashboard-card">
+          
+          {/* SECTION 1: ANNUAL COMPLIANCE REPORT */}
+          <div className="dashboard-card" style={{ marginBottom: "24px" }}>
             <div className="card-header-row">
               <div>
-                <h2 className="section-title">Latest Annual Report</h2>
+                <h2 className="section-title">Annual Compliance Summary</h2>
                 <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)" }}>
                   {latestReport?.reportTitle || "Annual report overview"}
                 </p>
@@ -307,15 +408,15 @@ const AnnualReports = () => {
             </div>
 
             <div className="customer-report-summary">
-              <div className="customer-report-summary-grid">
+              <div className="customer-report-summary-grid" style={{ marginBottom: "16px" }}>
                 <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
-                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Generated</div>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Generated Date</div>
                   <strong style={{ display: "block", marginTop: "6px" }}>{formatDate(latestReport?.generatedDate)}</strong>
                 </div>
               </div>
 
               <div style={{ border: "1px solid #e5e7eb", borderRadius: "16px", padding: "16px", background: "#ffffff" }}>
-                <div style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Report Highlights</div>
+                <div style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Annual Highlights</div>
                 <ul style={{ margin: 0, paddingLeft: "18px", color: "#334155", lineHeight: "1.7" }}>
                   <li>Overall fire safety compliance remained strong for the reporting year.</li>
                   <li>Inspection results, drill records, and issue resolutions were consolidated into a single view.</li>
@@ -324,18 +425,18 @@ const AnnualReports = () => {
               </div>
 
               <div className="form-field" style={{ marginTop: "20px" }}>
-                <label className="form-label">Your Remarks / Feedback</label>
+                <label className="form-label">Annual Compliance Feedback</label>
                 <textarea
                   className="form-input"
-                  rows={5}
+                  rows={4}
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
-                  placeholder="Add comments or feedback for this annual report..."
-                  style={{ minHeight: "clamp(120px, 20vw, 140px)" }}
+                  placeholder="Add comments or feedback for this annual compliance report..."
+                  style={{ minHeight: "100px" }}
                 />
                 <div className="responsive-form-actions">
                   <small className="overflow-safe" style={{ color: "#64748b" }}>
-                    This feedback is saved to the selected annual report.
+                    Saved to the annual compliance record.
                   </small>
                   <button
                     type="button"
@@ -343,7 +444,7 @@ const AnnualReports = () => {
                     onClick={handleSaveRemarks}
                     disabled={isSavingRemarks || !latestReport?.id}
                   >
-                    {isSavingRemarks ? "Saving..." : "Save Feedback"}
+                    {isSavingRemarks ? "Saving..." : "Save Compliance Feedback"}
                   </button>
                 </div>
                 {remarksSavedMessage && (
@@ -356,10 +457,80 @@ const AnnualReports = () => {
             </div>
           </div>
 
+          {/* SECTION 2: ANNUAL FIRE DRILL REPORT */}
+          <div className="dashboard-card" style={{ marginBottom: "24px" }}>
+            <div className="card-header-row" style={{ alignItems: "flex-start" }}>
+              <div>
+                <h2 className="section-title">Annual Fire Drill Summary</h2>
+                <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "clamp(0.8125rem, 1.2vw, 0.875rem)" }}>
+                  {latestDrill?.drillType || "Yearly Evacuation Drill"}
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <span className="status-badge" style={getStatusStyle(latestDrill?.status)}>
+                  {latestDrill?.status || "Pending"}
+                </span>
+              </div>
+            </div>
+
+            <div className="customer-report-summary" style={{ marginTop: "16px" }}>
+              <div className="customer-report-summary-grid" style={{ marginBottom: "16px" }}>
+                <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Building</div>
+                  <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.buildingName || "—"}</strong>
+                </div>
+                <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px" }}>
+                  <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Drill Date</div>
+                  <strong style={{ display: "block", marginTop: "6px" }}>
+                    {formatDate(latestDrill?.actualDate || latestDrill?.drillDate)}
+                  </strong>
+                </div>
+              </div>
+
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: "16px", padding: "16px", background: "#ffffff", marginBottom: "16px" }}>
+                <div style={{ fontSize: "clamp(0.75rem, 1.1vw, 0.8125rem)", fontWeight: "700", color: "#16a34a", marginBottom: "10px" }}>Drill Observations</div>
+                <p style={{ margin: 0, color: "#334155", lineHeight: "1.7" }}>
+                  {latestDrill?.observations || "No observations recorded for this drill yet."}
+                </p>
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">Annual Drill Feedback</label>
+                <textarea
+                  className="form-input"
+                  rows={4}
+                  value={drillComment}
+                  onChange={(event) => setDrillComment(event.target.value)}
+                  placeholder="Add comments or feedback for this annual fire drill exercise..."
+                  style={{ minHeight: "100px" }}
+                />
+                <div className="responsive-form-actions">
+                  <small className="overflow-safe" style={{ color: "#64748b" }}>
+                    Saved to the annual drill exercise record.
+                  </small>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={handleSaveDrillComment}
+                    disabled={isSavingDrillComment || !latestDrill?.id}
+                  >
+                    {isSavingDrillComment ? "Saving..." : "Save Drill Feedback"}
+                  </button>
+                </div>
+                {drillCommentMessage && (
+                  <p style={{ margin: "10px 0 0", color: drillCommentMessage.includes("Unable") ? "#b91c1c" : "#047857" }}>
+                    {drillCommentMessage}
+                  </p>
+                )}
+                <FeedbackHistory record={latestDrill} />
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 3: HISTORICAL ANNUAL RECORDS */}
           <div className="dashboard-card">
             <div className="card-header-row">
-              <h2 className="section-title">Annual Report History</h2>
-              <button type="button" className="view-all-link">Export All</button>
+              <h2 className="section-title">Past Annual Reports</h2>
             </div>
 
             <div className="issues-search-controls report-history-filters">
@@ -369,9 +540,9 @@ const AnnualReports = () => {
                   <input
                     type="text"
                     className="search-input"
-                    placeholder="Search reports..."
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search annual reports..."
+                    value={annualSearch}
+                    onChange={(event) => setAnnualSearch(event.target.value)}
                   />
                 </div>
               </div>
@@ -387,15 +558,12 @@ const AnnualReports = () => {
               </div>
             </div>
 
-            {loading ? (
+            {reportsLoading ? (
               <div style={{ color: "#64748b", padding: "12px 0" }}>Loading annual reports...</div>
             ) : filteredReports.length === 0 ? (
-              <div style={{ color: "#64748b", padding: "12px 0" }}>No annual reports found.</div>
+              <div style={{ color: "#64748b", padding: "12px 0" }}>No past annual reports found.</div>
             ) : (
-              <ResponsiveTableRegion
-                label="Annual reports"
-                className="fire-drill-history-table-wrapper responsive-table-region--cards"
-              >
+              <ResponsiveTableRegion label="Annual reports" className="fire-drill-history-table-wrapper responsive-table-region--cards">
                 <table className="dashboard-table responsive-card-table">
                   <thead>
                     <tr>
@@ -427,23 +595,24 @@ const AnnualReports = () => {
           </div>
         </div>
 
+
         <div className="content-right">
           <div className="dashboard-card">
             <div className="card-header-row">
-              <h2 className="section-title">Report Summary</h2>
+              <h2 className="section-title">Annual Executive Summary</h2>
             </div>
             <div style={{ display: "grid", gap: "12px" }}>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Current Focus</div>
-                <strong style={{ display: "block", marginTop: "6px" }}>Fire safety compliance and corrective action tracking</strong>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Annual Focus</div>
+                <strong style={{ display: "block", marginTop: "6px" }}>Yearly compliance audit & evacuation readiness</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Key Observation</div>
-                <strong style={{ display: "block", marginTop: "6px" }}>No critical unresolved issues were carried forward into the latest report.</strong>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Drill Performance</div>
+                <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.performanceStatus || "Pending review"} ({latestDrill?.totalEvacuationTime || "—"})</strong>
               </div>
               <div style={{ padding: "14px", borderRadius: "14px", background: "#f8fafc" }}>
-                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Next Review</div>
-                <strong style={{ display: "block", marginTop: "6px" }}>Quarterly updates will be shared with your facility contact.</strong>
+                <div style={{ color: "#64748b", fontSize: "clamp(0.75rem, 1vw, 0.8125rem)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Action Items</div>
+                <strong style={{ display: "block", marginTop: "6px" }}>{latestDrill?.recommendations || "No unresolved actions."}</strong>
               </div>
             </div>
           </div>
@@ -453,9 +622,9 @@ const AnnualReports = () => {
               <h2 className="section-title">Need Help?</h2>
             </div>
             <p style={{ margin: "0 0 12px", color: "#64748b", lineHeight: "1.6" }}>
-              If you need a formal copy or want a detailed explanation of any section, contact the fire safety team.
+              If you require clarification on any annual report findings or drill exercise evaluations, contact the safety team.
             </p>
-            <Link to="/feedbacks" className="secondary-btn" style={{ width: "100%" }}>
+            <Link to="/feedbacks" className="secondary-btn" style={{ width: "100%", textAlign: "center" }}>
               Contact Support
             </Link>
           </div>
