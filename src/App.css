@@ -1505,6 +1505,31 @@ button {
   color: #b91c1c;
 }
 
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid #009966;
+  background-color: #ecfdf5;
+  color: #047857;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.link-button:hover {
+  background-color: #009966;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.link-button:active {
+  transform: translateY(0);
+}
+
 .inspection-grid {
   display: grid;
   grid-template-columns: 1.75fr 0.95fr;

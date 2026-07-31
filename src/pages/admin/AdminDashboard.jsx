@@ -83,7 +83,11 @@ const AdminDashboard = () => {
 
   // ── Computed stats ──
   const fsmCount        = useMemo(() => users.filter((u) => u.role === ROLES.FSM).length, [users]);
-  const assignedCount   = useMemo(() => buildings.filter((b) => b.assignedFsmId).length, [buildings]);
+  const fsmIds          = useMemo(() => new Set(users.filter((u) => u.role === ROLES.FSM).map((u) => u.uid)), [users]);
+  // Only count buildings whose assignedFsmId still points to a current FSM user — an
+  // assignedFsmId can be left over after that user is deleted or their role changes,
+  // and the Buildings page already treats that case as "Unassigned" in its dropdown.
+  const assignedCount   = useMemo(() => buildings.filter((b) => b.assignedFsmId && fsmIds.has(b.assignedFsmId)).length, [buildings, fsmIds]);
 
   const openIssues      = useMemo(() => issues.filter((i) => String(i.status || "").toLowerCase() === "open"),        [issues]);
   const inProgressIssues= useMemo(() => issues.filter((i) => String(i.status || "").toLowerCase() === "in progress"), [issues]);
@@ -135,9 +139,9 @@ const AdminDashboard = () => {
   const pDash = totalIssues > 0 ? (pending      / totalIssues) * CIRCUMFERENCE : 0;
   const nDash = totalIssues > 0 ? (nonCompliant / totalIssues) * CIRCUMFERENCE : 0;
 
-  const o1 = CIRCUMFERENCE / 4;
-  const o2 = o1 - cDash;
-  const o3 = o2 - pDash;
+  const o1 = 0;
+  const o2 = -cDash;
+  const o3 = -(cDash + pDash);
 
   const compliantPct = totalIssues > 0 ? Math.round((compliant / totalIssues) * 100) : null;
 
@@ -322,7 +326,8 @@ const AdminDashboard = () => {
                         stroke="#10b981" strokeWidth="16"
                         strokeDasharray={`${cDash} ${CIRCUMFERENCE}`}
                         strokeDashoffset={o1}
-                        strokeLinecap="round"
+                        strokeLinecap="butt"
+                        transform="rotate(-90 90 90)"
                       />
                     )}
                     {pDash > 0 && (
@@ -331,7 +336,8 @@ const AdminDashboard = () => {
                         stroke="#fbbf24" strokeWidth="16"
                         strokeDasharray={`${pDash} ${CIRCUMFERENCE}`}
                         strokeDashoffset={o2}
-                        strokeLinecap="round"
+                        strokeLinecap="butt"
+                        transform="rotate(-90 90 90)"
                       />
                     )}
                     {nDash > 0 && (
@@ -340,7 +346,8 @@ const AdminDashboard = () => {
                         stroke="#ef4444" strokeWidth="16"
                         strokeDasharray={`${nDash} ${CIRCUMFERENCE}`}
                         strokeDashoffset={o3}
-                        strokeLinecap="round"
+                        strokeLinecap="butt"
+                        transform="rotate(-90 90 90)"
                       />
                     )}
                   </>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Toaster } from 'react-hot-toast';
 import './App.css';
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from './context/AuthContext';
@@ -64,6 +65,7 @@ function App() {
   return (
     <AuthProvider>
       <div className="App">
+        <Toaster position="top-right" />
         <AppContent />
       </div>
     </AuthProvider>

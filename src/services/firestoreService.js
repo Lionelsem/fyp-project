@@ -37,7 +37,7 @@ export const deleteUser = async (uid) => {
 
 // Buildings
 export const addBuilding = async (data) => {
-  return await addDoc(collection(db, COLLECTION_NAMES.BUILDINGS), {
+  return await addDoc(collection(db, COLLECTION_NAMES.BUILDINGS), removeUndefinedFields({
     buildingId: data.buildingId,
     buildingName: data.buildingName || data.building_name,
     building_name: data.building_name || data.buildingName,
@@ -50,7 +50,7 @@ export const addBuilding = async (data) => {
     customerId: data.customerId || "",
     status: data.status || STATUS.ACTIVE,
     createdAt: serverTimestamp()
-  });
+  }));
 };
 
 export const getBuildings = async () => {
